@@ -1,4 +1,5 @@
 context/
+.wails
 .DS_Store
 .task
 bin
