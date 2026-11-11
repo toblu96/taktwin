@@ -8,7 +8,11 @@
 #
 # Before the tag exists, it previews the notes of the commits not released yet.
 set -eu
-tag=${1:?usage: scripts/release-notes.sh v0.2.0}
+if [ $# -ne 1 ]; then
+  echo "usage: scripts/release-notes.sh <tag>, such as scripts/release-notes.sh v0.2.0" >&2
+  exit 2
+fi
+tag=$1
 case "$tag" in v*) ;; *) tag=v$tag ;; esac
 version=${tag#v}
 repo=${GITHUB_REPOSITORY:-toblu96/taktwin}
