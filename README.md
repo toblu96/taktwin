@@ -85,6 +85,7 @@ A project lives in your folder under `programs/<station>/<plc>/`, one `.st` file
 | `st/` | Structured Text compiler and runtime, a Go module of its own with no dependencies. See [st/README.md](st/README.md) |
 | `internal/plcprog` | A PLC's ST project in your folder, and the soft PLC that runs it behind an OPC UA server |
 | `internal/simapp` | Wails services over the engine, the builder and the library |
+| `internal/version` | The app's version; `scripts/set-version.sh` changes it with the build files |
 | `frontend/src/viewer` | Renders any station in plain three.js |
 
 The app has three pages. **Simulation** runs the station with its PLC. **Builder** puts stations together. **Library** browses the collections and previews any entry on its own engine, without a PLC.
@@ -93,6 +94,19 @@ The app has three pages. **Simulation** runs the station with its PLC. **Builder
 
 - **No third-party models or course material.** Geometry is built from functional values such as positions and strokes. Never add, convert or trace meshes, textures or logos of a manufacturer. Stations of a particular training system live in a collection of their own, outside this repository.
 - **Keep `context/` out of git.**
+
+## Contributing and releases
+
+- **Commits and pull request titles** follow [Conventional Commits](https://www.conventionalcommits.org/): `feat(builder): …`, `fix: …`, `docs: …`, `refactor: …`, `test: …`, `ci: …`, `build: …`, `chore: …`. Pull requests are squash-merged with their title, which a check enforces, and the changelog of each release is made from them by [git-cliff](https://git-cliff.org) (`cliff.toml`).
+- **Branches** are named like the change: `feat/…`, `fix/…`, `docs/…`, `ci/…`, `chore/…`.
+- **Versions** follow [semantic versioning](https://semver.org); while it is 0.x, a minor version may change the file format or behaviour. `internal/version` holds the version, and a test keeps the build files in step with it.
+- **To release**, run `scripts/set-version.sh 0.2.0`, commit that as `chore(release): v0.2.0` on `main`, and push the tag:
+
+  ```sh
+  git tag -m "Taktwin v0.2.0" v0.2.0 && git push origin v0.2.0
+  ```
+
+  The release workflow tests, builds the Windows installer and the macOS app, and publishes them with `SHA256SUMS` and the changelog. A tag such as `v0.2.0-beta.1` makes a pre-release.
 
 ## License
 

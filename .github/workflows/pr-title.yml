@@ -1,0 +1,19 @@
+name: pr-title
+
+# Pull requests are squash-merged with their title as the commit message, which the changelog
+# of a release is made from, so the title follows Conventional Commits, such as
+# "feat(builder): stands side by side" or "fix: small cartons are held".
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  conventional:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
