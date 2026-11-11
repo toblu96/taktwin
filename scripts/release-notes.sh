@@ -42,4 +42,5 @@ fi
 
 if command -v git-cliff >/dev/null 2>&1; then cliff=git-cliff; else cliff="npx --yes git-cliff@2"; fi
 # shellcheck disable=SC2086
-$cliff --config cliff.toml --strip header $unreleased $range
+# Without the version's own heading, which the release's title already says.
+$cliff --config cliff.toml --strip header $unreleased $range | sed '/^## /d' | cat -s
