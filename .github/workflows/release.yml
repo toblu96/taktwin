@@ -1,0 +1,129 @@
+name: release
+
+# A tag v0.2.0 on a commit whose internal/version says 0.2.0 builds the app for Windows and
+# macOS and publishes a GitHub release with the installers, SHA256SUMS and a changelog made
+# from the conventional commits since the tag before. A tag with a pre-release, such as
+# v0.2.0-beta.1, makes a pre-release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          v=$(sed -n 's/^const Version = "\(.*\)"$/\1/p' internal/version/version.go)
+          if [ "v$v" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match internal/version ($v): run scripts/set-version.sh and tag that commit"
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+  test:
+    uses: ./.github/workflows/test.yml
+
+  windows:
+    needs: [version, test]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      # The CLI of the same Wails version as the app's go.mod.
+      - shell: bash
+        run: go install "github.com/wailsapp/wails/v3/cmd/wails3@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+      - name: NSIS
+        shell: pwsh
+        run: |
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) { choco install nsis -y --no-progress }
+          "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      # Installed per user, so that it installs and updates without administrator rights.
+      - run: wails3 task windows:package INSTALL_SCOPE=user
+      - shell: bash
+        run: |
+          v=${{ needs.version.outputs.version }}
+          mkdir dist
+          # Where the installer lands depends on the project's NSIS script: bin/ here, build/windows/nsis/ in the Wails docs.
+          installer=$(ls bin/*installer*.exe build/windows/nsis/*installer*.exe 2>/dev/null | head -1)
+          test -n "$installer" || { echo "::error::no installer was built"; exit 1; }
+          cp "$installer" "dist/Taktwin-$v-windows-x64-setup.exe"
+          cp bin/taktwin.exe "dist/Taktwin-$v-windows-x64.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*
+
+  macos:
+    needs: [version, test]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      # The CLI of the same Wails version as the app's go.mod.
+      - shell: bash
+        run: go install "github.com/wailsapp/wails/v3/cmd/wails3@$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+      # One app for Apple silicon and Intel, signed ad hoc only.
+      - run: wails3 task darwin:package:universal
+      - run: |
+          v=${{ needs.version.outputs.version }}
+          mkdir -p dist dmg
+          ditto bin/taktwin.app dmg/Taktwin.app
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname "Taktwin $v" -srcfolder dmg -ov -format UDZO "dist/Taktwin-$v-macos-universal.dmg"
+          ditto -c -k --keepParent dmg/Taktwin.app "dist/Taktwin-$v-macos-universal.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*
+
+  release:
+    needs: [version, windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - run: cd dist && sha256sum -- * > SHA256SUMS && cat SHA256SUMS
+      - uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: CHANGES.md
+      - run: |
+          cat .github/release-notes.md >> CHANGES.md
+          pre=""
+          case "$GITHUB_REF_NAME" in *-*) pre="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" dist/* --title "Taktwin $GITHUB_REF_NAME" --notes-file CHANGES.md $pre
+        env:
+          GH_TOKEN: ${{ github.token }}
