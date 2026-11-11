@@ -25,6 +25,11 @@ updates:
     directory: /frontend
     schedule:
       interval: weekly
+    ignore:
+      # vue-tsc, which type-checks the Vue files, does not run on TypeScript 7 (the native
+      # compiler) yet: it needs TypeScript's JavaScript API. Take TypeScript 7 once it does.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
     commit-message:
       prefix: chore
       include: scope
