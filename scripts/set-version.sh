@@ -2,7 +2,11 @@
 # Sets the app's version, such as 0.2.0, in internal/version and the build files. Commit it as
 # "chore(release): v0.2.0", then tag that commit v0.2.0 to release it.
 set -eu
-v=${1:?usage: scripts/set-version.sh 0.2.0}
+if [ $# -ne 1 ]; then
+  echo "usage: scripts/set-version.sh <version>, such as scripts/set-version.sh 0.2.0" >&2
+  exit 2
+fi
+v=$1
 v=${v#v}
 echo "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "$v is no semantic version" >&2; exit 1; }
 cd "$(dirname "$0")/.."
