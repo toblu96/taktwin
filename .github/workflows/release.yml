@@ -20,7 +20,7 @@ jobs:
     outputs:
       version: ${{ steps.v.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: v
         run: |
           v=$(sed -n 's/^const Version = "\(.*\)"$/\1/p' internal/version/version.go)
@@ -37,11 +37,11 @@ jobs:
     needs: [version, test]
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -61,11 +61,15 @@ jobs:
           v=${{ needs.version.outputs.version }}
           mkdir dist
           # Where the installer lands depends on the project's NSIS script: bin/ here, build/windows/nsis/ in the Wails docs.
-          installer=$(ls bin/*installer*.exe build/windows/nsis/*installer*.exe 2>/dev/null | head -1)
-          test -n "$installer" || { echo "::error::no installer was built"; exit 1; }
+          installer=""
+          for f in bin/*installer*.exe build/windows/nsis/*installer*.exe; do
+            if [ -f "$f" ]; then installer=$f; break; fi
+          done
+          test -n "$installer" || { echo "::error::no installer was built"; ls bin build/windows/nsis; exit 1; }
+          echo "installer: $installer"
           cp "$installer" "dist/Taktwin-$v-windows-x64-setup.exe"
           cp bin/taktwin.exe "dist/Taktwin-$v-windows-x64.exe"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: dist/*
@@ -74,11 +78,11 @@ jobs:
     needs: [version, test]
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -95,7 +99,7 @@ jobs:
           ln -s /Applications dmg/Applications
           hdiutil create -volname "Taktwin $v" -srcfolder dmg -ov -format UDZO "dist/Taktwin-$v-macos-universal.dmg"
           ditto -c -k --keepParent dmg/Taktwin.app "dist/Taktwin-$v-macos-universal.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos
           path: dist/*
@@ -106,10 +110,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
