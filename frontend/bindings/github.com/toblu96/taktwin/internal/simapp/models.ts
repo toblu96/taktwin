@@ -303,6 +303,65 @@ export interface ProgramStatus {
 }
 
 /**
+ * UpdateRelease is a newer release than the running one.
+ */
+export interface UpdateRelease {
+    "version": string;
+    "name": string;
+
+    /**
+     * Notes are the release notes, in Markdown.
+     */
+    "notes": string;
+
+    /**
+     * URL is the release's page.
+     */
+    "url": string;
+}
+
+/**
+ * UpdateStatus is what Settings shows about updates.
+ */
+export interface UpdateStatus {
+    /**
+     * Version is the running app's version.
+     */
+    "version": string;
+
+    /**
+     * Installable says whether the app can replace itself: only a release build can.
+     */
+    "installable": boolean;
+
+    /**
+     * AutoCheck says whether the app looks for an update when it starts.
+     */
+    "autoCheck": boolean;
+
+    /**
+     * State is the updater's: idle, checking, up-to-date, available, downloading, verifying,
+     * installing, ready or error.
+     */
+    "state": string;
+
+    /**
+     * Latest is the newer release, once a check found one.
+     */
+    "latest"?: UpdateRelease | null;
+
+    /**
+     * Ready says that the update is downloaded and verified, and takes effect on a restart.
+     */
+    "ready": boolean;
+
+    /**
+     * Problem is what went wrong last.
+     */
+    "problem"?: string;
+}
+
+/**
  * WiringBox is a module that wiring goes through. Kind is plc, interface, terminal or console.
  */
 export interface WiringBox {

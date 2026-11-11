@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { LibraryService, SettingsService } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { CollectionInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import { reloadCollections, reloadFiles } from '../sim'
+import { checkForUpdate, installUpdate, openRelease, progress, restartForUpdate, setAutoCheck, update, updateFailed, updating } from '../update'
+
+// How far the download is, in percent, or null before its size is known.
+const percent = computed(() => (progress.value && progress.value.total > 0 ? Math.round((progress.value.written / progress.value.total) * 100) : null))
 
 const folder = ref('')
 const isDefault = ref(true)
@@ -116,6 +120,37 @@ async function reload() {
   <main class="settings">
     <h2>Settings</h2>
     <section class="block">
+      <h3 class="section-title">Updates</h3>
+      <p class="hint">
+        You run Taktwin <span class="mono">{{ update?.version ?? '…' }}</span>.<template v-if="update && !update.installable">
+          It runs from the sources, so it checks for updates but does not install them.</template
+        >
+      </p>
+      <div v-if="update?.ready" class="folder">
+        <strong>Taktwin {{ update.latest?.version }} is installed.</strong>
+        <button class="primary" @click="restartForUpdate">Restart now</button>
+        <span class="hint">It takes effect when Taktwin starts again.</span>
+      </div>
+      <div v-else-if="update?.latest" class="folder">
+        <strong>Taktwin {{ update.latest.version }} is available.</strong>
+        <button class="primary" :disabled="updating || !update.installable" @click="installUpdate">Download and install</button>
+        <button @click="openRelease(update.latest.url)">What's new</button>
+      </div>
+      <div v-else class="folder">
+        <button :disabled="updating" @click="checkForUpdate">{{ updating ? 'Checking…' : 'Check for updates' }}</button>
+        <span v-if="update?.state === 'up-to-date'" class="hint">Taktwin is up to date.</span>
+      </div>
+      <div v-if="progress" class="progress" role="progressbar" :aria-valuenow="percent ?? undefined" aria-valuemin="0" aria-valuemax="100">
+        <div class="bar" :style="{ width: (percent ?? 5) + '%' }"></div>
+        <span class="hint">{{ percent === null ? 'Downloading…' : `Downloading… ${percent} %` }}</span>
+      </div>
+      <label class="check">
+        <input type="checkbox" :checked="update?.autoCheck ?? true" @change="setAutoCheck(($event.target as HTMLInputElement).checked)" />
+        Check for updates when Taktwin starts
+      </label>
+      <p v-if="updateFailed || update?.problem" class="problem">{{ updateFailed || update?.problem }}</p>
+    </section>
+    <section class="block">
       <h3 class="section-title">Collections</h3>
       <p class="hint">
         Stations, modules and parts come in collections. The built-in one can be hidden; an imported <span class="mono">.taktwin</span> collection is kept in your folder, and
@@ -186,6 +221,40 @@ h2 {
 .block {
   border-top: 1px solid var(--line);
   padding-top: 14px;
+}
+
+.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.progress {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  margin: 0 0 10px;
+}
+
+.progress .bar {
+  background: var(--accent);
+  border-radius: 3px;
+  height: 6px;
+  max-width: 240px;
+  transition: width 0.2s;
+}
+
+.progress .hint {
+  margin: 0;
+}
+
+.check {
+  align-items: center;
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  margin: 4px 0 10px;
 }
 
 .hint {

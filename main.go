@@ -35,6 +35,7 @@ func main() {
 			application.NewService(&simapp.SettingsService{}),
 			application.NewService(simapp.NewBuilderService()),
 			application.NewService(simapp.NewProgramService(service)),
+			application.NewService(simapp.NewUpdateService()),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),

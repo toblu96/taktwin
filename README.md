@@ -55,6 +55,10 @@ The station is the OPC UA client, and the PLC is the server. Choose this on the 
 
 The PLC must offer its variable list over OPC UA, named as the station's PLC module says in its `addresses`: for the reference collection's cabinet, the list `Bits` with `IB0Bit00` … for inputs and `QB0Bit00` … for outputs. In CODESYS, add a Symbol Configuration with OPC UA support to the application, tick the list, and download. Then connect to `opc.tcp://<host>:4840` with no security and an anonymous login. A PLC over OPC UA runs on the wall clock, so the simulation stays at 1× with it.
 
+### Updating
+
+Taktwin looks for a new version when it starts; **Settings → Updates** shows it, installs it and restarts. Updates come from the GitHub releases and are checked against their `SHA256SUMS`. Only a release build replaces itself: one run from the sources only checks.
+
 ### Programming the soft PLC
 
 Each PLC can also run a Structured Text program written in the app. In the PLC's panel, **Edit program** opens the editor over the 3D view, and **Open in window** opens it beside the simulation.
