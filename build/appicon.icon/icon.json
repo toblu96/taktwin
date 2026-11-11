@@ -1,0 +1,34 @@
+{
+  "fill" : {
+    "solid" : "srgb:0.05490,0.20392,0.21961,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "taktwin_mark.svg",
+          "name" : "taktwin_mark",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}

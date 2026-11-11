@@ -1,0 +1,307 @@
+{
+  "format": 2,
+  "id": "euro-pallet",
+  "name": "Flat pallet 1200 x 800",
+  "model": [
+    {
+      "position": [0, -350, 11],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1200,
+        "height": 100,
+        "depth": 22
+      },
+      "material": "palletWood"
+    },
+    {
+      "position": [0, 0, 11],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1200,
+        "height": 145,
+        "depth": 22
+      },
+      "material": "palletWood"
+    },
+    {
+      "position": [0, 350, 11],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1200,
+        "height": 100,
+        "depth": 22
+      },
+      "material": "palletWood"
+    },
+    {
+      "position": [-527.5, -350, 61],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 145,
+        "height": 100,
+        "depth": 78
+      },
+      "material": "palletBlock"
+    },
+    {
+      "position": [-527.5, 0, 61],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 145,
+        "height": 145,
+        "depth": 78
+      },
+      "material": "palletBlock"
+    },
+    {
+      "position": [-527.5, 350, 61],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 145,
+        "height": 100,
+        "depth": 78
+      },
+      "material": "palletBlock"
+    },
+    {
+      "position": [0, -350, 61],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 145,
+        "height": 100,
+        "depth": 78
+      },
+      "material": "palletBlock"
+    },
+    {
+      "position": [0, 0, 61],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 145,
+        "height": 145,
+        "depth": 78
+      },
+      "material": "palletBlock"
+    },
+    {
+      "position": [0, 350, 61],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 145,
+        "height": 100,
+        "depth": 78
+      },
+      "material": "palletBlock"
+    },
+    {
+      "position": [527.5, -350, 61],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 145,
+        "height": 100,
+        "depth": 78
+      },
+      "material": "palletBlock"
+    },
+    {
+      "position": [527.5, 0, 61],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 145,
+        "height": 145,
+        "depth": 78
+      },
+      "material": "palletBlock"
+    },
+    {
+      "position": [527.5, 350, 61],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 145,
+        "height": 100,
+        "depth": 78
+      },
+      "material": "palletBlock"
+    },
+    {
+      "position": [-527.5, 0, 111],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 145,
+        "height": 800,
+        "depth": 22
+      },
+      "material": "palletWood"
+    },
+    {
+      "position": [0, 0, 111],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 145,
+        "height": 800,
+        "depth": 22
+      },
+      "material": "palletWood"
+    },
+    {
+      "position": [527.5, 0, 111],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 145,
+        "height": 800,
+        "depth": 22
+      },
+      "material": "palletWood"
+    },
+    {
+      "position": [0, -327.5, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1200,
+        "height": 145,
+        "depth": 22
+      },
+      "material": "palletWood"
+    },
+    {
+      "position": [-599.4, -327.5, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1.4,
+        "height": 143,
+        "depth": 21
+      },
+      "material": "palletEdge"
+    },
+    {
+      "position": [599.4, -327.5, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1.4,
+        "height": 143,
+        "depth": 21
+      },
+      "material": "palletEdge"
+    },
+    {
+      "position": [0, -152.5, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1200,
+        "height": 100,
+        "depth": 22
+      },
+      "material": "palletWood"
+    },
+    {
+      "position": [-599.4, -152.5, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1.4,
+        "height": 98,
+        "depth": 21
+      },
+      "material": "palletEdge"
+    },
+    {
+      "position": [599.4, -152.5, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1.4,
+        "height": 98,
+        "depth": 21
+      },
+      "material": "palletEdge"
+    },
+    {
+      "position": [0, 0, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1200,
+        "height": 100,
+        "depth": 22
+      },
+      "material": "palletWood"
+    },
+    {
+      "position": [-599.4, 0, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1.4,
+        "height": 98,
+        "depth": 21
+      },
+      "material": "palletEdge"
+    },
+    {
+      "position": [599.4, 0, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1.4,
+        "height": 98,
+        "depth": 21
+      },
+      "material": "palletEdge"
+    },
+    {
+      "position": [0, 152.5, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1200,
+        "height": 100,
+        "depth": 22
+      },
+      "material": "palletWood"
+    },
+    {
+      "position": [-599.4, 152.5, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1.4,
+        "height": 98,
+        "depth": 21
+      },
+      "material": "palletEdge"
+    },
+    {
+      "position": [599.4, 152.5, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1.4,
+        "height": 98,
+        "depth": 21
+      },
+      "material": "palletEdge"
+    },
+    {
+      "position": [0, 327.5, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1200,
+        "height": 145,
+        "depth": 22
+      },
+      "material": "palletWood"
+    },
+    {
+      "position": [-599.4, 327.5, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1.4,
+        "height": 143,
+        "depth": 21
+      },
+      "material": "palletEdge"
+    },
+    {
+      "position": [599.4, 327.5, 133],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1.4,
+        "height": 143,
+        "depth": 21
+      },
+      "material": "palletEdge"
+    }
+  ]
+}

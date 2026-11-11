@@ -1,0 +1,14 @@
+{
+  "rubber": {
+    "type": "MeshLambertMaterial",
+    "color": "#24282b"
+  },
+  "slotDark": {
+    "type": "MeshLambertMaterial",
+    "color": "#16181b"
+  },
+  "terminalGray": {
+    "type": "MeshLambertMaterial",
+    "color": "#aeb3b6"
+  }
+}

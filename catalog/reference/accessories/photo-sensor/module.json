@@ -1,0 +1,219 @@
+{
+  "format": 2,
+  "id": "photo-sensor",
+  "version": 1,
+  "group": "Sensors",
+  "name": "Light barrier",
+  "description": "A retro-reflective light barrier: the sensor on one side of a conveyor sends its beam across to a reflector on the other side, and switches while something interrupts it. As a diffuse sensor it has no reflector and sees what reflects its light within its range, so that the other side stays free, as where pallets are pushed in. Its height above the frame is a setting.",
+  "parameters": [
+    {
+      "id": "reach",
+      "default": 1180
+    },
+    {
+      "id": "diffuse",
+      "default": false,
+      "label": "Diffuse, without reflector",
+      "kind": "build",
+      "description": "Sees what reflects its light within its range, instead of what interrupts its beam to a reflector on the other side."
+    },
+    {
+      "id": "height",
+      "default": 100,
+      "label": "Beam height",
+      "unit": "mm",
+      "kind": "build",
+      "description": "How high the beam runs above the edge of the frame it is screwed to.",
+      "min": 20,
+      "max": 400,
+      "step": 5
+    },
+    {
+      "id": "offDelay",
+      "default": 0
+    }
+  ],
+  "mounts": [
+    {
+      "id": "frame",
+      "type": "frame-side",
+      "runs": "level",
+      "when": "1 - diffuse",
+      "span": "reach",
+      "at": [0, 0, 0],
+      "screws": [
+        [0, 0, 0],
+        [0, "reach", 0]
+      ]
+    },
+    {
+      "id": "single",
+      "type": "frame-side",
+      "runs": "level",
+      "when": "diffuse",
+      "at": [0, 0, 0],
+      "screws": [[0, 0, 0]]
+    }
+  ],
+  "model": [
+    {
+      "position": [0, -3, "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 40,
+        "height": 6,
+        "depth": "height + 40"
+      },
+      "material": "steelZinc"
+    },
+    {
+      "name": "head",
+      "position": [0, -26, "height"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 22,
+        "height": 46,
+        "depth": 54
+      },
+      "material": "sensorBody"
+    },
+    {
+      "position": [0, -1.5, "height"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 16,
+        "height": 3,
+        "depth": 30
+      },
+      "material": "glassDark"
+    },
+    {
+      "name": "led",
+      "position": [0, -26, "height + 28"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 8,
+        "height": 10,
+        "depth": 2
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 7,
+        "from": [0, -50, "height - 18"],
+        "to": [0, -60, "height - 18"],
+        "radialSegments": 10
+      },
+      "material": "steelZinc"
+    },
+    {
+      "position": [0, "reach + 3", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 40,
+        "height": 6,
+        "depth": "height + 40"
+      },
+      "material": "steelZinc",
+      "when": "1 - diffuse"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 30,
+        "from": [0, "reach", "height"],
+        "to": [0, "reach - 8", "height"],
+        "radialSegments": 24
+      },
+      "material": "reflectorRed",
+      "when": "1 - diffuse"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 20,
+        "from": [0, "reach", "height"],
+        "to": [0, "reach - 8.2", "height"],
+        "radialSegments": 6
+      },
+      "material": "reflectorRed",
+      "when": "1 - diffuse"
+    },
+    {
+      "name": "beam",
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 2,
+        "from": [0, 0, "height"],
+        "to": [0, "reach", "height"],
+        "radialSegments": 6
+      },
+      "material": "reflectorRed",
+      "noPick": true
+    }
+  ],
+  "devices": [
+    {
+      "type": "sensor",
+      "id": "sensor",
+      "when": "1 - diffuse",
+      "detect": "beam",
+      "threshold": 50,
+      "origin": [0, 0, "height"],
+      "direction": [0, 1, 0],
+      "reach": "reach",
+      "offDelay": "offDelay"
+    },
+    {
+      "type": "sensor",
+      "id": "sensor",
+      "when": "diffuse",
+      "detect": "reflection",
+      "threshold": 30,
+      "origin": [0, 0, "height"],
+      "direction": [0, 1, 0],
+      "reach": "reach",
+      "offDelay": "offDelay"
+    },
+    {
+      "type": "lamp",
+      "id": "ledLamp",
+      "node": "led",
+      "on": "#ffb84d",
+      "off": "#4d3a2a",
+      "state": "sensor.detected",
+      "glow": 12
+    },
+    {
+      "type": "lamp",
+      "id": "beamLamp",
+      "node": "beam",
+      "on": "#7a3b37",
+      "off": "#ff3b30",
+      "state": "sensor.detected",
+      "opacity": 0.35
+    }
+  ],
+  "terminal": {
+    "connectors": [
+      {
+        "id": "W",
+        "type": "wires",
+        "pins": [
+          {
+            "pin": "out",
+            "function": "Beam interrupted",
+            "reads": "sensor.detected"
+          },
+          {
+            "pin": "free",
+            "function": "Beam clear",
+            "reads": "sensor.free"
+          }
+        ]
+      }
+    ]
+  }
+}

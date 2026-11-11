@@ -1,0 +1,6 @@
+{
+  "spring-4x4": { "label": "Spring terminals, 4 in / 4 out, analogue", "inputs": 4, "outputs": 4, "analog": ["AI0", "AI1", "AQ0"] },
+  "spring-8x8": { "label": "Spring terminals, 8 in / 8 out", "inputs": 8, "outputs": 8 },
+  "terminal": { "label": "Terminals", "inputs": 0, "outputs": 0 },
+  "wires": { "label": "Loose wires", "inputs": 0, "outputs": 0 }
+}

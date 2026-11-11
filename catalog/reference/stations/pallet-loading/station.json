@@ -1,0 +1,429 @@
+{
+  "format": 5,
+  "id": "pallet-loading",
+  "name": "Pallet loading",
+  "description": "Loads pallets with cartons. A pallet is pushed out of the magazine onto the roller conveyor and runs to the stop. There the gantry takes the cartons that the belt behind brings, one by one, and sets them onto the pallet in two layers of four. The full pallet then runs to the end of the conveyor to be taken away.",
+  "workpieces": "pallet-loads",
+  "modules": [
+    {
+      "id": "base",
+      "module": "base-plate",
+      "params": {
+        "width": 6000,
+        "depth": 5200,
+        "feet": 5
+      }
+    },
+    {
+      "id": "cabinet",
+      "module": "control-cabinet",
+      "name": "Control cabinet",
+      "place": {
+        "on": "base.rails",
+        "slot": 0,
+        "at": 700
+      }
+    },
+    {
+      "id": "console",
+      "module": "operator-console",
+      "name": "Operator console",
+      "place": {
+        "on": "base.rails",
+        "slot": 2,
+        "at": 1900
+      }
+    },
+    {
+      "id": "conveyor",
+      "module": "pallet-conveyor",
+      "name": "Pallet conveyor",
+      "place": {
+        "on": "base.rails",
+        "slot": 14,
+        "at": -2400
+      }
+    },
+    {
+      "id": "magazine",
+      "module": "pallet-magazine",
+      "name": "Pallet magazine",
+      "place": {
+        "on": "base.rails",
+        "slot": 8,
+        "at": -1700
+      }
+    },
+    {
+      "id": "cartons",
+      "module": "carton-conveyor",
+      "name": "Carton conveyor",
+      "place": {
+        "on": "base.rails",
+        "slot": 21,
+        "at": -600
+      }
+    },
+    {
+      "id": "gantry",
+      "module": "xyz-gantry",
+      "name": "Gantry",
+      "place": {
+        "on": "base.rails",
+        "slot": 10,
+        "at": -600
+      },
+      "params": {
+        "spanX": 2000,
+        "spanY": 2600,
+        "height": 2400,
+        "xStart": 200,
+        "yStart": 400,
+        "tipTop": 1940,
+        "strokeX": 1600,
+        "strokeY": 1800,
+        "strokeZ": 1000,
+        "x0": 1500,
+        "x1": 100,
+        "x2": 700,
+        "y0": 1800,
+        "y1": 200,
+        "y2": 600,
+        "z0": 0,
+        "z1": 900,
+        "z2": 955,
+        "z3": 655
+      }
+    }
+  ],
+  "cables": [
+    {
+      "from": "conveyor.X1",
+      "to": "cabinet.X1"
+    },
+    {
+      "from": "magazine.X1",
+      "to": "cabinet.X2"
+    },
+    {
+      "from": "gantry.X1",
+      "to": "cabinet.X3"
+    },
+    {
+      "from": "gantry.X2",
+      "to": "cabinet.X4"
+    },
+    {
+      "from": "cartons.X1",
+      "to": "cabinet.X5"
+    },
+    {
+      "from": "console.X1",
+      "to": "cabinet.X6"
+    }
+  ],
+  "docks": [
+    {
+      "place": "bottom",
+      "widgets": [
+        {
+          "type": "group",
+          "label": "Pallet magazine",
+          "widgets": [
+            {
+              "type": "button",
+              "label": "Pallet",
+              "action": "magazine.fill",
+              "args": {
+                "kind": "pallet"
+              },
+              "swatch": "#dcbf8f"
+            },
+            {
+              "type": "fill",
+              "transport": "magazine.stack",
+              "capacity": 8
+            },
+            {
+              "type": "button",
+              "label": "Empty",
+              "action": "magazine.empty"
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "label": "Cartons onto the belt",
+          "widgets": [
+            {
+              "type": "button",
+              "label": "Large carton",
+              "action": "cartons.put",
+              "args": {
+                "kind": "carton-large"
+              },
+              "swatch": "#bf8f58"
+            },
+            {
+              "type": "button",
+              "label": "Small carton",
+              "action": "cartons.put",
+              "args": {
+                "kind": "carton-small"
+              },
+              "swatch": "#c99b63"
+            },
+            {
+              "type": "button",
+              "label": "Clear the belt",
+              "action": "cartons.empty"
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "label": "Take away",
+          "widgets": [
+            {
+              "type": "button",
+              "label": "Pallet at the stop",
+              "action": "conveyor.takeAtStop"
+            },
+            {
+              "type": "button",
+              "label": "Pallet at the end",
+              "action": "conveyor.takeAway"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "plc": {
+    "module": "cabinet",
+    "signals": [
+      {
+        "address": "IB0Bit00",
+        "name": "B1",
+        "variable": "palletIn",
+        "description": "Pallet at the start of the conveyor"
+      },
+      {
+        "address": "IB0Bit01",
+        "name": "B2",
+        "variable": "palletAtStop",
+        "description": "Pallet at the stop"
+      },
+      {
+        "address": "IB0Bit02",
+        "name": "B3",
+        "variable": "palletAtEnd",
+        "description": "Pallet at the end of the conveyor"
+      },
+      {
+        "address": "IB0Bit03",
+        "name": "S5",
+        "variable": "stopDown",
+        "description": "Pallet stop lowered"
+      },
+      {
+        "address": "QB0Bit00",
+        "name": "M1",
+        "variable": "conveyorRun",
+        "description": "Run the pallet conveyor"
+      },
+      {
+        "address": "QB0Bit01",
+        "name": "Y1",
+        "variable": "stopRelease",
+        "description": "Lower the pallet stop"
+      },
+      {
+        "address": "IB1Bit00",
+        "name": "B4",
+        "variable": "pusherBack",
+        "description": "Magazine pusher back"
+      },
+      {
+        "address": "IB1Bit01",
+        "name": "B5",
+        "variable": "pusherOut",
+        "description": "Magazine pusher out"
+      },
+      {
+        "address": "IB1Bit02",
+        "name": "B6",
+        "variable": "magEmpty",
+        "description": "Pallet magazine empty"
+      },
+      {
+        "address": "QB1Bit00",
+        "name": "Y2",
+        "variable": "pushOut",
+        "description": "Push a pallet out of the magazine"
+      },
+      {
+        "address": "IB2Bit00",
+        "name": "A1_DONE",
+        "variable": "xDone",
+        "description": "Bridge in position"
+      },
+      {
+        "address": "IB2Bit01",
+        "name": "A2_DONE",
+        "variable": "yDone",
+        "description": "Carriage in position"
+      },
+      {
+        "address": "IB2Bit02",
+        "name": "B7",
+        "variable": "vacuumOk",
+        "description": "Vacuum switch: a carton is held"
+      },
+      {
+        "address": "QB2Bit00",
+        "name": "A1_R0",
+        "variable": "xPos0",
+        "description": "Bridge position, bit 0"
+      },
+      {
+        "address": "QB2Bit01",
+        "name": "A1_R1",
+        "variable": "xPos1",
+        "description": "Bridge position, bit 1"
+      },
+      {
+        "address": "QB2Bit02",
+        "name": "A1_GO",
+        "variable": "xGo",
+        "description": "Bridge go"
+      },
+      {
+        "address": "QB2Bit03",
+        "name": "A2_R0",
+        "variable": "yPos0",
+        "description": "Carriage position, bit 0"
+      },
+      {
+        "address": "QB2Bit04",
+        "name": "A2_R1",
+        "variable": "yPos1",
+        "description": "Carriage position, bit 1"
+      },
+      {
+        "address": "QB2Bit05",
+        "name": "A2_GO",
+        "variable": "yGo",
+        "description": "Carriage go"
+      },
+      {
+        "address": "QB2Bit06",
+        "name": "Y3",
+        "variable": "vacuum",
+        "description": "Vacuum on"
+      },
+      {
+        "address": "IB3Bit00",
+        "name": "A3_DONE",
+        "variable": "zDone",
+        "description": "Mast in position"
+      },
+      {
+        "address": "QB3Bit00",
+        "name": "A3_R0",
+        "variable": "zPos0",
+        "description": "Mast position, bit 0"
+      },
+      {
+        "address": "QB3Bit01",
+        "name": "A3_R1",
+        "variable": "zPos1",
+        "description": "Mast position, bit 1"
+      },
+      {
+        "address": "QB3Bit02",
+        "name": "A3_GO",
+        "variable": "zGo",
+        "description": "Mast go"
+      },
+      {
+        "address": "IB4Bit00",
+        "name": "B8",
+        "variable": "cartonIn",
+        "description": "Carton at the start of the belt"
+      },
+      {
+        "address": "IB4Bit01",
+        "name": "B9",
+        "variable": "cartonAtPick",
+        "description": "Carton at the pick place"
+      },
+      {
+        "address": "QB4Bit00",
+        "name": "M2",
+        "variable": "cartonRun",
+        "description": "Run the carton conveyor"
+      },
+      {
+        "address": "IB5Bit00",
+        "name": "S1",
+        "variable": "start",
+        "description": "Start button"
+      },
+      {
+        "address": "IB5Bit01",
+        "name": "S2",
+        "variable": "stop",
+        "description": "Stop button (normally closed)"
+      },
+      {
+        "address": "IB5Bit02",
+        "name": "S3",
+        "variable": "man",
+        "description": "Key switch, 1 = manual"
+      },
+      {
+        "address": "IB5Bit03",
+        "name": "S4",
+        "variable": "reset",
+        "description": "Reset button"
+      },
+      {
+        "address": "IB5Bit04",
+        "name": "S0",
+        "variable": "eStopOk",
+        "description": "Emergency stop released (normally closed)"
+      },
+      {
+        "address": "IB5Bit05",
+        "name": "K1",
+        "variable": "powerOk",
+        "description": "Actuator power on: the safety relay is closed"
+      },
+      {
+        "address": "QB5Bit00",
+        "name": "P1",
+        "variable": "lStart",
+        "description": "Start lamp"
+      },
+      {
+        "address": "QB5Bit01",
+        "name": "P2",
+        "variable": "lReset",
+        "description": "Reset lamp"
+      },
+      {
+        "address": "QB5Bit02",
+        "name": "P3",
+        "variable": "lGreen",
+        "description": "Stack light green"
+      },
+      {
+        "address": "QB5Bit03",
+        "name": "P4",
+        "variable": "lAmber",
+        "description": "Stack light amber"
+      }
+    ]
+  }
+}

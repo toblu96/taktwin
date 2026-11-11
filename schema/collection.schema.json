@@ -1,0 +1,36 @@
+{
+  "$defs": {
+    "CollectionDef": {
+      "additionalProperties": false,
+      "description": "CollectionDef is the content of collection.json.",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "station": {
+          "description": "Station is the station the app opens first, if this is the first collection to name one.",
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "workpieces": {
+          "description": "Workpieces are what a new station and a module tried out on its own work with, if this is the first collection to name them.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/toblu96/taktwin/main/schema/collection.schema.json",
+  "$ref": "#/$defs/CollectionDef",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "collection.json at the root of a collection: its id, name, version, and the station and workpieces it opens with.",
+  "title": "Collection"
+}

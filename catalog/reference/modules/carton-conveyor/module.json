@@ -1,0 +1,424 @@
+{
+  "format": 2,
+  "id": "carton-conveyor",
+  "version": 1,
+  "name": "Carton conveyor",
+  "description": "A belt conveyor that brings cartons to the end where a gantry picks them up, against a bumper. Its drum motor is in the roller at its end. It comes with light barriers at its start and at its end, and an I/O block.",
+  "parameters": [
+    {
+      "id": "length",
+      "default": 2000,
+      "label": "Length",
+      "unit": "mm",
+      "kind": "build",
+      "description": "How long the belt is.",
+      "min": 1000,
+      "max": 6000,
+      "step": 50
+    },
+    {
+      "id": "height",
+      "default": 740,
+      "label": "Height",
+      "unit": "mm",
+      "kind": "build",
+      "description": "How high the belt is above the floor rails.",
+      "min": 400,
+      "max": 1100,
+      "step": 10
+    },
+    {
+      "id": "speed",
+      "default": 300,
+      "label": "Speed",
+      "unit": "mm/s",
+      "kind": "physics",
+      "description": "How fast the belt runs.",
+      "min": 50,
+      "max": 800,
+      "step": 10
+    },
+    {
+      "id": "startAt",
+      "default": 350
+    },
+    {
+      "id": "endAt",
+      "default": "length - 80"
+    },
+    {
+      "id": "ioAt",
+      "default": "length / 2"
+    }
+  ],
+  "needs": [
+    {
+      "module": "io-block",
+      "why": "its motor and sensors are not connected to the PLC"
+    }
+  ],
+  "mounts": [
+    {
+      "id": "floor",
+      "type": "floor-rail",
+      "at": [0, 0, 0],
+      "screws": [
+        [150, -200, 0],
+        [150, 200, 0],
+        ["length - 150", -200, 0],
+        ["length - 150", 200, 0]
+      ]
+    }
+  ],
+  "model": [
+    {
+      "position": ["length / 2", -280, "height - 40"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length + 40",
+        "height": 40,
+        "depth": 100
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": ["length / 2", -280, "height - 40"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length + 40",
+        "height": 42,
+        "depth": 6
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": ["length / 2", -225, "height + 48"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length - 60",
+        "height": 8,
+        "depth": 28
+      },
+      "material": "steelZinc"
+    },
+    {
+      "position": [200, 0, 0],
+      "children": [
+        {
+          "position": [0, -262, "height + 14"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 30,
+            "height": 76,
+            "depth": 8
+          },
+          "material": "steelZinc"
+        },
+        {
+          "position": [0, -230, "height + 34"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 30,
+            "height": 10,
+            "depth": 40
+          },
+          "material": "steelZinc"
+        }
+      ],
+      "repeat": {
+        "count": 4,
+        "step": ["(length - 400) / 3", 0, 0]
+      }
+    },
+    {
+      "position": ["length / 2", 280, "height - 40"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length + 40",
+        "height": 40,
+        "depth": 100
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": ["length / 2", 280, "height - 40"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length + 40",
+        "height": 42,
+        "depth": 6
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": ["length / 2", 225, "height + 48"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length - 60",
+        "height": 8,
+        "depth": 28
+      },
+      "material": "steelZinc"
+    },
+    {
+      "position": [200, 0, 0],
+      "children": [
+        {
+          "position": [0, 262, "height + 14"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 30,
+            "height": 76,
+            "depth": 8
+          },
+          "material": "steelZinc"
+        },
+        {
+          "position": [0, 230, "height + 34"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 30,
+            "height": 10,
+            "depth": 40
+          },
+          "material": "steelZinc"
+        }
+      ],
+      "repeat": {
+        "count": 4,
+        "step": ["(length - 400) / 3", 0, 0]
+      }
+    },
+    {
+      "name": "belt",
+      "position": ["length / 2", 0, "height - 6"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length",
+        "height": 500,
+        "depth": 12
+      },
+      "material": "beltBlack",
+      "belt": "surface"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 40,
+        "from": [0, -252, "height - 40"],
+        "to": [0, 252, "height - 40"],
+        "radialSegments": 20
+      },
+      "material": "steelZinc"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 40,
+        "from": ["length", -252, "height - 40"],
+        "to": ["length", 252, "height - 40"],
+        "radialSegments": 20
+      },
+      "material": "steelZinc"
+    },
+    {
+      "position": [150, 0, 0],
+      "children": [
+        {
+          "position": [0, -280, "(height - 90) / 2 + 20"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 60,
+            "height": 60,
+            "depth": "height - 130"
+          },
+          "material": "frameGrey"
+        },
+        {
+          "position": [0, 280, "(height - 90) / 2 + 20"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 60,
+            "height": 60,
+            "depth": "height - 130"
+          },
+          "material": "frameGrey"
+        },
+        {
+          "part": "leveling-foot",
+          "position": [0, -280, 0]
+        },
+        {
+          "part": "leveling-foot",
+          "position": [0, 280, 0]
+        },
+        {
+          "position": [0, 0, 220],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 40,
+            "height": 600,
+            "depth": 40
+          },
+          "material": "frameGrey"
+        }
+      ],
+      "repeat": {
+        "count": 2,
+        "step": ["length - 300", 0, 0]
+      }
+    },
+    {
+      "position": ["length + 12", 0, "height + 45"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 24,
+        "height": 520,
+        "depth": 110
+      },
+      "material": "guardYellow"
+    },
+    {
+      "position": ["length - 60", -320, "height - 60"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 90,
+        "height": 50,
+        "depth": 70
+      },
+      "material": "motorGrey"
+    }
+  ],
+  "devices": [
+    {
+      "type": "motorController",
+      "id": "drive"
+    },
+    {
+      "type": "solid",
+      "id": "bumper",
+      "box": {
+        "from": ["length", -260, "height"],
+        "to": ["length + 24", 260, "height + 100"]
+      },
+      "label": "The end bumper"
+    }
+  ],
+  "transport": [
+    {
+      "id": "surface",
+      "label": "belt",
+      "drive": "drive.forward",
+      "reverse": "drive.backward",
+      "factor": "drive.factor",
+      "speed": "speed",
+      "path": {
+        "line": {
+          "from": [0, 0, "height"],
+          "to": ["length", 0, "height"]
+        }
+      }
+    }
+  ],
+  "modules": [
+    {
+      "id": "io",
+      "module": "io-block",
+      "name": "I/O block",
+      "optional": true,
+      "place": {
+        "on": ".front",
+        "at": "ioAt"
+      }
+    },
+    {
+      "id": "start",
+      "module": "photo-sensor",
+      "name": "B1 Carton at start",
+      "optional": true,
+      "place": {
+        "on": ".front",
+        "at": "startAt"
+      }
+    },
+    {
+      "id": "end",
+      "module": "photo-sensor",
+      "name": "B2 Carton at the pick place",
+      "optional": true,
+      "place": {
+        "on": ".front",
+        "at": "endAt"
+      }
+    }
+  ],
+  "cables": [
+    {
+      "from": "X1",
+      "to": "io.X1"
+    }
+  ],
+  "wires": [
+    {
+      "from": "io.T.Q0",
+      "to": "W.run"
+    },
+    {
+      "from": "io.T.I0",
+      "to": "start.W.out"
+    },
+    {
+      "from": "io.T.I1",
+      "to": "end.W.out"
+    }
+  ],
+  "terminal": {
+    "connectors": [
+      {
+        "id": "X1",
+        "type": "m23-io"
+      },
+      {
+        "id": "W",
+        "type": "wires",
+        "pins": [
+          {
+            "pin": "run",
+            "function": "Run the belt",
+            "drives": "drive.clockwise"
+          }
+        ]
+      }
+    ]
+  },
+  "sites": [
+    {
+      "id": "front",
+      "type": "frame-side",
+      "from": [0, -300, "height - 60"],
+      "range": [80, "length - 80"]
+    },
+    {
+      "id": "rear",
+      "type": "frame-side",
+      "from": [0, 300, "height - 60"],
+      "range": [80, "length - 80"],
+      "turn": 180
+    }
+  ],
+  "actions": [
+    {
+      "id": "put",
+      "type": "placeWorkpiece",
+      "transport": "surface",
+      "at": "startAt",
+      "family": "carton"
+    },
+    {
+      "id": "empty",
+      "type": "clearTransport",
+      "label": "Clear the belt",
+      "transport": "surface"
+    }
+  ]
+}

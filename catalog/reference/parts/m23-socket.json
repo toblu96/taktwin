@@ -1,0 +1,37 @@
+{
+  "format": 2,
+  "id": "m23-socket",
+  "name": "M23 socket",
+  "model": [
+    {
+      "position": [0, 0, 1.5],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 30,
+        "height": 30,
+        "depth": 3
+      },
+      "material": "steelZinc"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 13,
+        "from": [0, 0, 3],
+        "to": [0, 0, 20],
+        "radialSegments": 20
+      },
+      "material": "steelZinc"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 9,
+        "from": [0, 0, 19.9],
+        "to": [0, 0, 20.2],
+        "radialSegments": 16
+      },
+      "material": "plasticBlack"
+    }
+  ]
+}

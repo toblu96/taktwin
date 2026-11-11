@@ -1,0 +1,551 @@
+{
+  "$defs": {
+    "ActionDef": {
+      "additionalProperties": false,
+      "description": "ActionDef is a function of the model that people can trigger. Type is clearTransport or placeWorkpiece.",
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/Num"
+        },
+        "blockedBy": {
+          "type": "string"
+        },
+        "dock": {
+          "description": "Dock offers it at the bottom of every station the builder makes, as a magazine's fill or putting a workpiece onto a belt by hand.",
+          "type": "boolean"
+        },
+        "family": {
+          "description": "Family limits a placeWorkpiece to the kinds of that family, as a magazine set up for caps takes nothing else.",
+          "type": "string"
+        },
+        "heading": {
+          "description": "Heading is the way a placed workpiece with a size points its length, in the module's coordinates, as a pallet put into a magazine. Without it, it points along the transport.",
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "description": "Label is how a button for it reads. A placeWorkpiece gets a button for each kind of workpiece it takes instead.",
+          "type": "string"
+        },
+        "over": {
+          "description": "Over, instead of a transport, puts the workpiece onto whatever transport passes under that point of the module, or takes away what stands there, as the nest of a turntable that is at its loading place.",
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "transport": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "CableDef": {
+      "additionalProperties": false,
+      "description": "CableDef joins two connectors of the same type pin by pin.",
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "DockDef": {
+      "additionalProperties": false,
+      "description": "DockDef places station-wide widgets. Place is bottom or side.",
+      "properties": {
+        "place": {
+          "type": "string"
+        },
+        "widgets": {
+          "items": {
+            "$ref": "#/$defs/WidgetDef"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "InstanceDef": {
+      "additionalProperties": false,
+      "description": "InstanceDef places a module in a station.",
+      "properties": {
+        "at": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "cut": {
+          "description": "Cut lets modules that cut rails cut a gap into this contained rail. A module that cuts rails cannot stand in a rail without it.",
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "module": {
+          "type": "string"
+        },
+        "mountedOn": {
+          "description": "MountedOn is a moving node of the module around it that this one rides on, as a switch on a cylinder that moves. At stays in that module's coordinates, at rest.",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "description": "Optional marks a module that another one contains, such as a conveyor's sensor, as one that a station may leave out.",
+          "type": "boolean"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Num"
+          },
+          "type": "object"
+        },
+        "parts": {
+          "additionalProperties": {
+            "$ref": "#/$defs/PartChange"
+          },
+          "description": "Parts changes the modules this one contains, by their ids: where one is placed, its settings, or that it is left out.",
+          "type": "object"
+        },
+        "place": {
+          "$ref": "#/$defs/PlaceDef",
+          "description": "Place screws the instance onto a site instead of putting it at At."
+        },
+        "rewire": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Rewire moves what the module's own wires join at one pin onto another, by references inside the module, such as {\"io.T.Q0\": \"io.T.Q3\"} to run a conveyor forward from output 3 of its I/O block. Moving two pins onto each other swaps them.",
+          "type": "object"
+        },
+        "rotateX": {
+          "$ref": "#/$defs/Num"
+        },
+        "rotateY": {
+          "$ref": "#/$defs/Num"
+        },
+        "rotateZ": {
+          "$ref": "#/$defs/Num"
+        },
+        "selectAs": {
+          "description": "clicks select this instance instead",
+          "type": "string"
+        },
+        "texts": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "used as {name} in text fields",
+          "type": "object"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "LinkDef": {
+      "additionalProperties": false,
+      "description": "LinkDef moves workpieces between transports. Type is continue (at the end), branch (at a distance, while When holds or always without it, as for a fixed guide) or shareDrive (run with the drive and speed of To).",
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/Num"
+        },
+        "if": {
+          "$ref": "#/$defs/Num",
+          "description": "leaves the link out when false, for a module's optional parts"
+        },
+        "to": {
+          "type": "string"
+        },
+        "transport": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "when": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Num": {
+      "description": "A number, an expression over the module's parameters as a string, such as \"length - 47\" or \"radius * sin(45)\", or true or false for 1 or 0. Angles are degrees.",
+      "type": [
+        "number",
+        "string",
+        "boolean"
+      ]
+    },
+    "PLCBindingDef": {
+      "additionalProperties": false,
+      "description": "PLCBindingDef connects a signal of the station to a variable of the PLC program.",
+      "properties": {
+        "invert": {
+          "type": "boolean"
+        },
+        "signal": {
+          "type": "string"
+        },
+        "variable": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "PLCMapDef": {
+      "additionalProperties": false,
+      "description": "PLCSignalDef names a bit of the PLC image for display. PLCMapDef lets a PLC program use other addresses than the station. A variable it does not mention uses the same address on both sides.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/PLCBindingDef"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "outputs": {
+          "items": {
+            "$ref": "#/$defs/PLCBindingDef"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "PLCSignalDef": {
+      "additionalProperties": false,
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "variable": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "PartChange": {
+      "additionalProperties": false,
+      "description": "PartChange changes a module that another one contains. Place puts it elsewhere on the sites of the module around it (\".rear\"), and Params change its settings, both evaluated as the module around it sees them. Removed leaves an optional one out, with its wires.",
+      "properties": {
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Num"
+          },
+          "type": "object"
+        },
+        "place": {
+          "$ref": "#/$defs/PlaceDef"
+        },
+        "removed": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "PlaceDef": {
+      "additionalProperties": false,
+      "description": "PlaceDef puts an instance onto a site of a module placed before it: On is that module and site, such as \"stand/plate.slots\", Slot picks one of a site's repeats, At is the position along it in mm and Turn a further turn in steps of 90 degrees. Mount picks the module's mount, by default the first that fits the site.",
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/Num"
+        },
+        "mount": {
+          "type": "string"
+        },
+        "on": {
+          "type": "string"
+        },
+        "slot": {
+          "type": "integer"
+        },
+        "turn": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "StationDef": {
+      "additionalProperties": false,
+      "description": "StationDef is the content of station.json.",
+      "properties": {
+        "actions": {
+          "items": {
+            "$ref": "#/$defs/ActionDef"
+          },
+          "type": "array"
+        },
+        "cables": {
+          "items": {
+            "$ref": "#/$defs/CableDef"
+          },
+          "type": "array"
+        },
+        "description": {
+          "type": "string"
+        },
+        "docks": {
+          "items": {
+            "$ref": "#/$defs/DockDef"
+          },
+          "type": "array"
+        },
+        "format": {
+          "type": "integer"
+        },
+        "id": {
+          "type": "string"
+        },
+        "links": {
+          "items": {
+            "$ref": "#/$defs/LinkDef"
+          },
+          "type": "array"
+        },
+        "modules": {
+          "items": {
+            "$ref": "#/$defs/InstanceDef"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "parameters": {
+          "items": {
+            "$ref": "#/$defs/StationParameterDef"
+          },
+          "type": "array"
+        },
+        "plc": {
+          "$ref": "#/$defs/StationPLCDef"
+        },
+        "plcs": {
+          "description": "PLCs are the PLCs besides the first one, of a line of stations on stands side by side, each running its own: the modules its connectors reach, and its I/O table.",
+          "items": {
+            "$ref": "#/$defs/StationPLCDef"
+          },
+          "type": "array"
+        },
+        "wires": {
+          "items": {
+            "$ref": "#/$defs/WireDef"
+          },
+          "type": "array"
+        },
+        "workpieces": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "StationPLCDef": {
+      "additionalProperties": false,
+      "description": "StationPLCDef is a PLC of a station: the PLC module, such as the rack on a stand, the names of its signals by address, and the address maps for programs written for another wiring. Program is a built-in program, of the first PLC only.",
+      "properties": {
+        "maps": {
+          "items": {
+            "$ref": "#/$defs/PLCMapDef"
+          },
+          "type": "array"
+        },
+        "module": {
+          "type": "string"
+        },
+        "program": {
+          "type": "string"
+        },
+        "signals": {
+          "items": {
+            "$ref": "#/$defs/PLCSignalDef"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "StationParameterDef": {
+      "additionalProperties": false,
+      "description": "StationParameterDef is a setting of a station that users can change. Kind and Description are as for a module's.",
+      "properties": {
+        "default": {
+          "type": "number"
+        },
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "max": {
+          "type": "number"
+        },
+        "min": {
+          "type": "number"
+        },
+        "module": {
+          "description": "instance it is shown on",
+          "type": "string"
+        },
+        "names": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "options": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "step": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "WidgetDef": {
+      "additionalProperties": false,
+      "description": "WidgetDef is a control shown when a module is clicked, or in a station dock. Type is push, switch, lamp, fill, button or group.",
+      "properties": {
+        "action": {
+          "description": "button",
+          "type": "string"
+        },
+        "args": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "capacity": {
+          "$ref": "#/$defs/Num"
+        },
+        "device": {
+          "description": "push and switch",
+          "type": "string"
+        },
+        "disabledWhen": {
+          "type": "string"
+        },
+        "expects": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "labels": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "show": {
+          "description": "popup (default) or panel, on modules",
+          "type": "string"
+        },
+        "state": {
+          "description": "lamp, and the lamp of a push",
+          "type": "string"
+        },
+        "swatch": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "tone": {
+          "type": "string"
+        },
+        "transport": {
+          "description": "fill",
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        },
+        "widgets": {
+          "description": "group",
+          "items": {
+            "$ref": "#/$defs/WidgetDef"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "WireDef": {
+      "additionalProperties": false,
+      "description": "WireDef joins two pins.",
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/toblu96/taktwin/main/schema/station.schema.json",
+  "$ref": "#/$defs/StationDef",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "stations/<id>/station.json: which modules a station is made of, where they are screwed on, how they are cabled and wired, and the names of the PLC's signals.",
+  "title": "Station"
+}

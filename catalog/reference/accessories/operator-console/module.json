@@ -1,0 +1,528 @@
+{
+  "format": 2,
+  "id": "operator-console",
+  "version": 1,
+  "group": "PLC and I/O",
+  "name": "Operator console",
+  "role": "console",
+  "description": "A console on a pedestal: Start, Stop and Reset buttons, a key switch for automatic or manual mode, an emergency stop, and a stack light with a green and an amber lamp. The emergency stop latches when pressed and is released by pulling it; while it is pressed, and until Reset is pressed after it, the safety relay keeps the actuators of the station without power. One M23 cable takes it to the PLC.",
+  "mounts": [
+    {
+      "id": "floor",
+      "type": "floor-rail",
+      "at": [0, 0, 0],
+      "screws": [
+        [-100, 0, 0],
+        [100, 0, 0]
+      ]
+    }
+  ],
+  "model": [
+    {
+      "position": [0, 0, 5],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 320,
+        "height": 320,
+        "depth": 10
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": [0, 0, 525],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 90,
+        "height": 90,
+        "depth": 1030
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [0, 0, 1090],
+      "rotation": [30, 0, 0],
+      "children": [
+        {
+          "position": [0, 0, -55],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 300,
+            "height": 170,
+            "depth": 110
+          },
+          "material": "cabinet"
+        },
+        {
+          "position": [0, 0, 1],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 290,
+            "height": 160,
+            "depth": 2
+          },
+          "material": "frameDark"
+        },
+        {
+          "position": [0, 0, 2],
+          "children": [
+            {
+              "geometry": {
+                "type": "CylinderGeometry",
+                "radius": 18,
+                "from": [-110, 0, 0],
+                "to": [-110, 0, 8],
+                "radialSegments": 20
+              },
+              "material": "plasticBlack"
+            },
+            {
+              "name": "startCap",
+              "geometry": {
+                "type": "CylinderGeometry",
+                "radius": 14,
+                "from": [-110, 0, 8],
+                "to": [-110, 0, 18],
+                "radialSegments": 20
+              },
+              "material": "labelWhite"
+            },
+            {
+              "geometry": {
+                "type": "CylinderGeometry",
+                "radius": 18,
+                "from": [-40, 0, 0],
+                "to": [-40, 0, 8],
+                "radialSegments": 20
+              },
+              "material": "plasticBlack"
+            },
+            {
+              "name": "stopCap",
+              "geometry": {
+                "type": "CylinderGeometry",
+                "radius": 14,
+                "from": [-40, 0, 8],
+                "to": [-40, 0, 18],
+                "radialSegments": 20
+              },
+              "material": "labelWhite"
+            },
+            {
+              "geometry": {
+                "type": "CylinderGeometry",
+                "radius": 18,
+                "from": [30, 0, 0],
+                "to": [30, 0, 8],
+                "radialSegments": 20
+              },
+              "material": "plasticBlack"
+            },
+            {
+              "name": "resetCap",
+              "geometry": {
+                "type": "CylinderGeometry",
+                "radius": 14,
+                "from": [30, 0, 8],
+                "to": [30, 0, 18],
+                "radialSegments": 20
+              },
+              "material": "labelWhite"
+            },
+            {
+              "geometry": {
+                "type": "CylinderGeometry",
+                "radius": 18,
+                "from": [100, 0, 0],
+                "to": [100, 0, 10],
+                "radialSegments": 20
+              },
+              "material": "steelZinc"
+            },
+            {
+              "name": "keyHandle",
+              "position": [100, 0, 16],
+              "geometry": {
+                "type": "BoxGeometry",
+                "width": 8,
+                "height": 26,
+                "depth": 12
+              },
+              "material": "plasticBlack"
+            },
+            {
+              "geometry": {
+                "type": "CylinderGeometry",
+                "radius": 34,
+                "from": [10, 55, 0],
+                "to": [10, 55, 6],
+                "radialSegments": 24
+              },
+              "material": "guardYellow"
+            },
+            {
+              "geometry": {
+                "type": "CylinderGeometry",
+                "radius": 14,
+                "from": [10, 55, 6],
+                "to": [10, 55, 22],
+                "radialSegments": 16
+              },
+              "material": "reflectorRed"
+            },
+            {
+              "name": "estop",
+              "geometry": {
+                "type": "CylinderGeometry",
+                "radius": 26,
+                "from": [10, 55, 22],
+                "to": [10, 55, 38],
+                "radialSegments": 24
+              },
+              "material": "reflectorRed"
+            },
+            {
+              "position": [-110, -40, 0.6],
+              "label": {
+                "text": "START",
+                "size": 11,
+                "color": "#2e3236",
+                "background": "#f1f2ee"
+              }
+            },
+            {
+              "position": [-40, -40, 0.6],
+              "label": {
+                "text": "STOP",
+                "size": 11,
+                "color": "#2e3236",
+                "background": "#f1f2ee"
+              }
+            },
+            {
+              "position": [30, -40, 0.6],
+              "label": {
+                "text": "RESET",
+                "size": 11,
+                "color": "#2e3236",
+                "background": "#f1f2ee"
+              }
+            },
+            {
+              "position": [100, -40, 0.6],
+              "label": {
+                "text": "AUTO  MAN",
+                "size": 11,
+                "color": "#2e3236",
+                "background": "#f1f2ee"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 10,
+        "from": [120, 60, 1110],
+        "to": [120, 60, 1310],
+        "radialSegments": 10
+      },
+      "material": "steelZinc"
+    },
+    {
+      "name": "greenLight",
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 30,
+        "from": [120, 60, 1310],
+        "to": [120, 60, 1380],
+        "radialSegments": 20
+      },
+      "material": "labelWhite"
+    },
+    {
+      "name": "amberLight",
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 30,
+        "from": [120, 60, 1382],
+        "to": [120, 60, 1452],
+        "radialSegments": 20
+      },
+      "material": "labelWhite"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 30,
+        "from": [120, 60, 1454],
+        "to": [120, 60, 1470],
+        "radialSegments": 20
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "part": "m23-socket",
+      "position": [0, 46, 300],
+      "rotation": [-90, 0, 0]
+    }
+  ],
+  "devices": [
+    {
+      "type": "button",
+      "id": "start",
+      "node": "startCap"
+    },
+    {
+      "type": "button",
+      "id": "stop",
+      "node": "stopCap"
+    },
+    {
+      "type": "button",
+      "id": "reset",
+      "node": "resetCap"
+    },
+    {
+      "type": "key",
+      "id": "key",
+      "node": "keyHandle"
+    },
+    {
+      "type": "key",
+      "id": "estop",
+      "node": "estop"
+    },
+    {
+      "type": "lamp",
+      "id": "startLamp",
+      "node": "startCap",
+      "on": "#5dff8f",
+      "off": "#1f7a43",
+      "glow": 36
+    },
+    {
+      "type": "lamp",
+      "id": "stopLamp",
+      "node": "stopCap",
+      "on": "#ff5a4f",
+      "off": "#b3261e",
+      "alwaysOn": true
+    },
+    {
+      "type": "lamp",
+      "id": "resetLamp",
+      "node": "resetCap",
+      "on": "#62b3ff",
+      "off": "#2f5d8a",
+      "glow": 36
+    },
+    {
+      "type": "lamp",
+      "id": "green",
+      "node": "greenLight",
+      "on": "#4dff88",
+      "off": "#2c5a3b",
+      "glow": 90
+    },
+    {
+      "type": "lamp",
+      "id": "amber",
+      "node": "amberLight",
+      "on": "#ffc04d",
+      "off": "#6b5426",
+      "glow": 90
+    },
+    {
+      "type": "safetyRelay",
+      "id": "safety",
+      "set": "reset.active && !estop.active",
+      "reset": "estop.active"
+    }
+  ],
+  "terminal": {
+    "connectors": [
+      {
+        "id": "X1",
+        "type": "m23-io",
+        "prefer": "X6",
+        "pins": [
+          {
+            "pin": "I0",
+            "function": "Start button",
+            "reads": "start.active"
+          },
+          {
+            "pin": "I1",
+            "function": "Stop button, normally closed",
+            "reads": "stop.active",
+            "invert": true
+          },
+          {
+            "pin": "I2",
+            "function": "Key switch, 1 = manual",
+            "reads": "key.active"
+          },
+          {
+            "pin": "I3",
+            "function": "Reset button",
+            "reads": "reset.active"
+          },
+          {
+            "pin": "I4",
+            "function": "Emergency stop released, normally closed",
+            "reads": "estop.active",
+            "invert": true
+          },
+          {
+            "pin": "I5",
+            "function": "Actuator power on: the safety relay is closed",
+            "reads": "safety.ok"
+          },
+          {
+            "pin": "I6",
+            "spare": true
+          },
+          {
+            "pin": "I7",
+            "spare": true
+          },
+          {
+            "pin": "Q0",
+            "function": "Start lamp",
+            "drives": "startLamp.on"
+          },
+          {
+            "pin": "Q1",
+            "function": "Reset lamp",
+            "drives": "resetLamp.on"
+          },
+          {
+            "pin": "Q2",
+            "function": "Stack light green",
+            "drives": "green.on"
+          },
+          {
+            "pin": "Q3",
+            "function": "Stack light amber",
+            "drives": "amber.on"
+          },
+          {
+            "pin": "Q4",
+            "spare": true
+          },
+          {
+            "pin": "Q5",
+            "spare": true
+          },
+          {
+            "pin": "Q6",
+            "spare": true
+          },
+          {
+            "pin": "Q7",
+            "spare": true
+          }
+        ]
+      }
+    ]
+  },
+  "controls": [
+    {
+      "type": "push",
+      "show": "panel",
+      "device": "start",
+      "label": "Start",
+      "tone": "green",
+      "state": "startLamp.on"
+    },
+    {
+      "type": "push",
+      "show": "panel",
+      "device": "stop",
+      "label": "Stop",
+      "tone": "red"
+    },
+    {
+      "type": "push",
+      "show": "panel",
+      "device": "reset",
+      "label": "Reset",
+      "tone": "blue",
+      "state": "resetLamp.on"
+    },
+    {
+      "type": "switch",
+      "show": "panel",
+      "device": "key",
+      "label": "Mode",
+      "labels": ["Auto", "Manual"]
+    },
+    {
+      "type": "switch",
+      "show": "panel",
+      "device": "estop",
+      "label": "Emergency stop",
+      "labels": ["Released", "Pressed"]
+    },
+    {
+      "type": "lamp",
+      "show": "panel",
+      "state": "green.on",
+      "label": "Green",
+      "tone": "green"
+    },
+    {
+      "type": "lamp",
+      "show": "panel",
+      "state": "amber.on",
+      "label": "Amber",
+      "tone": "amber"
+    },
+    {
+      "type": "lamp",
+      "show": "panel",
+      "state": "safety.ok",
+      "label": "Actuator power",
+      "tone": "green"
+    }
+  ],
+  "joints": [
+    {
+      "node": "startCap",
+      "type": "prismatic",
+      "axis": [0, 0, 1],
+      "range": [0, -3],
+      "driver": "start.active"
+    },
+    {
+      "node": "stopCap",
+      "type": "prismatic",
+      "axis": [0, 0, 1],
+      "range": [0, -3],
+      "driver": "stop.active"
+    },
+    {
+      "node": "resetCap",
+      "type": "prismatic",
+      "axis": [0, 0, 1],
+      "range": [0, -3],
+      "driver": "reset.active"
+    },
+    {
+      "node": "keyHandle",
+      "type": "revolute",
+      "axis": [0, 0, 1],
+      "range": [0, -90],
+      "driver": "key.active"
+    },
+    {
+      "node": "estop",
+      "type": "prismatic",
+      "axis": [0, 0, 1],
+      "range": [0, -8],
+      "driver": "estop.active"
+    }
+  ]
+}

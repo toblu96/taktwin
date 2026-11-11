@@ -1,0 +1,585 @@
+{
+  "format": 2,
+  "id": "pallet-magazine",
+  "version": 1,
+  "name": "Pallet magazine",
+  "description": "A stack of empty pallets between four corner posts. Its push-out cylinder behind the stack pushes the bottom pallet out of the stack and onto a conveyor in front of it, where it leaves it. A light barrier across the bottom of the stack says when the magazine is empty.",
+  "parameters": [
+    {
+      "id": "height",
+      "default": 540,
+      "label": "Height",
+      "unit": "mm",
+      "kind": "build",
+      "description": "How high the bottom of the stack is above the floor rails: that of the conveyor the pallets go onto.",
+      "min": 400,
+      "max": 900,
+      "step": 10
+    },
+    {
+      "id": "stroke",
+      "default": 1200,
+      "label": "Stroke",
+      "unit": "mm",
+      "kind": "build",
+      "description": "How far the cylinder pushes a pallet: from the middle of the stack to the middle of the conveyor.",
+      "min": 900,
+      "max": 1600,
+      "step": 50
+    },
+    {
+      "id": "speed",
+      "default": 250,
+      "label": "Speed",
+      "unit": "mm/s",
+      "kind": "physics",
+      "description": "How fast the cylinder pushes.",
+      "min": 50,
+      "max": 800,
+      "step": 10
+    },
+    {
+      "id": "capacity",
+      "default": 8
+    }
+  ],
+  "needs": [
+    {
+      "module": "io-block",
+      "why": "its cylinder and sensors are not connected to the PLC"
+    }
+  ],
+  "mounts": [
+    {
+      "id": "floor",
+      "type": "floor-rail",
+      "at": [0, 0, 0],
+      "screws": [
+        [-600, -400, 0],
+        [600, -400, 0],
+        [-600, 400, 0],
+        [600, 400, 0]
+      ]
+    }
+  ],
+  "model": [
+    {
+      "position": [-650, -450, "(height + capacity * 144 + 120) / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 8,
+        "height": 80,
+        "depth": "height + capacity * 144 + 120"
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [-614, -450, "(height + capacity * 144 + 120) / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 80,
+        "height": 8,
+        "depth": "height + capacity * 144 + 120"
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [-650, -450, 8],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 160,
+        "height": 160,
+        "depth": 16
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": [-650, 450, "(height + capacity * 144 + 120) / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 8,
+        "height": 80,
+        "depth": "height + capacity * 144 + 120"
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [-614, 450, "(height + capacity * 144 + 120) / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 80,
+        "height": 8,
+        "depth": "height + capacity * 144 + 120"
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [-650, 450, 8],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 160,
+        "height": 160,
+        "depth": 16
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": [650, -450, "(height + capacity * 144 + 120) / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 8,
+        "height": 80,
+        "depth": "height + capacity * 144 + 120"
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [614, -450, "(height + capacity * 144 + 120) / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 80,
+        "height": 8,
+        "depth": "height + capacity * 144 + 120"
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [650, -450, 8],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 160,
+        "height": 160,
+        "depth": 16
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": [650, 450, "(height + capacity * 144 + 120) / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 8,
+        "height": 80,
+        "depth": "height + capacity * 144 + 120"
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [614, 450, "(height + capacity * 144 + 120) / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 80,
+        "height": 8,
+        "depth": "height + capacity * 144 + 120"
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [650, 450, 8],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 160,
+        "height": 160,
+        "depth": 16
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": [0, -450, "height + capacity * 144 + 120 - 30"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1380,
+        "height": 60,
+        "depth": 60
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [0, 450, "height + capacity * 144 + 120 - 30"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1380,
+        "height": 60,
+        "depth": 60
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [-650, 0, "height + capacity * 144 + 120 - 30"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 60,
+        "height": 960,
+        "depth": 60
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [650, 0, "height + capacity * 144 + 120 - 30"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 60,
+        "height": 960,
+        "depth": 60
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [0, -20, "height - 15"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1300,
+        "height": 860,
+        "depth": 30
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [0, -300, "height - 1"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1300,
+        "height": 40,
+        "depth": 2
+      },
+      "material": "steelBright"
+    },
+    {
+      "position": [0, 0, "height - 1"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1300,
+        "height": 40,
+        "depth": 2
+      },
+      "material": "steelBright"
+    },
+    {
+      "position": [0, 300, "height - 1"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1300,
+        "height": 40,
+        "depth": 2
+      },
+      "material": "steelBright"
+    },
+    {
+      "position": [0, 0, "(height - 30) / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1000,
+        "height": 600,
+        "depth": "height - 30"
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": [0, "-450 - (stroke + 120) / 2", "height + 80"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1160,
+        "height": "stroke + 120",
+        "depth": 170
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": [0, "-450 - (stroke + 120) / 2", "height + 166"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 1170,
+        "height": "stroke + 130",
+        "depth": 4
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": [-520, "-560 - stroke", 0],
+      "children": [
+        {
+          "position": [0, 0, "(height - 5) / 2"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 60,
+            "height": 60,
+            "depth": "height - 5"
+          },
+          "material": "frameGrey"
+        },
+        {
+          "part": "leveling-foot",
+          "position": [0, 0, 0]
+        }
+      ],
+      "repeat": {
+        "count": 2,
+        "step": [1040, 0, 0]
+      }
+    },
+    {
+      "position": [0, "-490 - stroke - 100", "height + 80"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 240,
+        "height": 40,
+        "depth": 120
+      },
+      "material": "motorGrey"
+    },
+    {
+      "name": "plate",
+      "position": [0, -440, "height"],
+      "children": [
+        {
+          "position": [0, -14, 70],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 1000,
+            "height": 28,
+            "depth": 120
+          },
+          "material": "moveYellow"
+        },
+        {
+          "position": [0, "-(stroke + 60) / 2", 136],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 1100,
+            "height": "stroke + 60",
+            "depth": 8
+          },
+          "material": "steelZinc"
+        },
+        {
+          "geometry": {
+            "type": "CylinderGeometry",
+            "radius": 16,
+            "from": [0, -28, 70],
+            "to": [0, "-28 - stroke", 70],
+            "radialSegments": 12
+          },
+          "material": "steelBright"
+        }
+      ]
+    },
+    {
+      "position": [-700, 0, "height + 70"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 20,
+        "height": 40,
+        "depth": 50
+      },
+      "material": "sensorBody"
+    },
+    {
+      "position": [700, 0, "height + 70"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 20,
+        "height": 40,
+        "depth": 50
+      },
+      "material": "sensorBody"
+    },
+    {
+      "name": "emptyLed",
+      "position": [-688, 0, "height + 92"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 4,
+        "height": 10,
+        "depth": 6
+      },
+      "material": "plasticGrey"
+    }
+  ],
+  "joints": [
+    {
+      "node": "plate",
+      "type": "prismatic",
+      "axis": [0, 1, 0],
+      "range": [0, "stroke"],
+      "driver": "push.position"
+    }
+  ],
+  "devices": [
+    {
+      "type": "cylinder",
+      "id": "push",
+      "valve": "monostable",
+      "rest": "retracted",
+      "stroke": "stroke",
+      "speed": "speed"
+    },
+    {
+      "type": "reedSwitch",
+      "id": "back",
+      "cylinder": "push",
+      "at": "retracted"
+    },
+    {
+      "type": "reedSwitch",
+      "id": "out",
+      "cylinder": "push",
+      "at": "extended"
+    },
+    {
+      "type": "pusher",
+      "id": "pusher",
+      "cylinder": "push",
+      "from": "stack",
+      "to": "chute"
+    },
+    {
+      "type": "solid",
+      "id": "keeper",
+      "node": "plate",
+      "box": {
+        "from": [-560, "-stroke - 60", 0],
+        "to": [560, -20, 140]
+      },
+      "label": "The keeper of the magazine"
+    },
+    {
+      "type": "sensor",
+      "id": "bottom",
+      "detect": "beam",
+      "threshold": 50,
+      "origin": [-690, 0, "height + 70"],
+      "direction": [1, 0, 0],
+      "reach": 1380
+    },
+    {
+      "type": "lamp",
+      "id": "emptyLamp",
+      "node": "emptyLed",
+      "on": "#ffb84d",
+      "off": "#4d3a2a",
+      "state": "bottom.detected",
+      "glow": 12
+    }
+  ],
+  "transport": [
+    {
+      "id": "stack",
+      "label": "stack",
+      "speed": 2000,
+      "path": {
+        "line": {
+          "from": [0, 0, "height + capacity * 144 + 120 - 150"],
+          "to": [0, 0, "height"]
+        }
+      }
+    },
+    {
+      "id": "chute",
+      "static": true,
+      "path": {
+        "line": {
+          "from": [0, 0, "height"],
+          "to": [0, "stroke", "height"]
+        }
+      }
+    }
+  ],
+  "modules": [
+    {
+      "id": "io",
+      "module": "io-block",
+      "name": "I/O block",
+      "optional": true,
+      "at": [-300, -300, "height - 130"],
+      "rotateZ": 0
+    }
+  ],
+  "cables": [
+    {
+      "from": "X1",
+      "to": "io.X1"
+    }
+  ],
+  "wires": [
+    {
+      "from": "io.T.Q0",
+      "to": "W.push"
+    },
+    {
+      "from": "io.T.I0",
+      "to": "W.isBack"
+    },
+    {
+      "from": "io.T.I1",
+      "to": "W.isOut"
+    },
+    {
+      "from": "io.T.I2",
+      "to": "W.isEmpty"
+    }
+  ],
+  "terminal": {
+    "connectors": [
+      {
+        "id": "X1",
+        "type": "m23-io"
+      },
+      {
+        "id": "W",
+        "type": "wires",
+        "pins": [
+          {
+            "pin": "push",
+            "function": "Push a pallet out",
+            "drives": "push.extend"
+          },
+          {
+            "pin": "isBack",
+            "function": "Pusher back",
+            "reads": "back.on"
+          },
+          {
+            "pin": "isOut",
+            "function": "Pusher out",
+            "reads": "out.on"
+          },
+          {
+            "pin": "isEmpty",
+            "function": "Magazine empty",
+            "reads": "bottom.free"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "id": "fill",
+      "type": "placeWorkpiece",
+      "transport": "stack",
+      "at": 0,
+      "family": "pallet",
+      "heading": [1, 0, 0],
+      "dock": true
+    },
+    {
+      "id": "empty",
+      "type": "clearTransport",
+      "transport": "stack",
+      "label": "Empty",
+      "dock": true
+    }
+  ],
+  "controls": [
+    {
+      "type": "fill",
+      "label": "Pallets",
+      "transport": "stack",
+      "capacity": "capacity"
+    },
+    {
+      "type": "button",
+      "label": "Empty",
+      "action": "empty"
+    }
+  ]
+}

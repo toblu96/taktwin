@@ -1,0 +1,38 @@
+{
+  "$defs": {
+    "ConnectorType": {
+      "additionalProperties": false,
+      "description": "ConnectorType is one entry of connectors.json. Analog lists its analogue pins, of which the names starting with AQ or UA are outputs.",
+      "properties": {
+        "analog": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "color": {
+          "description": "Color is how the wiring view draws the connector and its cables, as #rrggbb.",
+          "type": "string"
+        },
+        "inputs": {
+          "type": "integer"
+        },
+        "label": {
+          "type": "string"
+        },
+        "outputs": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/toblu96/taktwin/main/schema/connectors.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": {
+    "$ref": "#/$defs/ConnectorType"
+  },
+  "description": "connectors.json: the types of connector, by name, with how many inputs and outputs they carry. Collections add theirs to the others'.",
+  "title": "Connector types",
+  "type": "object"
+}

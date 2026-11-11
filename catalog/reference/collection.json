@@ -1,0 +1,8 @@
+{
+  "id": "taktwin",
+  "name": "Taktwin",
+  "version": "0.1.0",
+  "description": "The app's own reference models: a pallet line with euro pallets and cardboard boxes.",
+  "station": "pallet-loading",
+  "workpieces": "pallet-loads"
+}

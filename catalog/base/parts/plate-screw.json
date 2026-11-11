@@ -1,0 +1,15 @@
+{
+  "format": 2,
+  "id": "plate-screw",
+  "name": "T-slot screw",
+  "model": [
+    {
+      "geometry": { "type": "CylinderGeometry", "radius": 5, "from": [0, 0, 0], "to": [0, 0, 6] },
+      "material": "rubber"
+    },
+    {
+      "geometry": { "type": "CylinderGeometry", "radius": 2.9, "radialSegments": 6, "from": [0, 0, 6], "to": [0, 0, 6.05] },
+      "material": "slotDark"
+    }
+  ]
+}

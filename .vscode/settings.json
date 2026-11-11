@@ -1,0 +1,72 @@
+{
+  "json.schemas": [
+    {
+      "fileMatch": [
+        "/catalog/base/collection.json",
+        "/catalog/reference/collection.json",
+        "/collections/*/collection.json"
+      ],
+      "url": "./schema/collection.schema.json"
+    },
+    {
+      "fileMatch": [
+        "/catalog/base/modules/*/module.json",
+        "/catalog/base/accessories/*/module.json",
+        "/catalog/reference/modules/*/module.json",
+        "/catalog/reference/accessories/*/module.json",
+        "/collections/*/modules/*/module.json",
+        "/collections/*/accessories/*/module.json"
+      ],
+      "url": "./schema/module.schema.json"
+    },
+    {
+      "fileMatch": [
+        "/catalog/base/parts/*.json",
+        "/catalog/reference/parts/*.json",
+        "/collections/*/parts/*.json"
+      ],
+      "url": "./schema/part.schema.json"
+    },
+    {
+      "fileMatch": [
+        "/catalog/base/stations/*/station.json",
+        "/catalog/reference/stations/*/station.json",
+        "/collections/*/stations/*/station.json",
+        "/stations/*/station.json"
+      ],
+      "url": "./schema/station.schema.json"
+    },
+    {
+      "fileMatch": [
+        "/catalog/base/workpieces/*.json",
+        "/catalog/reference/workpieces/*.json",
+        "/collections/*/workpieces/*.json"
+      ],
+      "url": "./schema/workpieces.schema.json"
+    },
+    {
+      "fileMatch": [
+        "/catalog/base/exercises/*/exercise.json",
+        "/catalog/reference/exercises/*/exercise.json",
+        "/collections/*/exercises/*/exercise.json"
+      ],
+      "url": "./schema/exercise.schema.json"
+    },
+    {
+      "fileMatch": [
+        "/catalog/base/materials.json",
+        "/catalog/reference/materials.json",
+        "/collections/*/materials.json"
+      ],
+      "url": "./schema/materials.schema.json"
+    },
+    {
+      "fileMatch": [
+        "/catalog/base/connectors.json",
+        "/catalog/reference/connectors.json",
+        "/collections/*/connectors.json"
+      ],
+      "url": "./schema/connectors.schema.json"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "m23-io": {
+    "label": "M23, 19-pin, 8 in / 8 out",
+    "inputs": 8,
+    "outputs": 8,
+    "color": "#e3ae12"
+  },
+  "m12-ports": {
+    "label": "M12 sockets, 8 in / 8 out",
+    "inputs": 8,
+    "outputs": 8
+  }
+}

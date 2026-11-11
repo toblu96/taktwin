@@ -1,0 +1,36 @@
+{
+  "format": 1,
+  "id": "load-a-pallet",
+  "name": "Load a pallet",
+  "description": "From its base position, the station loads one pallet on Start: it pushes the pallet out of the magazine, runs it to the stop, sets each carton that comes along the belt onto it, two layers of four, and runs the full pallet to the end of the conveyor, where it waits to be taken away. The example program does this.",
+  "station": "pallet-loading",
+  "rules": [{ "family": "pallet", "waitsAt": "conveyor.surface", "at": 4166, "place": "the end of the conveyor" }],
+  "conditions": {
+    "base": "!out.M1 && !out.M2 && !out.Y2 && !out.Y3 && in.B4 && in.A1_DONE && in.A2_DONE && in.A3_DONE",
+    "onConveyor": "count(\"conveyor.surface\", \"pallet\") == 1",
+    "atStop": "at(\"conveyor.surface\", 2400, 5)",
+    "beltEmpty": "count(\"cartons.surface\") == 0"
+  },
+  "steps": [
+    { "place": "magazine.fill", "kind": "pallet" },
+    { "wait": 1 },
+    { "line": "The start lamp asks for Start", "until": "out.P1", "within": 3 },
+    { "line": "The station is in its base position", "until": "base", "within": 3 },
+    { "press": "console.start" },
+    { "line": "The start lamp goes out", "until": "!out.P1", "within": 1 },
+    { "line": "A pallet comes out of the magazine onto the conveyor", "until": "onConveyor", "within": 15 },
+    { "line": "The pallet runs to the stop", "until": "atStop", "within": 30 },
+    {
+      "repeat": ["carton-large", "carton-large", "carton-large", "carton-large", "carton-large", "carton-large", "carton-large", "carton-large"],
+      "steps": [
+        { "place": "cartons.put", "kind": "{kind}" },
+        { "line": "The gantry takes the carton off the belt", "until": "beltEmpty", "within": 40 }
+      ]
+    },
+    { "line": "Eight cartons on the pallet, in two layers", "until": "loads(\"conveyor.surface\", \"carton-large\") == 8", "within": 40 },
+    { "line": "The full pallet runs to the end of the conveyor", "until": "rules()", "within": 40 },
+    { "line": "Nothing is lost or hit", "until": "lost == 0 && hits == 0", "within": 1 },
+    { "take": true },
+    { "line": "The start lamp asks for Start again", "until": "out.P1", "within": 10 }
+  ]
+}

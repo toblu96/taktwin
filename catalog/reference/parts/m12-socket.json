@@ -1,0 +1,37 @@
+{
+  "format": 2,
+  "id": "m12-socket",
+  "name": "M12 socket",
+  "model": [
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 9.5,
+        "from": [0, 0, 0],
+        "to": [0, 0, 3],
+        "radialSegments": 6
+      },
+      "material": "steelZinc"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 8,
+        "from": [0, 0, 3],
+        "to": [0, 0, 13],
+        "radialSegments": 16
+      },
+      "material": "steelZinc"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 5,
+        "from": [0, 0, 12.9],
+        "to": [0, 0, 13.2],
+        "radialSegments": 12
+      },
+      "material": "plasticBlack"
+    }
+  ]
+}

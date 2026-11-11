@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.1.0"
+	},
+	"info": {
+		"0409": {
+			"ProductVersion": "0.1.0",
+			"CompanyName": "Taktwin",
+			"FileDescription": "PLC training simulator with a 3D digital twin of production stations",
+			"LegalCopyright": "(c) 2026 Tobias Blum",
+			"ProductName": "Taktwin",
+			"Comments": "Digital twin for mechatronics training"
+		}
+	}
+}

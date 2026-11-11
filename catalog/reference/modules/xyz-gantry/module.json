@@ -1,0 +1,1058 @@
+{
+  "format": 2,
+  "id": "xyz-gantry",
+  "version": 1,
+  "name": "XYZ gantry",
+  "description": "A portal on four columns: a bridge travels along its length, a carriage across the bridge, and a mast with a suction frame up and down in the carriage. Each axis drives to one of its taught positions, chosen by number in binary, when its go signal comes on, and says when it is there. Its vacuum switch says when the frame holds a carton. Two I/O blocks on its front beam take its signals to the PLC.",
+  "parameters": [
+    {
+      "id": "spanX",
+      "default": 2000
+    },
+    {
+      "id": "spanY",
+      "default": 2600
+    },
+    {
+      "id": "height",
+      "default": 2400
+    },
+    {
+      "id": "fence",
+      "default": true,
+      "label": "Safety fence",
+      "kind": "build",
+      "description": "A see-through mesh fence along both long sides, open at the ends where the conveyors run through."
+    },
+    {
+      "id": "xStart",
+      "default": 200
+    },
+    {
+      "id": "yStart",
+      "default": 400
+    },
+    {
+      "id": "tipTop",
+      "default": 1940
+    },
+    {
+      "id": "strokeX",
+      "default": 1600
+    },
+    {
+      "id": "strokeY",
+      "default": 1800
+    },
+    {
+      "id": "strokeZ",
+      "default": 1000
+    },
+    {
+      "id": "mastLength",
+      "default": 2300
+    },
+    {
+      "id": "speedXY",
+      "default": 600,
+      "label": "Travel speed",
+      "unit": "mm/s",
+      "kind": "physics",
+      "description": "How fast the bridge and the carriage travel.",
+      "min": 100,
+      "max": 2000,
+      "step": 50
+    },
+    {
+      "id": "speedZ",
+      "default": 400,
+      "label": "Lift speed",
+      "unit": "mm/s",
+      "kind": "physics",
+      "description": "How fast the mast goes up and down.",
+      "min": 100,
+      "max": 1500,
+      "step": 50
+    },
+    {
+      "id": "x0",
+      "default": 0
+    },
+    {
+      "id": "x1",
+      "default": 0
+    },
+    {
+      "id": "x2",
+      "default": 0
+    },
+    {
+      "id": "y0",
+      "default": 0
+    },
+    {
+      "id": "y1",
+      "default": 0
+    },
+    {
+      "id": "y2",
+      "default": 0
+    },
+    {
+      "id": "z0",
+      "default": 0
+    },
+    {
+      "id": "z1",
+      "default": 0
+    },
+    {
+      "id": "z2",
+      "default": 0
+    },
+    {
+      "id": "z3",
+      "default": 0
+    }
+  ],
+  "needs": [
+    {
+      "module": "io-block",
+      "min": 2,
+      "why": "its axes and gripper are not connected to the PLC"
+    }
+  ],
+  "mounts": [
+    {
+      "id": "floor",
+      "type": "floor-rail",
+      "at": [0, 0, 0],
+      "screws": [
+        [0, 0, 0],
+        ["spanX", 0, 0],
+        [0, "spanY", 0],
+        ["spanX", "spanY", 0]
+      ]
+    }
+  ],
+  "model": [
+    {
+      "position": [0, 0, "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 140,
+        "height": 140,
+        "depth": "height"
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": [0, 0, 10],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 300,
+        "height": 300,
+        "depth": 20
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": [0, "spanY", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 140,
+        "height": 140,
+        "depth": "height"
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": [0, "spanY", 10],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 300,
+        "height": 300,
+        "depth": 20
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": ["spanX", 0, "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 140,
+        "height": 140,
+        "depth": "height"
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": ["spanX", 0, 10],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 300,
+        "height": 300,
+        "depth": 20
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": ["spanX", "spanY", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 140,
+        "height": 140,
+        "depth": "height"
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": ["spanX", "spanY", 10],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 300,
+        "height": 300,
+        "depth": 20
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": ["spanX / 2", 0, "height + 100"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX + 300",
+        "height": 160,
+        "depth": 200
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": ["spanX / 2", 0, "height + 205"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX + 200",
+        "height": 30,
+        "depth": 10
+      },
+      "material": "steelBright"
+    },
+    {
+      "position": ["spanX / 2", -110, "height + 160"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX",
+        "height": 60,
+        "depth": 50
+      },
+      "material": "cableBlack"
+    },
+    {
+      "position": ["spanX / 2", "spanY", "height + 100"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX + 300",
+        "height": 160,
+        "depth": 200
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": ["spanX / 2", "spanY", "height + 205"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX + 200",
+        "height": 30,
+        "depth": 10
+      },
+      "material": "steelBright"
+    },
+    {
+      "position": ["spanX / 2", "spanY + 110", "height + 160"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX",
+        "height": 60,
+        "depth": 50
+      },
+      "material": "cableBlack"
+    },
+    {
+      "position": ["0 - 69", "0", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 3,
+        "height": 14,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["0 + 69", "0", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 3,
+        "height": 14,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["0", "0 - 69", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 14,
+        "height": 3,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["0", "0 + 69", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 14,
+        "height": 3,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["0 - 69", "spanY", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 3,
+        "height": 14,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["0 + 69", "spanY", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 3,
+        "height": 14,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["0", "spanY - 69", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 14,
+        "height": 3,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["0", "spanY + 69", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 14,
+        "height": 3,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["spanX - 69", "0", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 3,
+        "height": 14,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["spanX + 69", "0", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 3,
+        "height": 14,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["spanX", "0 - 69", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 14,
+        "height": 3,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["spanX", "0 + 69", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 14,
+        "height": 3,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["spanX - 69", "spanY", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 3,
+        "height": 14,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["spanX + 69", "spanY", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 3,
+        "height": 14,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["spanX", "spanY - 69", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 14,
+        "height": 3,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["spanX", "spanY + 69", "height / 2"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 14,
+        "height": 3,
+        "depth": "height - 60"
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["spanX / 2", "0 - 101", "height + 100"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX + 240",
+        "height": 3,
+        "depth": 14
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["spanX / 2", "spanY + 101", "height + 100"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX + 240",
+        "height": 3,
+        "depth": 14
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": ["-250", "-250", 1000],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 50,
+        "height": 50,
+        "depth": 2000
+      },
+      "material": "guardYellow",
+      "when": "fence"
+    },
+    {
+      "position": ["-250", "-250", 5],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 120,
+        "height": 120,
+        "depth": 10
+      },
+      "material": "frameDark",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX / 2", "-250", 1000],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 50,
+        "height": 50,
+        "depth": 2000
+      },
+      "material": "guardYellow",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX / 2", "-250", 5],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 120,
+        "height": 120,
+        "depth": 10
+      },
+      "material": "frameDark",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX + 250", "-250", 1000],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 50,
+        "height": 50,
+        "depth": 2000
+      },
+      "material": "guardYellow",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX + 250", "-250", 5],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 120,
+        "height": 120,
+        "depth": 10
+      },
+      "material": "frameDark",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX / 2", "-250", 1990],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX + 550",
+        "height": 40,
+        "depth": 20
+      },
+      "material": "guardYellow",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX / 2", "-250", 160],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX + 550",
+        "height": 30,
+        "depth": 20
+      },
+      "material": "guardYellow",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX / 2", "-250", 1070],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX + 450",
+        "height": 4,
+        "depth": 1800
+      },
+      "material": "fenceMesh",
+      "when": "fence",
+      "noPick": true
+    },
+    {
+      "position": ["-250", "spanY + 250", 1000],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 50,
+        "height": 50,
+        "depth": 2000
+      },
+      "material": "guardYellow",
+      "when": "fence"
+    },
+    {
+      "position": ["-250", "spanY + 250", 5],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 120,
+        "height": 120,
+        "depth": 10
+      },
+      "material": "frameDark",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX / 2", "spanY + 250", 1000],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 50,
+        "height": 50,
+        "depth": 2000
+      },
+      "material": "guardYellow",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX / 2", "spanY + 250", 5],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 120,
+        "height": 120,
+        "depth": 10
+      },
+      "material": "frameDark",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX + 250", "spanY + 250", 1000],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 50,
+        "height": 50,
+        "depth": 2000
+      },
+      "material": "guardYellow",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX + 250", "spanY + 250", 5],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 120,
+        "height": 120,
+        "depth": 10
+      },
+      "material": "frameDark",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX / 2", "spanY + 250", 1990],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX + 550",
+        "height": 40,
+        "depth": 20
+      },
+      "material": "guardYellow",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX / 2", "spanY + 250", 160],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX + 550",
+        "height": 30,
+        "depth": 20
+      },
+      "material": "guardYellow",
+      "when": "fence"
+    },
+    {
+      "position": ["spanX / 2", "spanY + 250", 1070],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "spanX + 450",
+        "height": 4,
+        "depth": 1800
+      },
+      "material": "fenceMesh",
+      "when": "fence",
+      "noPick": true
+    },
+    {
+      "name": "bridge",
+      "position": ["xStart", 0, 0],
+      "children": [
+        {
+          "position": [0, "spanY / 2", "height + 330"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 200,
+            "height": "spanY + 300",
+            "depth": 220
+          },
+          "material": "moveYellow"
+        },
+        {
+          "position": [0, 0, "height + 240"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 320,
+            "height": 260,
+            "depth": 80
+          },
+          "material": "frameDark"
+        },
+        {
+          "position": [0, "spanY", "height + 240"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 320,
+            "height": 260,
+            "depth": 80
+          },
+          "material": "frameDark"
+        },
+        {
+          "geometry": {
+            "type": "CylinderGeometry",
+            "radius": 70,
+            "from": [0, -150, "height + 280"],
+            "to": [0, -150, "height + 520"],
+            "radialSegments": 20
+          },
+          "material": "motorGrey"
+        },
+        {
+          "name": "carriage",
+          "position": [0, "yStart", "height + 380"],
+          "children": [
+            {
+              "position": [0, 0, 0],
+              "geometry": {
+                "type": "BoxGeometry",
+                "width": 320,
+                "height": 300,
+                "depth": 320
+              },
+              "material": "moveYellow"
+            },
+            {
+              "geometry": {
+                "type": "CylinderGeometry",
+                "radius": 70,
+                "from": [0, 120, 160],
+                "to": [0, 120, 360],
+                "radialSegments": 20
+              },
+              "material": "motorGrey"
+            },
+            {
+              "name": "mast",
+              "position": [0, 0, "tipTop - height - 380"],
+              "children": [
+                {
+                  "position": [0, 0, "mastLength / 2 + 130"],
+                  "geometry": {
+                    "type": "BoxGeometry",
+                    "width": 140,
+                    "height": 140,
+                    "depth": "mastLength"
+                  },
+                  "material": "moveYellow"
+                },
+                {
+                  "position": [0, -72, "mastLength / 2 + 130"],
+                  "geometry": {
+                    "type": "BoxGeometry",
+                    "width": 40,
+                    "height": 4,
+                    "depth": "mastLength - 40"
+                  },
+                  "material": "steelBright"
+                },
+                {
+                  "position": [0, 0, 0],
+                  "children": [
+                    {
+                      "position": [0, 0, 52],
+                      "geometry": {
+                        "type": "BoxGeometry",
+                        "width": 580,
+                        "height": 380,
+                        "depth": 24
+                      },
+                      "material": "frameGrey"
+                    },
+                    {
+                      "position": [0, 0, 97],
+                      "geometry": {
+                        "type": "BoxGeometry",
+                        "width": 120,
+                        "height": 120,
+                        "depth": 66
+                      },
+                      "material": "frameDark"
+                    },
+                    {
+                      "position": [90, 0, 84],
+                      "geometry": {
+                        "type": "BoxGeometry",
+                        "width": 60,
+                        "height": 40,
+                        "depth": 40
+                      },
+                      "material": "sensorBody"
+                    },
+                    {
+                      "name": "vacuumLed",
+                      "position": [90, -21, 96],
+                      "geometry": {
+                        "type": "BoxGeometry",
+                        "width": 8,
+                        "height": 2,
+                        "depth": 6
+                      },
+                      "material": "plasticGrey"
+                    },
+                    {
+                      "part": "suction-cup",
+                      "position": [-200, -120, 0]
+                    },
+                    {
+                      "part": "suction-cup",
+                      "position": [-200, 120, 0]
+                    },
+                    {
+                      "part": "suction-cup",
+                      "position": [200, -120, 0]
+                    },
+                    {
+                      "part": "suction-cup",
+                      "position": [200, 120, 0]
+                    }
+                  ]
+                },
+                {
+                  "name": "tip",
+                  "position": [0, 0, 0],
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "joints": [
+    {
+      "node": "bridge",
+      "type": "prismatic",
+      "axis": [1, 0, 0],
+      "range": [0, "strokeX"],
+      "driver": "x.position"
+    },
+    {
+      "node": "carriage",
+      "type": "prismatic",
+      "axis": [0, 1, 0],
+      "range": [0, "strokeY"],
+      "driver": "y.position"
+    },
+    {
+      "node": "mast",
+      "type": "prismatic",
+      "axis": [0, 0, -1],
+      "range": [0, "strokeZ"],
+      "driver": "z.position"
+    }
+  ],
+  "devices": [
+    {
+      "type": "axis",
+      "id": "x",
+      "stroke": "strokeX",
+      "speed": "speedXY",
+      "targets": ["x0", "x1", "x2"]
+    },
+    {
+      "type": "axis",
+      "id": "y",
+      "stroke": "strokeY",
+      "speed": "speedXY",
+      "targets": ["y0", "y1", "y2"]
+    },
+    {
+      "type": "axis",
+      "id": "z",
+      "stroke": "strokeZ",
+      "speed": "speedZ",
+      "targets": ["z0", "z1", "z2", "z3"]
+    },
+    {
+      "type": "gripper",
+      "id": "vacuum",
+      "tip": "tip",
+      "reach": 60
+    },
+    {
+      "type": "lamp",
+      "id": "vacuumLamp",
+      "node": "vacuumLed",
+      "on": "#5dff8f",
+      "off": "#163a22",
+      "state": "vacuum.holding",
+      "glow": 12
+    }
+  ],
+  "modules": [
+    {
+      "id": "io1",
+      "module": "io-block",
+      "name": "I/O block, travel",
+      "optional": true,
+      "at": [300, -80, "height + 100"]
+    },
+    {
+      "id": "io2",
+      "module": "io-block",
+      "name": "I/O block, lift",
+      "optional": true,
+      "at": [600, -80, "height + 100"]
+    }
+  ],
+  "cables": [
+    {
+      "from": "X1",
+      "to": "io1.X1"
+    },
+    {
+      "from": "X2",
+      "to": "io2.X1"
+    }
+  ],
+  "wires": [
+    {
+      "from": "io1.T.Q0",
+      "to": "W.xRecord0"
+    },
+    {
+      "from": "io1.T.Q1",
+      "to": "W.xRecord1"
+    },
+    {
+      "from": "io1.T.Q2",
+      "to": "W.xGo"
+    },
+    {
+      "from": "io1.T.Q3",
+      "to": "W.yRecord0"
+    },
+    {
+      "from": "io1.T.Q4",
+      "to": "W.yRecord1"
+    },
+    {
+      "from": "io1.T.Q5",
+      "to": "W.yGo"
+    },
+    {
+      "from": "io1.T.Q6",
+      "to": "W.vacuum"
+    },
+    {
+      "from": "io1.T.I0",
+      "to": "W.xDone"
+    },
+    {
+      "from": "io1.T.I1",
+      "to": "W.yDone"
+    },
+    {
+      "from": "io1.T.I2",
+      "to": "W.holding"
+    },
+    {
+      "from": "io2.T.Q0",
+      "to": "W.zRecord0"
+    },
+    {
+      "from": "io2.T.Q1",
+      "to": "W.zRecord1"
+    },
+    {
+      "from": "io2.T.Q2",
+      "to": "W.zGo"
+    },
+    {
+      "from": "io2.T.I0",
+      "to": "W.zDone"
+    }
+  ],
+  "terminal": {
+    "connectors": [
+      {
+        "id": "X1",
+        "type": "m23-io"
+      },
+      {
+        "id": "X2",
+        "type": "m23-io"
+      },
+      {
+        "id": "W",
+        "type": "wires",
+        "pins": [
+          {
+            "pin": "xRecord0",
+            "function": "Bridge position, bit 0",
+            "drives": "x.record0"
+          },
+          {
+            "pin": "xRecord1",
+            "function": "Bridge position, bit 1",
+            "drives": "x.record1"
+          },
+          {
+            "pin": "xGo",
+            "function": "Bridge go",
+            "drives": "x.go"
+          },
+          {
+            "pin": "xDone",
+            "function": "Bridge in position",
+            "reads": "x.done"
+          },
+          {
+            "pin": "yRecord0",
+            "function": "Carriage position, bit 0",
+            "drives": "y.record0"
+          },
+          {
+            "pin": "yRecord1",
+            "function": "Carriage position, bit 1",
+            "drives": "y.record1"
+          },
+          {
+            "pin": "yGo",
+            "function": "Carriage go",
+            "drives": "y.go"
+          },
+          {
+            "pin": "yDone",
+            "function": "Carriage in position",
+            "reads": "y.done"
+          },
+          {
+            "pin": "zRecord0",
+            "function": "Mast position, bit 0",
+            "drives": "z.record0"
+          },
+          {
+            "pin": "zRecord1",
+            "function": "Mast position, bit 1",
+            "drives": "z.record1"
+          },
+          {
+            "pin": "zGo",
+            "function": "Mast go",
+            "drives": "z.go"
+          },
+          {
+            "pin": "zDone",
+            "function": "Mast in position",
+            "reads": "z.done"
+          },
+          {
+            "pin": "vacuum",
+            "function": "Vacuum on",
+            "drives": "vacuum.on"
+          },
+          {
+            "pin": "holding",
+            "function": "Vacuum switch: holding a carton",
+            "reads": "vacuum.holding"
+          }
+        ]
+      }
+    ]
+  }
+}

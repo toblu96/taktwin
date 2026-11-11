@@ -1,0 +1,141 @@
+{
+  "frameGrey": {
+    "type": "MeshPhongMaterial",
+    "color": "#c9ccc8",
+    "shininess": 25,
+    "specular": "#3a3a3a"
+  },
+  "frameDark": {
+    "type": "MeshPhongMaterial",
+    "color": "#3c4248",
+    "shininess": 30,
+    "specular": "#2a2a2a"
+  },
+  "steelZinc": {
+    "type": "MeshPhongMaterial",
+    "color": "#b4bac0",
+    "shininess": 70,
+    "specular": "#8a9096"
+  },
+  "steelBright": {
+    "type": "MeshPhongMaterial",
+    "color": "#d8dde2",
+    "shininess": 90,
+    "specular": "#ffffff"
+  },
+  "moveYellow": {
+    "type": "MeshPhongMaterial",
+    "color": "#e3ae12",
+    "shininess": 35,
+    "specular": "#444444"
+  },
+  "guardYellow": {
+    "type": "MeshLambertMaterial",
+    "color": "#e9b51c"
+  },
+  "plasticBlack": {
+    "type": "MeshPhongMaterial",
+    "color": "#22262a",
+    "shininess": 30,
+    "specular": "#333333"
+  },
+  "plasticGrey": {
+    "type": "MeshLambertMaterial",
+    "color": "#6b7279"
+  },
+  "motorGrey": {
+    "type": "MeshPhongMaterial",
+    "color": "#58646d",
+    "shininess": 45,
+    "specular": "#555555"
+  },
+  "floorPlate": {
+    "type": "MeshLambertMaterial",
+    "color": "#9ba3a8"
+  },
+  "floorRail": {
+    "type": "MeshLambertMaterial",
+    "color": "#3a4045"
+  },
+  "cabinet": {
+    "type": "MeshPhongMaterial",
+    "color": "#d2d4d0",
+    "shininess": 20,
+    "specular": "#2a2a2a"
+  },
+  "cabinetDark": {
+    "type": "MeshLambertMaterial",
+    "color": "#2e3236"
+  },
+  "glassDark": {
+    "type": "MeshPhongMaterial",
+    "color": "#24323a",
+    "shininess": 90,
+    "specular": "#aab6bf",
+    "opacity": 0.55
+  },
+  "meshPanel": {
+    "type": "MeshLambertMaterial",
+    "color": "#3a4046",
+    "opacity": 0.35
+  },
+  "cableBlack": {
+    "type": "MeshLambertMaterial",
+    "color": "#16191c"
+  },
+  "labelWhite": {
+    "type": "MeshLambertMaterial",
+    "color": "#f1f2ee"
+  },
+  "sensorBody": {
+    "type": "MeshPhongMaterial",
+    "color": "#3d4248",
+    "shininess": 50,
+    "specular": "#555555"
+  },
+  "reflectorRed": {
+    "type": "MeshPhongMaterial",
+    "color": "#b3261e",
+    "shininess": 80,
+    "specular": "#ffaaaa"
+  },
+  "suctionRubber": {
+    "type": "MeshLambertMaterial",
+    "color": "#2b2d30"
+  },
+  "beltBlack": {
+    "type": "MeshLambertMaterial",
+    "color": "#23272b"
+  },
+  "palletWood": {
+    "type": "MeshLambertMaterial",
+    "color": "#dcbf8f"
+  },
+  "palletBlock": {
+    "type": "MeshLambertMaterial",
+    "color": "#c9a46c"
+  },
+  "palletEdge": {
+    "type": "MeshLambertMaterial",
+    "color": "#b8935c"
+  },
+  "carton": {
+    "type": "MeshLambertMaterial",
+    "color": "#bf8f58"
+  },
+  "cartonDark": {
+    "type": "MeshLambertMaterial",
+    "color": "#a87a47"
+  },
+  "tape": {
+    "type": "MeshPhongMaterial",
+    "color": "#d9c08c",
+    "shininess": 60,
+    "specular": "#777777"
+  },
+  "fenceMesh": {
+    "type": "MeshLambertMaterial",
+    "color": "#2f3438",
+    "opacity": 0.12
+  }
+}

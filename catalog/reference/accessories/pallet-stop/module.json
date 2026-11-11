@@ -1,0 +1,142 @@
+{
+  "format": 2,
+  "id": "pallet-stop",
+  "version": 1,
+  "group": "Actuators",
+  "name": "Pallet stop",
+  "description": "A pneumatic stop between the rollers of a pallet conveyor. A spring holds its head up in front of a pallet; switching its valve lowers it, so that the pallet runs on. Raised under a pallet, it hits it.",
+  "parameters": [
+    {
+      "id": "speed",
+      "default": 300,
+      "label": "Speed",
+      "unit": "mm/s",
+      "kind": "physics",
+      "description": "How fast the head goes up and down.",
+      "min": 50,
+      "max": 1000,
+      "step": 10
+    }
+  ],
+  "mounts": [
+    {
+      "id": "bed",
+      "type": "roller-bed",
+      "at": [0, 0, 0],
+      "screws": [[0, 0, 0]]
+    }
+  ],
+  "model": [
+    {
+      "position": [30, 0, -146],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 80,
+        "height": 1140,
+        "depth": 20
+      },
+      "material": "frameDark"
+    },
+    {
+      "position": [30, 0, -121],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 120,
+        "height": 120,
+        "depth": 30
+      },
+      "material": "frameDark"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 32,
+        "from": [30, 0, -105],
+        "to": [30, 0, -30],
+        "radialSegments": 20
+      },
+      "material": "steelZinc"
+    },
+    {
+      "name": "head",
+      "position": [0, 0, 0],
+      "children": [
+        {
+          "position": [30, 0, 20],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 60,
+            "height": 180,
+            "depth": 70
+          },
+          "material": "moveYellow"
+        },
+        {
+          "position": [-4, 0, 20],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 8,
+            "height": 160,
+            "depth": 50
+          },
+          "material": "plasticBlack"
+        }
+      ]
+    }
+  ],
+  "joints": [
+    {
+      "node": "head",
+      "type": "prismatic",
+      "axis": [0, 0, 1],
+      "range": [-75, 0],
+      "driver": "stop.position"
+    }
+  ],
+  "devices": [
+    {
+      "type": "cylinder",
+      "id": "stop",
+      "valve": "monostable",
+      "rest": "extended",
+      "stroke": 75,
+      "speed": "speed"
+    },
+    {
+      "type": "solid",
+      "id": "face",
+      "node": "head",
+      "box": {
+        "from": [0, -90, -15],
+        "to": [60, 90, 55]
+      },
+      "label": "The pallet stop"
+    },
+    {
+      "type": "reedSwitch",
+      "id": "down",
+      "cylinder": "stop",
+      "at": "retracted"
+    }
+  ],
+  "terminal": {
+    "connectors": [
+      {
+        "id": "W",
+        "type": "wires",
+        "pins": [
+          {
+            "pin": "release",
+            "function": "Lower the stop",
+            "drives": "stop.retract"
+          },
+          {
+            "pin": "lowered",
+            "function": "Stop lowered",
+            "reads": "down.on"
+          }
+        ]
+      }
+    ]
+  }
+}

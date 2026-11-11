@@ -1,0 +1,47 @@
+{
+  "format": 2,
+  "id": "suction-cup",
+  "name": "Bellows suction cup",
+  "model": [
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 32,
+        "from": [0, 0, 0],
+        "to": [0, 0, 8],
+        "radialSegments": 20
+      },
+      "material": "suctionRubber"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 26,
+        "from": [0, 0, 8],
+        "to": [0, 0, 16],
+        "radialSegments": 20
+      },
+      "material": "suctionRubber"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 30,
+        "from": [0, 0, 16],
+        "to": [0, 0, 24],
+        "radialSegments": 20
+      },
+      "material": "suctionRubber"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 12,
+        "from": [0, 0, 24],
+        "to": [0, 0, 40],
+        "radialSegments": 12
+      },
+      "material": "steelZinc"
+    }
+  ]
+}

@@ -1,0 +1,223 @@
+{
+  "$defs": {
+    "GeometryDef": {
+      "additionalProperties": false,
+      "description": "GeometryDef uses the names and parameters of three.js geometries where one exists. From and To on a CylinderGeometry, and SectorGeometry, are extensions. ExtrudeGeometry takes its Shape as Points and Holes, and extrudes along +z.",
+      "properties": {
+        "center": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "depth": {
+          "$ref": "#/$defs/Num"
+        },
+        "end": {
+          "$ref": "#/$defs/Num"
+        },
+        "from": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "height": {
+          "$ref": "#/$defs/Num"
+        },
+        "holes": {
+          "items": {
+            "items": {
+              "items": {
+                "$ref": "#/$defs/Num"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "inner": {
+          "$ref": "#/$defs/Num"
+        },
+        "innerStart": {
+          "$ref": "#/$defs/Num"
+        },
+        "outer": {
+          "$ref": "#/$defs/Num"
+        },
+        "points": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/Num"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "radialSegments": {
+          "$ref": "#/$defs/Num"
+        },
+        "radius": {
+          "$ref": "#/$defs/Num"
+        },
+        "start": {
+          "$ref": "#/$defs/Num"
+        },
+        "to": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "type": {
+          "type": "string"
+        },
+        "width": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "LabelDef": {
+      "additionalProperties": false,
+      "description": "LabelDef draws text on a node, on a plate if it has a Background.",
+      "properties": {
+        "background": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "size": {
+          "$ref": "#/$defs/Num"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "NodeDef": {
+      "additionalProperties": false,
+      "description": "NodeDef is one element of a module's 3D model, shaped like a three.js Object3D. Rotation is in degrees. Logic refers to nodes by Name and never to their shape, so a node can be refined without touching the module's behaviour.",
+      "properties": {
+        "belt": {
+          "description": "transport a belt surface follows",
+          "type": "string"
+        },
+        "children": {
+          "items": {
+            "$ref": "#/$defs/NodeDef"
+          },
+          "type": "array"
+        },
+        "geometry": {
+          "$ref": "#/$defs/GeometryDef"
+        },
+        "label": {
+          "$ref": "#/$defs/LabelDef"
+        },
+        "material": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "noPick": {
+          "type": "boolean"
+        },
+        "part": {
+          "description": "shared part drawn at this node",
+          "type": "string"
+        },
+        "position": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "repeat": {
+          "$ref": "#/$defs/RepeatDef"
+        },
+        "rotation": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "Num": {
+      "description": "A number, an expression over the module's parameters as a string, such as \"length - 47\" or \"radius * sin(45)\", or true or false for 1 or 0. Angles are degrees.",
+      "type": [
+        "number",
+        "string",
+        "boolean"
+      ]
+    },
+    "PartDef": {
+      "additionalProperties": false,
+      "description": "PartDef is a shared 3D part, such as a connector, that modules draw with the Part field of a node. Improving a part improves every module that uses it. A node in a part with the material \"inherit\" takes the material of that node.",
+      "properties": {
+        "format": {
+          "type": "integer"
+        },
+        "id": {
+          "type": "string"
+        },
+        "model": {
+          "items": {
+            "$ref": "#/$defs/NodeDef"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "RepeatDef": {
+      "additionalProperties": false,
+      "description": "RepeatDef places copies of a node along a step.",
+      "properties": {
+        "count": {
+          "$ref": "#/$defs/Num"
+        },
+        "step": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/toblu96/taktwin/main/schema/part.schema.json",
+  "$ref": "#/$defs/PartDef",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "parts/<id>.json: shared 3D geometry that modules and workpieces draw with a node's part.",
+  "title": "Part"
+}

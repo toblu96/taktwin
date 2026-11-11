@@ -1,0 +1,35 @@
+{
+  "$defs": {
+    "Material": {
+      "additionalProperties": false,
+      "description": "Material uses the names of three.js material classes and parameters.",
+      "properties": {
+        "color": {
+          "type": "string"
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "shininess": {
+          "type": "integer"
+        },
+        "specular": {
+          "type": "string"
+        },
+        "type": {
+          "description": "MeshLambertMaterial or MeshPhongMaterial",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/toblu96/taktwin/main/schema/materials.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": {
+    "$ref": "#/$defs/Material"
+  },
+  "description": "materials.json: the materials that nodes name, by name. Collections add theirs to the others'.",
+  "title": "Materials",
+  "type": "object"
+}

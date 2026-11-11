@@ -1,0 +1,451 @@
+{
+  "format": 2,
+  "id": "io-block",
+  "version": 1,
+  "group": "PLC and I/O",
+  "name": "I/O block",
+  "role": "terminal",
+  "description": "A remote I/O block for the field: eight M12 sockets for sensors and actuators, eight inputs and eight outputs with an LED each, and an M23 socket that takes them to the PLC in one cable. Its outputs are fed from the safety circuit, so they are off while the emergency stop is pressed.",
+  "mounts": [
+    {
+      "id": "frame",
+      "type": "frame-side",
+      "runs": "level",
+      "at": [0, 0, 0],
+      "screws": [
+        [-95, 0, 0],
+        [95, 0, 0]
+      ]
+    }
+  ],
+  "model": [
+    {
+      "name": "body",
+      "position": [0, -19, 0],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 220,
+        "height": 38,
+        "depth": 64
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "position": [0, -38.5, 0],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 204,
+        "height": 1,
+        "depth": 48
+      },
+      "material": "frameDark"
+    },
+    {
+      "part": "m12-socket",
+      "position": [-66, -39, 15],
+      "rotation": [90, 0, 0]
+    },
+    {
+      "name": "ledI0",
+      "position": [-51, -39.2, 22],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "name": "ledQ0",
+      "position": [-51, -39.2, 8],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "part": "m12-socket",
+      "position": [-22, -39, 15],
+      "rotation": [90, 0, 0]
+    },
+    {
+      "name": "ledI1",
+      "position": [-7, -39.2, 22],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "name": "ledQ1",
+      "position": [-7, -39.2, 8],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "part": "m12-socket",
+      "position": [22, -39, 15],
+      "rotation": [90, 0, 0]
+    },
+    {
+      "name": "ledI2",
+      "position": [37, -39.2, 22],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "name": "ledQ2",
+      "position": [37, -39.2, 8],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "part": "m12-socket",
+      "position": [66, -39, 15],
+      "rotation": [90, 0, 0]
+    },
+    {
+      "name": "ledI3",
+      "position": [81, -39.2, 22],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "name": "ledQ3",
+      "position": [81, -39.2, 8],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "part": "m12-socket",
+      "position": [-66, -39, -15],
+      "rotation": [90, 0, 0]
+    },
+    {
+      "name": "ledI4",
+      "position": [-51, -39.2, -8],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "name": "ledQ4",
+      "position": [-51, -39.2, -22],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "part": "m12-socket",
+      "position": [-22, -39, -15],
+      "rotation": [90, 0, 0]
+    },
+    {
+      "name": "ledI5",
+      "position": [-7, -39.2, -8],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "name": "ledQ5",
+      "position": [-7, -39.2, -22],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "part": "m12-socket",
+      "position": [22, -39, -15],
+      "rotation": [90, 0, 0]
+    },
+    {
+      "name": "ledI6",
+      "position": [37, -39.2, -8],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "name": "ledQ6",
+      "position": [37, -39.2, -22],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "part": "m12-socket",
+      "position": [66, -39, -15],
+      "rotation": [90, 0, 0]
+    },
+    {
+      "name": "ledI7",
+      "position": [81, -39.2, -8],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "name": "ledQ7",
+      "position": [81, -39.2, -22],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 4
+      },
+      "material": "plasticGrey"
+    },
+    {
+      "part": "m23-socket",
+      "position": [-110, -19, 0],
+      "rotation": [0, -90, 0]
+    },
+    {
+      "name": "power",
+      "position": [96, -39.2, 0],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 5,
+        "height": 1.4,
+        "depth": 5
+      },
+      "material": "plasticGrey"
+    }
+  ],
+  "devices": [
+    {
+      "type": "lamp",
+      "id": "ledI0",
+      "node": "ledI0",
+      "on": "#5dff8f",
+      "off": "#163a22",
+      "state": "T.I0",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledQ0",
+      "node": "ledQ0",
+      "on": "#ffa733",
+      "off": "#452c12",
+      "state": "T.Q0",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledI1",
+      "node": "ledI1",
+      "on": "#5dff8f",
+      "off": "#163a22",
+      "state": "T.I1",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledQ1",
+      "node": "ledQ1",
+      "on": "#ffa733",
+      "off": "#452c12",
+      "state": "T.Q1",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledI2",
+      "node": "ledI2",
+      "on": "#5dff8f",
+      "off": "#163a22",
+      "state": "T.I2",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledQ2",
+      "node": "ledQ2",
+      "on": "#ffa733",
+      "off": "#452c12",
+      "state": "T.Q2",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledI3",
+      "node": "ledI3",
+      "on": "#5dff8f",
+      "off": "#163a22",
+      "state": "T.I3",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledQ3",
+      "node": "ledQ3",
+      "on": "#ffa733",
+      "off": "#452c12",
+      "state": "T.Q3",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledI4",
+      "node": "ledI4",
+      "on": "#5dff8f",
+      "off": "#163a22",
+      "state": "T.I4",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledQ4",
+      "node": "ledQ4",
+      "on": "#ffa733",
+      "off": "#452c12",
+      "state": "T.Q4",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledI5",
+      "node": "ledI5",
+      "on": "#5dff8f",
+      "off": "#163a22",
+      "state": "T.I5",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledQ5",
+      "node": "ledQ5",
+      "on": "#ffa733",
+      "off": "#452c12",
+      "state": "T.Q5",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledI6",
+      "node": "ledI6",
+      "on": "#5dff8f",
+      "off": "#163a22",
+      "state": "T.I6",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledQ6",
+      "node": "ledQ6",
+      "on": "#ffa733",
+      "off": "#452c12",
+      "state": "T.Q6",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledI7",
+      "node": "ledI7",
+      "on": "#5dff8f",
+      "off": "#163a22",
+      "state": "T.I7",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "ledQ7",
+      "node": "ledQ7",
+      "on": "#ffa733",
+      "off": "#452c12",
+      "state": "T.Q7",
+      "glow": 9
+    },
+    {
+      "type": "lamp",
+      "id": "power",
+      "node": "power",
+      "on": "#4db8ff",
+      "off": "#16324a",
+      "alwaysOn": true,
+      "glow": 9
+    }
+  ],
+  "terminal": {
+    "connectors": [
+      {
+        "id": "T",
+        "type": "m12-ports"
+      },
+      {
+        "id": "X1",
+        "type": "m23-io",
+        "internal": true,
+        "switched": true
+      }
+    ],
+    "bridges": [
+      {
+        "a": "T",
+        "b": "X1"
+      }
+    ]
+  }
+}

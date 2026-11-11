@@ -1,0 +1,316 @@
+{
+  "format": 2,
+  "id": "control-cabinet",
+  "version": 1,
+  "group": "PLC and I/O",
+  "name": "Control cabinet",
+  "role": "plc",
+  "addresses": { "inputs": "IB{byte}Bit{bit:2}", "outputs": "QB{byte}Bit{bit:2}", "analog": "AI{channel}", "list": "Bits" },
+  "description": "A floor-standing cabinet with the PLC behind a window in its door, and six M23 sockets on its roof, X1 to X6, one byte of the PLC image each, for the I/O blocks of the machines and the operator console.",
+  "mounts": [
+    {
+      "id": "floor",
+      "type": "floor-rail",
+      "at": [0, 0, 0],
+      "screws": [
+        [-300, 0, 0],
+        [300, 0, 0]
+      ]
+    }
+  ],
+  "model": [
+    {
+      "position": [0, 0, 50],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 780,
+        "height": 380,
+        "depth": 100
+      },
+      "material": "cabinetDark"
+    },
+    {
+      "name": "body",
+      "position": [0, 0, 900],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 800,
+        "height": 400,
+        "depth": 1600
+      },
+      "material": "cabinet"
+    },
+    {
+      "position": [0, -201, 900],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 770,
+        "height": 2,
+        "depth": 1570
+      },
+      "material": "cabinet"
+    },
+    {
+      "position": [0, -202.2, 1685],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 770,
+        "height": 1,
+        "depth": 3
+      },
+      "material": "cabinetDark"
+    },
+    {
+      "position": [0, -202.2, 115],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 770,
+        "height": 1,
+        "depth": 3
+      },
+      "material": "cabinetDark"
+    },
+    {
+      "position": [330, -212, 900],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 24,
+        "height": 20,
+        "depth": 160
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "name": "window",
+      "position": [-40, -202.6, 1188],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 420,
+        "height": 2,
+        "depth": 300
+      },
+      "material": "glassDark"
+    },
+    {
+      "position": [-40, -140, 1188],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 380,
+        "height": 80,
+        "depth": 140
+      },
+      "material": "plasticGrey",
+      "noPick": true
+    },
+    {
+      "position": [-200, -202.4, 200],
+      "children": [
+        {
+          "position": [0, 0, 0],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 200,
+            "height": 3,
+            "depth": 6
+          },
+          "material": "cabinetDark"
+        }
+      ],
+      "repeat": {
+        "count": 6,
+        "step": [0, 0, 18]
+      }
+    },
+    {
+      "position": [425, 0, 1300],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 50,
+        "height": 120,
+        "depth": 120
+      },
+      "material": "guardYellow"
+    },
+    {
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 40,
+        "from": [450, 0, 1300],
+        "to": [480, 0, 1300],
+        "radialSegments": 20
+      },
+      "material": "reflectorRed"
+    },
+    {
+      "position": [482, 0, 1300],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 14,
+        "height": 90,
+        "depth": 20
+      },
+      "material": "reflectorRed"
+    },
+    {
+      "name": "power",
+      "geometry": {
+        "type": "CylinderGeometry",
+        "radius": 14,
+        "from": [330, -202, 1580],
+        "to": [330, -214, 1580],
+        "radialSegments": 16
+      },
+      "material": "labelWhite",
+      "rotation": [0, 0, 0]
+    },
+    {
+      "position": [0, 40, 1702],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 720,
+        "height": 260,
+        "depth": 4
+      },
+      "material": "steelZinc"
+    },
+    {
+      "part": "m23-socket",
+      "position": [-270, 40, 1704]
+    },
+    {
+      "position": [-270, -40, 1706],
+      "label": {
+        "text": "X1",
+        "size": 24,
+        "color": "#2e3236",
+        "background": "#f1f2ee"
+      },
+      "rotation": [-90, 0, 0]
+    },
+    {
+      "part": "m23-socket",
+      "position": [-162, 40, 1704]
+    },
+    {
+      "position": [-162, -40, 1706],
+      "label": {
+        "text": "X2",
+        "size": 24,
+        "color": "#2e3236",
+        "background": "#f1f2ee"
+      },
+      "rotation": [-90, 0, 0]
+    },
+    {
+      "part": "m23-socket",
+      "position": [-54, 40, 1704]
+    },
+    {
+      "position": [-54, -40, 1706],
+      "label": {
+        "text": "X3",
+        "size": 24,
+        "color": "#2e3236",
+        "background": "#f1f2ee"
+      },
+      "rotation": [-90, 0, 0]
+    },
+    {
+      "part": "m23-socket",
+      "position": [54, 40, 1704]
+    },
+    {
+      "position": [54, -40, 1706],
+      "label": {
+        "text": "X4",
+        "size": 24,
+        "color": "#2e3236",
+        "background": "#f1f2ee"
+      },
+      "rotation": [-90, 0, 0]
+    },
+    {
+      "part": "m23-socket",
+      "position": [162, 40, 1704]
+    },
+    {
+      "position": [162, -40, 1706],
+      "label": {
+        "text": "X5",
+        "size": 24,
+        "color": "#2e3236",
+        "background": "#f1f2ee"
+      },
+      "rotation": [-90, 0, 0]
+    },
+    {
+      "part": "m23-socket",
+      "position": [270, 40, 1704]
+    },
+    {
+      "position": [270, -40, 1706],
+      "label": {
+        "text": "X6",
+        "size": 24,
+        "color": "#2e3236",
+        "background": "#f1f2ee"
+      },
+      "rotation": [-90, 0, 0]
+    }
+  ],
+  "devices": [
+    {
+      "type": "plc",
+      "id": "plc"
+    },
+    {
+      "type": "lamp",
+      "id": "power",
+      "node": "power",
+      "on": "#fff4d6",
+      "off": "#8a8a80",
+      "alwaysOn": true,
+      "glow": 40
+    }
+  ],
+  "terminal": {
+    "connectors": [
+      {
+        "id": "X1",
+        "type": "m23-io",
+        "byte": 0,
+        "internal": true
+      },
+      {
+        "id": "X2",
+        "type": "m23-io",
+        "byte": 1,
+        "internal": true
+      },
+      {
+        "id": "X3",
+        "type": "m23-io",
+        "byte": 2,
+        "internal": true
+      },
+      {
+        "id": "X4",
+        "type": "m23-io",
+        "byte": 3,
+        "internal": true
+      },
+      {
+        "id": "X5",
+        "type": "m23-io",
+        "byte": 4,
+        "internal": true
+      },
+      {
+        "id": "X6",
+        "type": "m23-io",
+        "byte": 5,
+        "internal": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,601 @@
+{
+  "format": 2,
+  "id": "pallet-conveyor",
+  "version": 1,
+  "name": "Pallet conveyor",
+  "description": "A roller conveyor for pallets of 1200 x 800 mm, lengthwise, driven by a gear motor at its end. It comes with three light barriers, at its start, in front of its stop and at its end, a pallet stop between its rollers, and an I/O block on its front frame. A bumper at its end holds pallets back.",
+  "parameters": [
+    {
+      "id": "length",
+      "default": 4800,
+      "label": "Length",
+      "unit": "mm",
+      "kind": "build",
+      "description": "How long the conveyor is, in steps of one roller.",
+      "min": 1800,
+      "max": 9600,
+      "step": 150
+    },
+    {
+      "id": "height",
+      "default": 540,
+      "label": "Height",
+      "unit": "mm",
+      "kind": "build",
+      "description": "How high the rollers carry the pallets above the floor rails.",
+      "min": 400,
+      "max": 900,
+      "step": 10
+    },
+    {
+      "id": "speed",
+      "default": 200,
+      "label": "Speed",
+      "unit": "mm/s",
+      "kind": "physics",
+      "description": "How fast the rollers carry a pallet.",
+      "min": 50,
+      "max": 600,
+      "step": 10
+    },
+    {
+      "id": "legs",
+      "default": 5
+    },
+    {
+      "id": "guides",
+      "default": 6
+    },
+    {
+      "id": "startAt",
+      "default": 700
+    },
+    {
+      "id": "stopAt",
+      "default": 3000
+    },
+    {
+      "id": "endAt",
+      "default": "length - 520"
+    },
+    {
+      "id": "ioAt",
+      "default": "length - 1000"
+    },
+    {
+      "id": "guideFrom",
+      "default": "startAt + 700"
+    }
+  ],
+  "needs": [
+    {
+      "module": "io-block",
+      "why": "its motor and sensors are not connected to the PLC"
+    }
+  ],
+  "mounts": [
+    {
+      "id": "floor",
+      "type": "floor-rail",
+      "at": [0, 0, 0],
+      "screws": [
+        [100, -600, 0],
+        [100, 600, 0],
+        ["length - 100", -600, 0],
+        ["length - 100", 600, 0]
+      ]
+    }
+  ],
+  "model": [
+    {
+      "position": ["length / 2", -574, "height - 95"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length",
+        "height": 8,
+        "depth": 170
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": ["length / 2", -604, "height - 14"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length",
+        "height": 60,
+        "depth": 8
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": ["length / 2", -604, "height - 176"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length",
+        "height": 60,
+        "depth": 8
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": ["(guideFrom + length - 20) / 2", -445, "height + 54"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length - 20 - guideFrom",
+        "height": 10,
+        "depth": 40
+      },
+      "material": "steelZinc"
+    },
+    {
+      "position": ["guideFrom + 280", 0, 0],
+      "children": [
+        {
+          "position": [0, -509, "height - 6"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 40,
+            "height": 130,
+            "depth": 8
+          },
+          "material": "steelZinc"
+        },
+        {
+          "position": [0, -448, "height + 32"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 40,
+            "height": 16,
+            "depth": 84
+          },
+          "material": "steelZinc"
+        }
+      ],
+      "repeat": {
+        "count": "guides",
+        "step": ["(length - 600 - guideFrom) / (guides - 1)", 0, 0]
+      }
+    },
+    {
+      "position": ["length / 2", 574, "height - 95"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length",
+        "height": 8,
+        "depth": 170
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": ["length / 2", 604, "height - 14"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length",
+        "height": 60,
+        "depth": 8
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": ["length / 2", 604, "height - 176"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length",
+        "height": 60,
+        "depth": 8
+      },
+      "material": "frameGrey"
+    },
+    {
+      "position": ["(20 + length - 20) / 2", 445, "height + 54"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "length - 20 - 20",
+        "height": 10,
+        "depth": 40
+      },
+      "material": "steelZinc"
+    },
+    {
+      "position": ["20 + 280", 0, 0],
+      "children": [
+        {
+          "position": [0, 509, "height - 6"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 40,
+            "height": 130,
+            "depth": 8
+          },
+          "material": "steelZinc"
+        },
+        {
+          "position": [0, 448, "height + 32"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 40,
+            "height": 16,
+            "depth": 84
+          },
+          "material": "steelZinc"
+        }
+      ],
+      "repeat": {
+        "count": "guides",
+        "step": ["(length - 600 - 20) / (guides - 1)", 0, 0]
+      }
+    },
+    {
+      "position": [75, 0, "height - 30"],
+      "children": [
+        {
+          "geometry": {
+            "type": "CylinderGeometry",
+            "radius": 30,
+            "from": [0, -570, 0],
+            "to": [0, 570, 0],
+            "radialSegments": 18
+          },
+          "material": "steelZinc"
+        },
+        {
+          "geometry": {
+            "type": "CylinderGeometry",
+            "radius": 8,
+            "from": [0, -576, 0],
+            "to": [0, 576, 0],
+            "radialSegments": 8
+          },
+          "material": "steelBright"
+        }
+      ],
+      "repeat": {
+        "count": "length / 150",
+        "step": [150, 0, 0]
+      }
+    },
+    {
+      "position": [100, 0, 0],
+      "children": [
+        {
+          "position": [0, -610, "(height - 180) / 2 + 30"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 80,
+            "height": 80,
+            "depth": "height - 240"
+          },
+          "material": "frameGrey"
+        },
+        {
+          "position": [0, 610, "(height - 180) / 2 + 30"],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 80,
+            "height": 80,
+            "depth": "height - 240"
+          },
+          "material": "frameGrey"
+        },
+        {
+          "position": [0, -610, 26],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 130,
+            "height": 130,
+            "depth": 8
+          },
+          "material": "frameDark"
+        },
+        {
+          "position": [0, 610, 26],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 130,
+            "height": 130,
+            "depth": 8
+          },
+          "material": "frameDark"
+        },
+        {
+          "part": "leveling-foot",
+          "position": [0, -610, 0]
+        },
+        {
+          "part": "leveling-foot",
+          "position": [0, 610, 0]
+        },
+        {
+          "position": [0, 0, 200],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 60,
+            "height": 1260,
+            "depth": 60
+          },
+          "material": "frameGrey"
+        }
+      ],
+      "repeat": {
+        "count": "legs",
+        "step": ["(length - 200) / (legs - 1)", 0, 0]
+      }
+    },
+    {
+      "position": ["length - 15", 0, "height + 50"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 30,
+        "height": 1120,
+        "depth": 120
+      },
+      "material": "guardYellow"
+    },
+    {
+      "position": ["length - 32", 0, "height + 50"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 4,
+        "height": 900,
+        "depth": 80
+      },
+      "material": "plasticBlack"
+    },
+    {
+      "name": "motor",
+      "position": ["length - 250", -740, "height - 240"],
+      "children": [
+        {
+          "position": [0, 0, 0],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 230,
+            "height": 160,
+            "depth": 230
+          },
+          "material": "motorGrey"
+        },
+        {
+          "geometry": {
+            "type": "CylinderGeometry",
+            "radius": 85,
+            "from": [0, -80, 0],
+            "to": [0, -340, 0],
+            "radialSegments": 24
+          },
+          "material": "motorGrey"
+        },
+        {
+          "geometry": {
+            "type": "CylinderGeometry",
+            "radius": 70,
+            "from": [0, -340, 0],
+            "to": [0, -360, 0],
+            "radialSegments": 24
+          },
+          "material": "motorGrey"
+        },
+        {
+          "position": [0, -100, -80],
+          "children": [
+            {
+              "position": [0, 0, 0],
+              "geometry": {
+                "type": "BoxGeometry",
+                "width": 174,
+                "height": 4,
+                "depth": 6
+              },
+              "material": "frameDark"
+            }
+          ],
+          "repeat": {
+            "count": 9,
+            "step": [0, -24, 0]
+          },
+          "noPick": true
+        },
+        {
+          "position": [0, -200, 105],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": 110,
+            "height": 90,
+            "depth": 40
+          },
+          "material": "frameDark"
+        }
+      ]
+    },
+    {
+      "position": ["length - 250", -642, "height - 110"],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 420,
+        "height": 40,
+        "depth": 300
+      },
+      "material": "guardYellow"
+    }
+  ],
+  "devices": [
+    {
+      "type": "motorController",
+      "id": "drive"
+    },
+    {
+      "type": "solid",
+      "id": "bumper",
+      "box": {
+        "from": ["length - 34", -570, "height - 10"],
+        "to": ["length", 570, "height + 110"]
+      },
+      "label": "The end bumper"
+    }
+  ],
+  "transport": [
+    {
+      "id": "surface",
+      "label": "rollers",
+      "drive": "drive.forward",
+      "reverse": "drive.backward",
+      "factor": "drive.factor",
+      "speed": "speed",
+      "path": {
+        "line": {
+          "from": [0, 0, "height"],
+          "to": ["length", 0, "height"]
+        }
+      }
+    }
+  ],
+  "modules": [
+    {
+      "id": "io",
+      "module": "io-block",
+      "name": "I/O block",
+      "optional": true,
+      "place": {
+        "on": ".front",
+        "at": "ioAt"
+      }
+    },
+    {
+      "id": "start",
+      "module": "photo-sensor",
+      "name": "B1 Pallet at start",
+      "optional": true,
+      "place": {
+        "on": ".rear",
+        "at": "startAt"
+      },
+      "params": {
+        "diffuse": true,
+        "reach": 600
+      }
+    },
+    {
+      "id": "atStop",
+      "module": "photo-sensor",
+      "name": "B2 Pallet at the stop",
+      "optional": true,
+      "place": {
+        "on": ".front",
+        "at": "stopAt - 60"
+      }
+    },
+    {
+      "id": "end",
+      "module": "photo-sensor",
+      "name": "B3 Pallet at end",
+      "optional": true,
+      "place": {
+        "on": ".front",
+        "at": "endAt"
+      }
+    },
+    {
+      "id": "stop",
+      "module": "pallet-stop",
+      "name": "Pallet stop",
+      "optional": true,
+      "place": {
+        "on": ".bed",
+        "at": "stopAt"
+      }
+    }
+  ],
+  "cables": [
+    {
+      "from": "X1",
+      "to": "io.X1"
+    }
+  ],
+  "wires": [
+    {
+      "from": "io.T.Q0",
+      "to": "W.run"
+    },
+    {
+      "from": "io.T.Q1",
+      "to": "stop.W.release"
+    },
+    {
+      "from": "io.T.I0",
+      "to": "start.W.out"
+    },
+    {
+      "from": "io.T.I1",
+      "to": "atStop.W.out"
+    },
+    {
+      "from": "io.T.I2",
+      "to": "end.W.out"
+    },
+    {
+      "from": "io.T.I3",
+      "to": "stop.W.lowered"
+    }
+  ],
+  "terminal": {
+    "connectors": [
+      {
+        "id": "X1",
+        "type": "m23-io"
+      },
+      {
+        "id": "W",
+        "type": "wires",
+        "pins": [
+          {
+            "pin": "run",
+            "function": "Run the rollers",
+            "drives": "drive.clockwise"
+          }
+        ]
+      }
+    ]
+  },
+  "sites": [
+    {
+      "id": "front",
+      "type": "frame-side",
+      "from": [0, -578, "height - 60"],
+      "range": ["guideFrom", "length - 500"]
+    },
+    {
+      "id": "rear",
+      "type": "frame-side",
+      "from": [0, 578, "height - 60"],
+      "range": [150, "length - 150"],
+      "turn": 180
+    },
+    {
+      "id": "bed",
+      "type": "roller-bed",
+      "from": [0, 0, "height - 30"],
+      "range": [300, "length - 300"]
+    }
+  ],
+  "actions": [
+    {
+      "id": "put",
+      "type": "placeWorkpiece",
+      "transport": "surface",
+      "at": "startAt",
+      "family": "pallet"
+    },
+    {
+      "id": "takeAway",
+      "type": "clearTransport",
+      "label": "Take the pallet away",
+      "over": ["length - 650", 0, "height"]
+    },
+    {
+      "id": "takeAtStop",
+      "type": "clearTransport",
+      "label": "Take the pallet at the stop away",
+      "over": ["stopAt - 600", 0, "height"]
+    }
+  ]
+}

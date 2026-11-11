@@ -1,0 +1,77 @@
+{
+  "format": 2,
+  "id": "carton-small",
+  "name": "Carton 400 x 300 x 250",
+  "model": [
+    {
+      "position": [0, 0, 125],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 400,
+        "height": 300,
+        "depth": 250
+      },
+      "material": "carton"
+    },
+    {
+      "position": [0, 0, 250.4],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 400.8,
+        "height": 48,
+        "depth": 0.8
+      },
+      "material": "tape"
+    },
+    {
+      "position": [-200.4, 0, 215],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 0.8,
+        "height": 48,
+        "depth": 70
+      },
+      "material": "tape"
+    },
+    {
+      "position": [200.4, 0, 215],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 0.8,
+        "height": 48,
+        "depth": 70
+      },
+      "material": "tape"
+    },
+    {
+      "position": [0, -150.3, 246],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 392,
+        "height": 0.6,
+        "depth": 1.2
+      },
+      "material": "cartonDark"
+    },
+    {
+      "position": [0, 150.3, 246],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 392,
+        "height": 0.6,
+        "depth": 1.2
+      },
+      "material": "cartonDark"
+    },
+    {
+      "position": [100, -150.4, 137.5],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 110,
+        "height": 0.8,
+        "depth": 75
+      },
+      "material": "labelWhite"
+    }
+  ]
+}

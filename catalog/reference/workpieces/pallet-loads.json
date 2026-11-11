@@ -1,0 +1,71 @@
+{
+  "format": 2,
+  "id": "pallet-loads",
+  "diameter": 0,
+  "height": 144,
+  "points": [],
+  "kinds": [
+    {
+      "id": "pallet",
+      "label": "Pallet",
+      "family": "pallet",
+      "size": [1200, 800],
+      "height": 144,
+      "material": {
+        "type": "MeshLambertMaterial",
+        "color": "#dcbf8f"
+      },
+      "reflectivity": 55,
+      "model": [
+        {
+          "part": "euro-pallet",
+          "position": [0, 0, 0]
+        }
+      ]
+    },
+    {
+      "id": "carton-large",
+      "label": "Large carton",
+      "family": "carton",
+      "size": [600, 400],
+      "height": 300,
+      "material": {
+        "type": "MeshLambertMaterial",
+        "color": "#bf8f58"
+      },
+      "reflectivity": 45,
+      "onto": {
+        "family": "pallet",
+        "free": true
+      },
+      "model": [
+        {
+          "part": "carton-large",
+          "position": [0, 0, 0]
+        }
+      ]
+    },
+    {
+      "id": "carton-small",
+      "label": "Small carton",
+      "family": "carton",
+      "size": [400, 300],
+      "height": 250,
+      "material": {
+        "type": "MeshLambertMaterial",
+        "color": "#c99b63"
+      },
+      "reflectivity": 45,
+      "onto": {
+        "family": "pallet",
+        "free": true
+      },
+      "model": [
+        {
+          "part": "carton-small",
+          "position": [0, 0, 0]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1421 @@
+{
+  "$defs": {
+    "ActionDef": {
+      "additionalProperties": false,
+      "description": "ActionDef is a function of the model that people can trigger. Type is clearTransport or placeWorkpiece.",
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/Num"
+        },
+        "blockedBy": {
+          "type": "string"
+        },
+        "dock": {
+          "description": "Dock offers it at the bottom of every station the builder makes, as a magazine's fill or putting a workpiece onto a belt by hand.",
+          "type": "boolean"
+        },
+        "family": {
+          "description": "Family limits a placeWorkpiece to the kinds of that family, as a magazine set up for caps takes nothing else.",
+          "type": "string"
+        },
+        "heading": {
+          "description": "Heading is the way a placed workpiece with a size points its length, in the module's coordinates, as a pallet put into a magazine. Without it, it points along the transport.",
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "description": "Label is how a button for it reads. A placeWorkpiece gets a button for each kind of workpiece it takes instead.",
+          "type": "string"
+        },
+        "over": {
+          "description": "Over, instead of a transport, puts the workpiece onto whatever transport passes under that point of the module, or takes away what stands there, as the nest of a turntable that is at its loading place.",
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "transport": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "BoxDef": {
+      "additionalProperties": false,
+      "description": "BoxDef is a box between two corners.",
+      "properties": {
+        "from": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "to": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "BranchDef": {
+      "additionalProperties": false,
+      "description": "BranchDef is when a transport takes workpieces off the one it starts on.",
+      "properties": {
+        "when": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "BridgeDef": {
+      "additionalProperties": false,
+      "description": "BridgeDef connects two connectors of a module inside it. Digital pin n of A joins pin n+Offset of B, for each direction. With Pins it joins only those pins instead, from A's names to B's, which is how analogue signals are routed.",
+      "properties": {
+        "a": {
+          "type": "string"
+        },
+        "b": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "integer"
+        },
+        "pins": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "CableDef": {
+      "additionalProperties": false,
+      "description": "CableDef joins two connectors of the same type pin by pin.",
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "ConnectorDef": {
+      "additionalProperties": false,
+      "description": "ConnectorDef is a physical connector. Type names an entry of connectors.json, which gives its standard pins. Byte marks a PLC connector: its pins are the bits of that image byte. Internal hides a connector that only repeats the signals of another one from the module's pin tables.",
+      "properties": {
+        "analogIn": {
+          "description": "AnalogIn makes the connector's UE pins the PLC's analogue inputs: UE1 is channel 0.",
+          "type": "boolean"
+        },
+        "byte": {
+          "type": "integer"
+        },
+        "id": {
+          "type": "string"
+        },
+        "internal": {
+          "type": "boolean"
+        },
+        "pins": {
+          "items": {
+            "$ref": "#/$defs/PinDef"
+          },
+          "type": "array"
+        },
+        "prefer": {
+          "description": "Prefer is the connector that the builder cables it to first, on a module that has one of that name and type, as a stand's console goes to the PLC's socket for it.",
+          "type": "string"
+        },
+        "switched": {
+          "description": "Switched feeds the outputs that pass through it from the station's safety circuit, as the actuator supply of an I/O block: while a safety relay is open, they are off.",
+          "type": "boolean"
+        },
+        "type": {
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "DeviceDef": {
+      "additionalProperties": false,
+      "description": "DeviceDef is one working part of a module. Type selects which fields apply: cylinder, reedSwitch, axis, motorController, sensor, distanceSensor, gripper, pusher, solid, process, button, key, lamp, logic, safetyRelay, program or plc.",
+      "properties": {
+        "adds": {
+          "type": "boolean"
+        },
+        "alwaysOn": {
+          "type": "boolean"
+        },
+        "amount": {
+          "$ref": "#/$defs/Num"
+        },
+        "at": {
+          "description": "retracted or extended",
+          "type": "string"
+        },
+        "backward": {
+          "type": "string"
+        },
+        "box": {
+          "$ref": "#/$defs/BoxDef",
+          "description": "solid: a box that workpieces cannot enter, and that cannot move into them. Its node may only turn about the vertical. Moving into a workpiece is a collision, named by Label. A workpiece running into it just stops."
+        },
+        "cycle": {
+          "$ref": "#/$defs/Num"
+        },
+        "cylinder": {
+          "description": "reedSwitch",
+          "type": "string"
+        },
+        "detect": {
+          "description": "Detect is what the sensor reacts to: metal, reflection (a workpiece reflects at least Threshold percent of the light) or beam (less than Threshold percent of the light gets through a workpiece in the beam).",
+          "type": "string"
+        },
+        "direction": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "drives": {
+          "type": "string"
+        },
+        "enable": {
+          "description": "Enable gives a positioning axis's controller an input enable, without which it does not move, and the states ready (enabled), homed and error, as a stepper motor's controller reports them.",
+          "type": "boolean"
+        },
+        "expr": {
+          "description": "safetyRelay: the station's safety circuit. It opens while Reset holds, such as an emergency stop being pressed, and only closes again while Set holds and Reset does not, such as a reset button pressed after the emergency stop is released. Its state ok is on while it is closed. While any safety relay is open, the PLC's outputs that pass through a switched connector are off, and positioning axes stop and forget their target. logic: a state worked out from others, as a relay circuit or a module's own small controller would. Expr is an expression over states of the module and its parts, written with dots, and its parameters, such as \"gate.extended && !stop.detected\": true is 1, and a state counts as true from 0.5. With Set and Reset instead, it turns on when Set holds and off when Reset does, Reset winning. OnDelay and OffDelay hold off a change for that many seconds. Its states are on and value, and Drives sets an input of a device of the module, such as a valve's, to it, unless a pin of the PLC drives that.",
+          "type": "string"
+        },
+        "fault": {
+          "description": "label of a fault that keeps it low",
+          "type": "string"
+        },
+        "forward": {
+          "description": "axis: a motor that moves Stroke mm or degrees at Speed per second, forward while its forward input is on and backward while backward is, and stops wherever both are off or on. Forward and Backward instead make it follow states, such as a motor controller's forward. Wrap makes it turn on endlessly, as a turntable, instead of stopping at its ends.",
+          "type": "string"
+        },
+        "from": {
+          "description": "pusher: Cylinder pushes the lowest workpiece of the From transport along the To transport, and leaves it on what lies below at the end of its stroke. Without From, it takes along whatever workpiece stands at the start of To as it starts moving, as an ejector does from the nest of a turntable.",
+          "type": "string"
+        },
+        "glow": {
+          "$ref": "#/$defs/Num"
+        },
+        "has": {
+          "description": "sensor: Has makes it see only workpieces with that mark, or with a joined part of that family or kind, as a probe that checks for a hole or a cap.",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "limited": {
+          "$ref": "#/$defs/Num",
+          "description": "Limited is a cylinder whose force a pressure regulator turns down: it stops on what it presses on, and that is no collision."
+        },
+        "mark": {
+          "description": "process: works on the workpiece under Origin, within Reach mm below it, while its input on is: after Time seconds, it sets the workpiece's Mark to Amount (1 without one), or with Adds adds Amount to it, as each cycle of a filler adds to what is in it. It works on each workpiece once until it leaves, and its states are busy and done.",
+          "type": "string"
+        },
+        "min": {
+          "$ref": "#/$defs/Num",
+          "description": "distanceSensor: looks straight down from its origin, over Min to Reach mm, and sees Surface mm below it when nothing is there. Threshold is the distance it switches at, and its analogue value is 0 to 10 V across that range."
+        },
+        "mirror": {
+          "$ref": "#/$defs/MirrorDef",
+          "description": "Mirror folds the beam at the end of Reach, so one sensor watches two places."
+        },
+        "node": {
+          "description": "button, key and lamp: the node that is pressed or lit. solid: the node it moves with.",
+          "type": "string"
+        },
+        "off": {
+          "type": "string"
+        },
+        "offDelay": {
+          "$ref": "#/$defs/Num"
+        },
+        "on": {
+          "type": "string"
+        },
+        "onDelay": {
+          "$ref": "#/$defs/Num"
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "origin": {
+          "description": "sensor",
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "outline": {
+          "description": "Outline is its shape seen from above, for a part that a box fits badly. Workpieces then meet that shape, between the heights of Box, which still counts for everything else.",
+          "items": {
+            "items": {
+              "$ref": "#/$defs/Num"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "program": {
+          "type": "string"
+        },
+        "reach": {
+          "$ref": "#/$defs/Num"
+        },
+        "reads": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "reset": {
+          "type": "string"
+        },
+        "rest": {
+          "description": "retracted or extended",
+          "type": "string"
+        },
+        "set": {
+          "type": "string"
+        },
+        "setpoint": {
+          "description": "Setpoint makes it a positioning axis that drives to the value of its input setpoint, in mm (or degrees) from its start, as its input go comes on, as a drive with a numeric setpoint. Its state done is on once it is there.",
+          "type": "boolean"
+        },
+        "shoves": {
+          "description": "Shoves makes it push a workpiece along its transport instead of stopping, as the belt just slips under it, so it can return between two workpieces in a queue.",
+          "type": "boolean"
+        },
+        "source": {
+          "description": "program: a controller of the module's own, as a machine's built-in control, written in Structured Text: the file Source in the module's folder, running its PROGRAM named Program (the first one without) every Cycle seconds (0.01 without) on the simulation's clock. Its VAR_INPUT variables are inputs of the device that pins can drive, and its VAR_OUTPUT variables states that pins can read, by their names, as controller.busy. Reads gives variables the values of states of the module, such as \"x.value\", or of the station, by a name starting with / that the station passes in its texts, such as \"/{belt}.surface.count\", which keeps its initial value where the station names none; a transport's count is how many workpieces are on it, and its before is on while another transport takes them over at its start. Writes sets states of the module to variables, such as the input \"x.setpoint\", each by the variable's name; a name ending in [a..b] binds the elements of an array, with {} in the state standing for the index. A BOOL is 0 or 1 and a TIME counts seconds.",
+          "type": "string"
+        },
+        "speed": {
+          "$ref": "#/$defs/Num"
+        },
+        "state": {
+          "description": "lamp: lit by State, by a pin that drives its \"on\" input, or always when it shows that the station has power. Glow is the diameter in mm of the halo around it while lit.",
+          "type": "string"
+        },
+        "stop": {
+          "description": "Stop names a state that, while on, holds the cylinder at StopAt mm on its way out, as a stop cylinder that comes out into its path gives a lifting axis a middle position.",
+          "type": "string"
+        },
+        "stopAt": {
+          "$ref": "#/$defs/Num"
+        },
+        "stroke": {
+          "$ref": "#/$defs/Num"
+        },
+        "surface": {
+          "$ref": "#/$defs/Num"
+        },
+        "targets": {
+          "description": "Targets make it a positioning axis, as a motor controller with taught records: while its input go comes on, it drives to the target that its inputs record0, record1 and record2 select, counted in binary, in mm (or degrees) from its start. Its state done is on once it is there, and off while it moves.",
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "type": "array"
+        },
+        "threshold": {
+          "$ref": "#/$defs/Num"
+        },
+        "time": {
+          "$ref": "#/$defs/Num"
+        },
+        "tip": {
+          "description": "gripper: Cylinder opens its jaws, and what they close on at the node Tip is held. Without one it is a suction cup or a magnet, which holds while its input on is, or State instead: what its tip touches from above, within Reach mm, and with Detect \"metal\" only metal.",
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "valve": {
+          "description": "cylinder",
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        },
+        "wrap": {
+          "type": "boolean"
+        },
+        "writes": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "FloorDef": {
+      "additionalProperties": false,
+      "description": "FloorDef is how a module of the station role stands on the floor: Width along x and Depth along y from its corner. Beside are the settings of one that is put beside it.",
+      "properties": {
+        "beside": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "depth": {
+          "$ref": "#/$defs/Num"
+        },
+        "width": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "GeometryDef": {
+      "additionalProperties": false,
+      "description": "GeometryDef uses the names and parameters of three.js geometries where one exists. From and To on a CylinderGeometry, and SectorGeometry, are extensions. ExtrudeGeometry takes its Shape as Points and Holes, and extrudes along +z.",
+      "properties": {
+        "center": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "depth": {
+          "$ref": "#/$defs/Num"
+        },
+        "end": {
+          "$ref": "#/$defs/Num"
+        },
+        "from": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "height": {
+          "$ref": "#/$defs/Num"
+        },
+        "holes": {
+          "items": {
+            "items": {
+              "items": {
+                "$ref": "#/$defs/Num"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "inner": {
+          "$ref": "#/$defs/Num"
+        },
+        "innerStart": {
+          "$ref": "#/$defs/Num"
+        },
+        "outer": {
+          "$ref": "#/$defs/Num"
+        },
+        "points": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/Num"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "radialSegments": {
+          "$ref": "#/$defs/Num"
+        },
+        "radius": {
+          "$ref": "#/$defs/Num"
+        },
+        "start": {
+          "$ref": "#/$defs/Num"
+        },
+        "to": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "type": {
+          "type": "string"
+        },
+        "width": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "InstanceDef": {
+      "additionalProperties": false,
+      "description": "InstanceDef places a module in a station.",
+      "properties": {
+        "at": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "cut": {
+          "description": "Cut lets modules that cut rails cut a gap into this contained rail. A module that cuts rails cannot stand in a rail without it.",
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "module": {
+          "type": "string"
+        },
+        "mountedOn": {
+          "description": "MountedOn is a moving node of the module around it that this one rides on, as a switch on a cylinder that moves. At stays in that module's coordinates, at rest.",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "optional": {
+          "description": "Optional marks a module that another one contains, such as a conveyor's sensor, as one that a station may leave out.",
+          "type": "boolean"
+        },
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Num"
+          },
+          "type": "object"
+        },
+        "parts": {
+          "additionalProperties": {
+            "$ref": "#/$defs/PartChange"
+          },
+          "description": "Parts changes the modules this one contains, by their ids: where one is placed, its settings, or that it is left out.",
+          "type": "object"
+        },
+        "place": {
+          "$ref": "#/$defs/PlaceDef",
+          "description": "Place screws the instance onto a site instead of putting it at At."
+        },
+        "rewire": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Rewire moves what the module's own wires join at one pin onto another, by references inside the module, such as {\"io.T.Q0\": \"io.T.Q3\"} to run a conveyor forward from output 3 of its I/O block. Moving two pins onto each other swaps them.",
+          "type": "object"
+        },
+        "rotateX": {
+          "$ref": "#/$defs/Num"
+        },
+        "rotateY": {
+          "$ref": "#/$defs/Num"
+        },
+        "rotateZ": {
+          "$ref": "#/$defs/Num"
+        },
+        "selectAs": {
+          "description": "clicks select this instance instead",
+          "type": "string"
+        },
+        "texts": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "used as {name} in text fields",
+          "type": "object"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "JointDef": {
+      "additionalProperties": false,
+      "description": "JointDef moves a node with a state. The state's range 0..1 maps to Range, in degrees for a revolute joint and mm for a prismatic one.",
+      "properties": {
+        "axis": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "driver": {
+          "type": "string"
+        },
+        "node": {
+          "type": "string"
+        },
+        "origin": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "range": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "type": {
+          "description": "revolute or prismatic",
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "LabelDef": {
+      "additionalProperties": false,
+      "description": "LabelDef draws text on a node, on a plate if it has a Background.",
+      "properties": {
+        "background": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "size": {
+          "$ref": "#/$defs/Num"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "LinkDef": {
+      "additionalProperties": false,
+      "description": "LinkDef moves workpieces between transports. Type is continue (at the end), branch (at a distance, while When holds or always without it, as for a fixed guide) or shareDrive (run with the drive and speed of To).",
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/Num"
+        },
+        "if": {
+          "$ref": "#/$defs/Num",
+          "description": "leaves the link out when false, for a module's optional parts"
+        },
+        "to": {
+          "type": "string"
+        },
+        "transport": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "when": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "MirrorDef": {
+      "additionalProperties": false,
+      "description": "ModuleDef is the content of module.json. MirrorDef is what a beam does at a mirror: it turns by Angle degrees about the module's vertical and runs on for Reach mm.",
+      "properties": {
+        "angle": {
+          "$ref": "#/$defs/Num"
+        },
+        "reach": {
+          "$ref": "#/$defs/Num"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "ModuleDef": {
+      "additionalProperties": false,
+      "properties": {
+        "actions": {
+          "items": {
+            "$ref": "#/$defs/ActionDef"
+          },
+          "type": "array"
+        },
+        "addresses": {
+          "$ref": "#/$defs/Naming",
+          "description": "Addresses is how the program of a module of the plc role names the variables of its image, which it needs: inputs, outputs and analogue inputs, with {byte}, {bit} (or {bit:2} for two digits) and {channel}, and the variable list they are in, as a PLC offers them over OPC UA. Station files name the PLC's signals by these names."
+        },
+        "cables": {
+          "items": {
+            "$ref": "#/$defs/CableDef"
+          },
+          "type": "array"
+        },
+        "controls": {
+          "items": {
+            "$ref": "#/$defs/WidgetDef"
+          },
+          "type": "array"
+        },
+        "cutBox": {
+          "$ref": "#/$defs/BoxDef",
+          "description": "CutBox is where a rail is in the way of a module that cuts rails, as a box in its own coordinates. A gap runs across its x axis, and leaves pieces with length, capStart and capEnd set, so that every piece has both its end caps."
+        },
+        "cutsRails": {
+          "description": "CutsRails makes the module cut a gap into every rail it stands in, as a slide does into the rail along a belt so that workpieces can roll onto it.",
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "devices": {
+          "items": {
+            "$ref": "#/$defs/DeviceDef"
+          },
+          "type": "array"
+        },
+        "floor": {
+          "$ref": "#/$defs/FloorDef",
+          "description": "Floor is the size of a module of the station role on the floor."
+        },
+        "format": {
+          "type": "integer"
+        },
+        "group": {
+          "description": "where the library lists an accessory, such as Sensors",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "joints": {
+          "items": {
+            "$ref": "#/$defs/JointDef"
+          },
+          "type": "array"
+        },
+        "links": {
+          "description": "Links join the module's own transports and those of what it contains.",
+          "items": {
+            "$ref": "#/$defs/LinkDef"
+          },
+          "type": "array"
+        },
+        "model": {
+          "items": {
+            "$ref": "#/$defs/NodeDef"
+          },
+          "type": "array"
+        },
+        "modules": {
+          "description": "A module can contain other modules, which stay separately clickable. Its wires and cables join them; references name a contained module or the module's own connector, such as \"io.X1\" or \"X1\".",
+          "items": {
+            "$ref": "#/$defs/InstanceDef"
+          },
+          "type": "array"
+        },
+        "mounts": {
+          "items": {
+            "$ref": "#/$defs/MountDef"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "needs": {
+          "description": "Needs are the parts it does not work without, even where they can be taken off.",
+          "items": {
+            "$ref": "#/$defs/NeedDef"
+          },
+          "type": "array"
+        },
+        "parameters": {
+          "items": {
+            "$ref": "#/$defs/ParameterDef"
+          },
+          "type": "array"
+        },
+        "role": {
+          "description": "Role is what a module is to the builder beyond something to screw on, one of the Role constants. Without one, it is just that.",
+          "type": "string"
+        },
+        "sites": {
+          "description": "Sites are where other modules can be screwed on, and Mounts where this one can be screwed down, the way the real hardware is put together.",
+          "items": {
+            "$ref": "#/$defs/SiteDef"
+          },
+          "type": "array"
+        },
+        "terminal": {
+          "$ref": "#/$defs/TerminalDef"
+        },
+        "transport": {
+          "items": {
+            "$ref": "#/$defs/TransportDef"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "wires": {
+          "items": {
+            "$ref": "#/$defs/WireDef"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "MountDef": {
+      "additionalProperties": false,
+      "description": "MountDef is how a module is screwed onto a site of Type: At is the point of the module that sits on the site, and every one of Screws has to find a site of the same type on the same module. Turn is how the module faces on the site. With Head, each screw is drawn as the shared plate-screw part, its head that high above the site.",
+      "properties": {
+        "at": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "head": {
+          "$ref": "#/$defs/Num"
+        },
+        "id": {
+          "type": "string"
+        },
+        "rotateX": {
+          "$ref": "#/$defs/Num",
+          "description": "RotateX stands the module up first, as a I/O block on its bracket at the side of a belt, and RotateY then, as a profile stands on its end."
+        },
+        "rotateY": {
+          "$ref": "#/$defs/Num"
+        },
+        "runs": {
+          "description": "Runs limits it to sites that run level, such as the side of a belt's profile, or upright, such as a column, as a I/O block hangs on a bracket from the one and is screwed flat onto the other.",
+          "type": "string"
+        },
+        "screws": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/Num"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "span": {
+          "description": "Span names a parameter that is set to how far the site lies from the nearest other site of the same type alongside it, unless a station sets it, as the distance between the heads of a through-beam sensor is that between the rails of a belt or a slide.",
+          "type": "string"
+        },
+        "turn": {
+          "$ref": "#/$defs/Num"
+        },
+        "type": {
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "Naming": {
+      "additionalProperties": false,
+      "description": "Naming is how a PLC names the variables of its image in its program, which a PLC module declares: templates for its inputs, outputs and analogue inputs, with {byte}, {bit} (or {bit:2} for two digits) and {channel}, and the variable list they are in, which a PLC offers over OPC UA, such as \"IB{byte}Bit{bit:2}\", \"QB{byte}Bit{bit:2}\", \"AI{channel}\" and \"Bits\".",
+      "properties": {
+        "analog": {
+          "description": "Analog names an analogue input, with {channel}, such as \"AI{channel}\"; without it the PLC has none.",
+          "type": "string"
+        },
+        "inputs": {
+          "description": "Inputs names an input bit, with {byte} and {bit} or {bit:2}, such as \"IB{byte}Bit{bit:2}\".",
+          "type": "string"
+        },
+        "list": {
+          "description": "List is the variable list the bits are in, which the PLC offers over OPC UA, such as \"Bits\".",
+          "type": "string"
+        },
+        "outputs": {
+          "description": "Outputs names an output bit, with {byte} and {bit} or {bit:2}, such as \"QB{byte}Bit{bit:2}\".",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "NeedDef": {
+      "additionalProperties": false,
+      "description": "NeedDef is how many modules of a kind a module needs on it, or among its parts, to work, such as the motor controller of a conveyor. A station without them still loads, and the station checks say what is missing, and Why it matters.",
+      "properties": {
+        "min": {
+          "type": "integer"
+        },
+        "module": {
+          "type": "string"
+        },
+        "why": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "NodeDef": {
+      "additionalProperties": false,
+      "description": "NodeDef is one element of a module's 3D model, shaped like a three.js Object3D. Rotation is in degrees. Logic refers to nodes by Name and never to their shape, so a node can be refined without touching the module's behaviour.",
+      "properties": {
+        "belt": {
+          "description": "transport a belt surface follows",
+          "type": "string"
+        },
+        "children": {
+          "items": {
+            "$ref": "#/$defs/NodeDef"
+          },
+          "type": "array"
+        },
+        "geometry": {
+          "$ref": "#/$defs/GeometryDef"
+        },
+        "label": {
+          "$ref": "#/$defs/LabelDef"
+        },
+        "material": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "noPick": {
+          "type": "boolean"
+        },
+        "part": {
+          "description": "shared part drawn at this node",
+          "type": "string"
+        },
+        "position": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "repeat": {
+          "$ref": "#/$defs/RepeatDef"
+        },
+        "rotation": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "Num": {
+      "description": "A number, an expression over the module's parameters as a string, such as \"length - 47\" or \"radius * sin(45)\", or true or false for 1 or 0. Angles are degrees.",
+      "type": [
+        "number",
+        "string",
+        "boolean"
+      ]
+    },
+    "ParameterDef": {
+      "additionalProperties": false,
+      "description": "ParameterDef declares a module parameter. One with a Label is a setting that people can change, of a Kind: build for how the module is put together, such as the number on a slide or the angle of a sensor, or physics for how it behaves, such as the speed of a belt. Description says in a sentence or two what it does. A setting that is a number keeps between Min and Max, in steps of Step, or takes one of Options. One without a Label is the module's own business, and not offered to people.",
+      "properties": {
+        "default": {
+          "$ref": "#/$defs/Num"
+        },
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "max": {
+          "type": "number"
+        },
+        "min": {
+          "type": "number"
+        },
+        "names": {
+          "description": "Names says what each of Options is, such as Round and Square for a body's shape.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "options": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "step": {
+          "type": "number"
+        },
+        "unit": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "PartChange": {
+      "additionalProperties": false,
+      "description": "PartChange changes a module that another one contains. Place puts it elsewhere on the sites of the module around it (\".rear\"), and Params change its settings, both evaluated as the module around it sees them. Removed leaves an optional one out, with its wires.",
+      "properties": {
+        "params": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Num"
+          },
+          "type": "object"
+        },
+        "place": {
+          "$ref": "#/$defs/PlaceDef"
+        },
+        "removed": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "PathDef": {
+      "additionalProperties": false,
+      "description": "PathDef is the centre line of a transport.",
+      "properties": {
+        "arc": {
+          "additionalProperties": false,
+          "properties": {
+            "center": {
+              "items": {
+                "$ref": "#/$defs/Num"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "radius": {
+              "$ref": "#/$defs/Num"
+            },
+            "start": {
+              "$ref": "#/$defs/Num"
+            },
+            "sweep": {
+              "$ref": "#/$defs/Num"
+            },
+            "z": {
+              "$ref": "#/$defs/Num"
+            }
+          },
+          "type": "object"
+        },
+        "line": {
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "items": {
+                "$ref": "#/$defs/Num"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "type": "array"
+            },
+            "to": {
+              "items": {
+                "$ref": "#/$defs/Num"
+              },
+              "maxItems": 3,
+              "minItems": 3,
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "PinDef": {
+      "additionalProperties": false,
+      "description": "PinDef describes one pin of a connector. Pins named I<n> carry signals to the PLC and pins named Q<n> carry signals from it.",
+      "properties": {
+        "analog": {
+          "description": "carries a value instead of on or off",
+          "type": "boolean"
+        },
+        "constant": {
+          "type": "boolean"
+        },
+        "drives": {
+          "description": "device input this pin controls",
+          "type": "string"
+        },
+        "function": {
+          "type": "string"
+        },
+        "invert": {
+          "type": "boolean"
+        },
+        "pin": {
+          "type": "string"
+        },
+        "reads": {
+          "description": "state this pin reports",
+          "type": "string"
+        },
+        "spare": {
+          "type": "boolean"
+        },
+        "when": {
+          "$ref": "#/$defs/Num",
+          "description": "When leaves the pin out where it is false, as of a part a module may come without."
+        }
+      },
+      "type": "object"
+    },
+    "PlaceDef": {
+      "additionalProperties": false,
+      "description": "PlaceDef puts an instance onto a site of a module placed before it: On is that module and site, such as \"stand/plate.slots\", Slot picks one of a site's repeats, At is the position along it in mm and Turn a further turn in steps of 90 degrees. Mount picks the module's mount, by default the first that fits the site.",
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/Num"
+        },
+        "mount": {
+          "type": "string"
+        },
+        "on": {
+          "type": "string"
+        },
+        "slot": {
+          "type": "integer"
+        },
+        "turn": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "RepeatDef": {
+      "additionalProperties": false,
+      "description": "RepeatDef places copies of a node along a step.",
+      "properties": {
+        "count": {
+          "$ref": "#/$defs/Num"
+        },
+        "step": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "SiteDef": {
+      "additionalProperties": false,
+      "description": "SiteDef is a straight place on a module that others are screwed to, such as a T-slot of a plate or the groove of a guide rail. A position on it counts in mm from From along Dir, within Range. Repeat makes parallel copies, one per slot. A module on it faces along Dir, with its y axis to the left of Dir, turned further by Turn.",
+      "properties": {
+        "dir": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "from": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "rail": {
+          "description": "Rail is the contained rail whose groove this is: where that rail is cut, so is the site, and the rail's own sites are left to this one.",
+          "type": "string"
+        },
+        "range": {
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "repeat": {
+          "$ref": "#/$defs/RepeatDef"
+        },
+        "turn": {
+          "$ref": "#/$defs/Num"
+        },
+        "type": {
+          "type": "string"
+        },
+        "up": {
+          "description": "Up is where a module's z axis points on the site, by default up. With its x axis along the site, its y axis runs into the face it is screwed to, as on the T-slot at the side of a profile. A site that runs up, such as a T-slot of an upright profile, needs one.",
+          "items": {
+            "$ref": "#/$defs/Num"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "TerminalDef": {
+      "additionalProperties": false,
+      "description": "TerminalDef is the fixed electrical interface of a module.",
+      "properties": {
+        "bridges": {
+          "items": {
+            "$ref": "#/$defs/BridgeDef"
+          },
+          "type": "array"
+        },
+        "connectors": {
+          "items": {
+            "$ref": "#/$defs/ConnectorDef"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "TransportDef": {
+      "additionalProperties": false,
+      "description": "TransportDef is a path that carries workpieces. Drive names the state that runs it; without one it is gravity driven, unless Shared says a station link gives it the drive and speed of another transport. Reverse names the state that runs it backwards, and Factor a state that scales its speed.",
+      "properties": {
+        "branch": {
+          "$ref": "#/$defs/BranchDef",
+          "description": "Branch makes it start on a transport of another module, wherever it is mounted, and take workpieces off that one while When holds, or always without it. A shared transport also runs with that one's drive."
+        },
+        "drive": {
+          "type": "string"
+        },
+        "factor": {
+          "type": "string"
+        },
+        "freeFrom": {
+          "$ref": "#/$defs/Num"
+        },
+        "handsOver": {
+          "description": "HandsOver means its end has to lead onto another module's transport, as a gate's exit onto a slide. Without one there, the station checks say so.",
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "description": "Label is how the library names it where it offers to put a workpiece on it.",
+          "type": "string"
+        },
+        "node": {
+          "description": "Node makes it ride on a node that moves, such as a lift's platform or a nest of a turntable. Its path, a line, is then in the frame of that node. Where its ends meet another transport's is worked out as it moves, so it takes workpieces on and hands them over wherever it lines up.",
+          "type": "string"
+        },
+        "open": {
+          "description": "Open ends let workpieces fall off the station, such as a belt running over its roller.",
+          "type": "boolean"
+        },
+        "path": {
+          "$ref": "#/$defs/PathDef"
+        },
+        "reverse": {
+          "type": "string"
+        },
+        "shared": {
+          "type": "boolean"
+        },
+        "speed": {
+          "$ref": "#/$defs/Num"
+        },
+        "static": {
+          "description": "Static is a surface that moves nothing, such as a table to put a workpiece on.",
+          "type": "boolean"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "WidgetDef": {
+      "additionalProperties": false,
+      "description": "WidgetDef is a control shown when a module is clicked, or in a station dock. Type is push, switch, lamp, fill, button or group.",
+      "properties": {
+        "action": {
+          "description": "button",
+          "type": "string"
+        },
+        "args": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "capacity": {
+          "$ref": "#/$defs/Num"
+        },
+        "device": {
+          "description": "push and switch",
+          "type": "string"
+        },
+        "disabledWhen": {
+          "type": "string"
+        },
+        "expects": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "labels": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "show": {
+          "description": "popup (default) or panel, on modules",
+          "type": "string"
+        },
+        "state": {
+          "description": "lamp, and the lamp of a push",
+          "type": "string"
+        },
+        "swatch": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "tone": {
+          "type": "string"
+        },
+        "transport": {
+          "description": "fill",
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        },
+        "widgets": {
+          "description": "group",
+          "items": {
+            "$ref": "#/$defs/WidgetDef"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "WireDef": {
+      "additionalProperties": false,
+      "description": "WireDef joins two pins.",
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/toblu96/taktwin/main/schema/module.schema.json",
+  "$ref": "#/$defs/ModuleDef",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "modules/<id>/module.json or accessories/<id>/module.json: a unit that is screwed onto a site of another one, with its 3D model, joints, devices, transports, terminal, sites and mounts.",
+  "title": "Module"
+}

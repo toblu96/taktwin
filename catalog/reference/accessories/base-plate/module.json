@@ -1,0 +1,155 @@
+{
+  "format": 2,
+  "id": "base-plate",
+  "version": 1,
+  "group": "Mechanical",
+  "name": "Base plate",
+  "role": "station",
+  "description": "A steel floor plate on leveling feet that a line stands on. Rails run along its length every 200 mm, and machines are screwed onto them. Stations line up side by side along its length.",
+  "floor": {
+    "width": "width",
+    "depth": "depth"
+  },
+  "parameters": [
+    {
+      "id": "width",
+      "default": 6000,
+      "label": "Length",
+      "unit": "mm",
+      "kind": "build",
+      "description": "How long the plate is. Stations stand side by side along their length.",
+      "min": 2000,
+      "max": 12000,
+      "step": 200
+    },
+    {
+      "id": "depth",
+      "default": 4400,
+      "label": "Depth",
+      "unit": "mm",
+      "kind": "build",
+      "description": "How deep the plate is, front to back.",
+      "min": 2000,
+      "max": 8000,
+      "step": 200
+    },
+    {
+      "id": "feet",
+      "default": 5
+    }
+  ],
+  "model": [
+    {
+      "name": "plate",
+      "position": ["width / 2", "depth / 2", 40],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "width",
+        "height": "depth",
+        "depth": 40
+      },
+      "material": "floorPlate"
+    },
+    {
+      "position": [0, 200, 0],
+      "children": [
+        {
+          "position": ["width / 2", 0, 60.6],
+          "geometry": {
+            "type": "BoxGeometry",
+            "width": "width",
+            "height": 24,
+            "depth": 1.2
+          },
+          "material": "floorRail"
+        }
+      ],
+      "repeat": {
+        "count": "depth / 200 - 1",
+        "step": [0, 200, 0]
+      }
+    },
+    {
+      "position": ["width / 2", 30, 60.4],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "width - 20",
+        "height": 40,
+        "depth": 0.8
+      },
+      "material": "guardYellow",
+      "noPick": true
+    },
+    {
+      "position": ["width / 2", "depth - 30", 60.4],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": "width - 20",
+        "height": 40,
+        "depth": 0.8
+      },
+      "material": "guardYellow",
+      "noPick": true
+    },
+    {
+      "position": [30, "depth / 2", 60.4],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 40,
+        "height": "depth - 20",
+        "depth": 0.8
+      },
+      "material": "guardYellow",
+      "noPick": true
+    },
+    {
+      "position": ["width - 30", "depth / 2", 60.4],
+      "geometry": {
+        "type": "BoxGeometry",
+        "width": 40,
+        "height": "depth - 20",
+        "depth": 0.8
+      },
+      "material": "guardYellow",
+      "noPick": true
+    },
+    {
+      "position": [100, 100, 0],
+      "children": [
+        {
+          "part": "leveling-foot",
+          "position": [0, 0, 0]
+        }
+      ],
+      "repeat": {
+        "count": "feet",
+        "step": ["(width - 200) / (feet - 1)", 0, 0]
+      }
+    },
+    {
+      "position": [100, "depth - 100", 0],
+      "children": [
+        {
+          "part": "leveling-foot",
+          "position": [0, 0, 0]
+        }
+      ],
+      "repeat": {
+        "count": "feet",
+        "step": ["(width - 200) / (feet - 1)", 0, 0]
+      }
+    }
+  ],
+  "sites": [
+    {
+      "id": "rails",
+      "type": "floor-rail",
+      "from": ["width / 2", 200, 60],
+      "range": ["-width / 2", "width / 2"],
+      "repeat": {
+        "count": "depth / 200 - 1",
+        "step": [0, 200, 0]
+      }
+    }
+  ]
+}
