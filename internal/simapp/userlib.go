@@ -35,6 +35,8 @@ type settings struct {
 	UserFolder string `json:"userFolder,omitempty"`
 	// Hidden are the collections, by id, that the library leaves out.
 	Hidden []string `json:"hiddenCollections,omitempty"`
+	// CheckUpdates says whether the app looks for an update when it starts; on when unset.
+	CheckUpdates *bool `json:"checkUpdates,omitempty"`
 }
 
 // settingsFile is where the settings are kept. TAKTWIN_CONFIG overrides its folder.

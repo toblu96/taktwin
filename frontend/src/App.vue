@@ -8,9 +8,13 @@ import TopBar from './components/TopBar.vue'
 import StationDock from './components/StationDock.vue'
 import ProgramIde from './ide/ProgramIde.vue'
 import { connect, loadError, page, programming } from './sim'
+import { connectUpdates } from './update'
 import StationViewer from './viewer/StationViewer.vue'
 
-onMounted(connect)
+onMounted(() => {
+  connect()
+  connectUpdates()
+})
 </script>
 
 <template>

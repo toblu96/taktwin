@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { LibraryService, Service as service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { grouped } from '../collections'
 import { filesRead, loadStation, page, simulation } from '../sim'
+import { updateAvailable } from '../update'
 
 const { scene, snapshot } = simulation
 
@@ -34,7 +35,7 @@ const paused = computed(() => snapshot.value?.paused ?? false)
       <button :class="{ active: page === 'simulation' }" @click="page = 'simulation'">Simulation</button>
       <button :class="{ active: page === 'library' }" @click="page = 'library'">Library</button>
       <button :class="{ active: page === 'builder' }" @click="page = 'builder'">Builder</button>
-      <button :class="{ active: page === 'settings' }" @click="page = 'settings'">Settings</button>
+      <button :class="{ active: page === 'settings' }" @click="page = 'settings'">Settings<span v-if="updateAvailable" class="dot" title="An update is available"></span></button>
     </nav>
     <select v-if="page === 'simulation'" class="station" :value="scene?.id" aria-label="Station" @change="choose" @focus="refresh">
       <optgroup v-for="g in grouped(stations)" :key="g.id" :label="g.name">
@@ -219,6 +220,20 @@ img {
 .tabs button:hover:not(.active) {
   background: var(--panel-raised);
   color: var(--text);
+}
+
+.tabs .dot {
+  background: var(--accent);
+  border-radius: 50%;
+  display: inline-block;
+  height: 7px;
+  margin-left: 6px;
+  vertical-align: 2px;
+  width: 7px;
+}
+
+.tabs .active .dot {
+  background: #1b1405;
 }
 
 .tabs .active {
