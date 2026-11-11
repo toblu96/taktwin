@@ -6,12 +6,14 @@ import * as LibraryService from "./libraryservice.js";
 import * as ProgramService from "./programservice.js";
 import * as Service from "./service.js";
 import * as SettingsService from "./settingsservice.js";
+import * as UpdateService from "./updateservice.js";
 export {
     BuilderService,
     LibraryService,
     ProgramService,
     Service,
-    SettingsService
+    SettingsService,
+    UpdateService
 };
 
 export type {
@@ -33,6 +35,8 @@ export type {
     PLCConfig,
     ProgramProject,
     ProgramStatus,
+    UpdateRelease,
+    UpdateStatus,
     WiringBox,
     WiringCable,
     WiringConnector,
