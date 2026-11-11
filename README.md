@@ -106,7 +106,8 @@ The app has three pages. **Simulation** runs the station with its PLC. **Builder
   git tag -m "Taktwin v0.2.0" v0.2.0 && git push origin v0.2.0
   ```
 
-  The release workflow tests, builds the Windows installer and the macOS app, and publishes them with `SHA256SUMS` and the changelog. A tag such as `v0.2.0-beta.1` makes a pre-release.
+  The release workflow tests, builds the Windows installer and the macOS app, and publishes them with `SHA256SUMS` and the release notes. A tag such as `v0.2.0-beta.1` makes a pre-release.
+- **Release notes** start with highlights written by hand, with screenshots, in `.github/releases/<tag>.md`, followed by how to update and the changelog. Preview them with `scripts/release-notes.sh v0.2.0`; see [.github/releases/README.md](.github/releases/README.md).
 
 ## License
 

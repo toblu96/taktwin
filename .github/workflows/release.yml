@@ -1,8 +1,8 @@
 name: release
 
 # A tag v0.2.0 on a commit whose internal/version says 0.2.0 builds the app for Windows and
-# macOS and publishes a GitHub release with the installers, SHA256SUMS and a changelog made
-# from the conventional commits since the tag before. A tag with a pre-release, such as
+# macOS and publishes a GitHub release with the installers, SHA256SUMS and the notes of
+# scripts/release-notes.sh: highlights written by hand, how to update, and the changelog. A tag with a pre-release, such as
 # v0.2.0-beta.1, makes a pre-release.
 on:
   push:
@@ -118,16 +118,15 @@ jobs:
           path: dist
           merge-multiple: true
       - run: cd dist && sha256sum -- * > SHA256SUMS && cat SHA256SUMS
-      - uses: orhun/git-cliff-action@v4
+      - uses: actions/setup-node@v7
         with:
-          config: cliff.toml
-          args: --latest --strip header
-        env:
-          OUTPUT: CHANGES.md
+          node-version: 22
+      # The highlights of .github/releases/<tag>.md, how to update and install, and the
+      # changelog of the conventional commits since the tag before.
+      - run: scripts/release-notes.sh "$GITHUB_REF_NAME" > notes.md && cat notes.md
       - run: |
-          cat .github/release-notes.md >> CHANGES.md
           pre=""
           case "$GITHUB_REF_NAME" in *-*) pre="--prerelease" ;; esac
-          gh release create "$GITHUB_REF_NAME" dist/* --title "Taktwin $GITHUB_REF_NAME" --notes-file CHANGES.md $pre
+          gh release create "$GITHUB_REF_NAME" dist/* --title "Taktwin $GITHUB_REF_NAME" --notes-file notes.md $pre
         env:
           GH_TOKEN: ${{ github.token }}
