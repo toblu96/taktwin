@@ -127,6 +127,6 @@ jobs:
       - run: |
           pre=""
           case "$GITHUB_REF_NAME" in *-*) pre="--prerelease" ;; esac
-          gh release create "$GITHUB_REF_NAME" dist/* --title "Taktwin $GITHUB_REF_NAME" --notes-file notes.md $pre
+          gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --notes-file notes.md $pre
         env:
           GH_TOKEN: ${{ github.token }}
