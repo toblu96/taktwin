@@ -8,9 +8,13 @@ on:
 
 jobs:
   go:
-    # The app links the system's webview through cgo; macOS has it built in, while Linux would
-    # need the GTK and WebKitGTK development packages.
-    runs-on: macos-latest
+    # The app links the system's webview through cgo, which on Linux needs the GTK and WebKitGTK
+    # development packages. Wails' cgo-free backend (-tags purego) needs none of them to build,
+    # so the tests run on Linux without cgo, instead of waiting for a macOS runner.
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: '0'
+      GOFLAGS: -tags=purego
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7

@@ -18,7 +18,8 @@ Run the station with the soft PLC from its panel, connect a PLC from the top bar
 ## Checks
 
 ```sh
-go test ./...                                    # engine, builder, the reference station and the file formats
+go test ./internal/... ./cmd/... ./catalog/...   # engine, builder, the reference station and the file formats
+(cd st && go test ./...)                         # the Structured Text compiler, a module of its own
 go run ./cmd/taktwin-cli -validate my.taktwin    # or a folder with a stations folder
 go run ./cmd/taktwin-schema                      # writes schema/ from the Go types
 ```
