@@ -1,0 +1,35 @@
+name: release-tag
+
+# Tags a merged release pull request ("chore(release): v0.3.0"), which starts the release
+# workflow. It pushes the tag with the secret RELEASE_TOKEN, as a tag the built-in token pushes
+# starts no workflow.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    if: "startsWith(github.event.head_commit.message, 'chore(release): v')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+      - run: |
+          v=$(sed -n 's/^const Version = "\(.*\)"$/\1/p' internal/version/version.go)
+          subject=$(git log -1 --format=%s)
+          case "$subject" in
+            "chore(release): v$v"|"chore(release): v$v "*) ;;
+            *) echo "::error::the release commit \"$subject\" does not match internal/version ($v)"; exit 1 ;;
+          esac
+          if git ls-remote --exit-code --tags origin "refs/tags/v$v" >/dev/null; then
+            echo "v$v is tagged already"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$v" -m "Taktwin v$v"
+          git push origin "v$v"
