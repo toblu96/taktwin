@@ -1,6 +1,7 @@
 <!--
-Highlights of this release, shown at the top of its notes. Write them like this, or leave the
-file as it is for a release without highlights:
+Copy this file to .github/releases/<tag>.md, such as v0.3.0.md, on the release pull request's
+branch, and replace this comment with the highlights of the release, shown at the top of its
+notes:
 
 ## 👀 Highlights
 

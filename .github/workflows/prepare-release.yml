@@ -1,8 +1,8 @@
 name: prepare-release
 
 # Opens the pull request of the next release, from Actions → prepare-release → Run workflow. It
-# sets the version (from the conventional commits since the last release, or as given), adds a
-# highlights file to fill in, and shows the release notes in the pull request. Merging it tags the release (release-tag.yml), and the tag builds
+# sets the version (from the conventional commits since the last release, or as given) and
+# shows the release notes in the pull request. Highlights are added on its branch by hand. Merging it tags the release (release-tag.yml), and the tag builds
 # and publishes it (release.yml).
 #
 # It pushes with the secret RELEASE_TOKEN: what the built-in token pushes starts no other
@@ -50,14 +50,11 @@ jobs:
           fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "Releasing v$v after $latest"
-      - name: Version and highlights
+      - name: Version and notes
         env:
           V: ${{ steps.v.outputs.version }}
         run: |
           scripts/set-version.sh "$V"
-          if [ ! -f ".github/releases/v$V.md" ]; then
-            cp .github/releases/highlights-template.md ".github/releases/v$V.md"
-          fi
           scripts/release-notes.sh "v$V" > notes.md
       - name: Pull request
         env:
@@ -74,7 +71,11 @@ jobs:
           {
             echo "Merging this releases **v$V**: it is tagged, built for Windows and macOS, and published with the notes below."
             echo
-            echo "Before merging, write the highlights in \`.github/releases/v$V.md\` on this branch, with screenshots in \`.github/releases/images/\`, or leave the file as it is for none. The notes are made from the merged commit, so what is on this branch when you merge is what the release shows."
+            if [ -f ".github/releases/v$V.md" ]; then
+              echo "The highlights come from \`.github/releases/v$V.md\`. The notes are made from the merged commit, so what is on this branch when you merge is what the release shows."
+            else
+              echo "No highlights yet. To add some, create \`.github/releases/v$V.md\` on this branch from \`.github/releases/highlights-template.md\`, with screenshots in \`.github/releases/images/\`; see \`.github/releases/README.md\`. The notes are made from the merged commit, so what is on this branch when you merge is what the release shows."
+            fi
             echo
             echo "---"
             echo
