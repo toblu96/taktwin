@@ -491,6 +491,9 @@ export class StationScene {
         const moving = new THREE.Group()
         moving.matrixAutoUpdate = false
         moving.matrix.copy(matrix)
+        // A matrix set by hand: three.js recomputes the world matrix only when told to, and
+        // mount() needs it before the first frame, to attach the parts that ride on this node.
+        moving.matrixWorldNeedsUpdate = true
         // Anything attached to a pressable part presses it too, like a key's handle.
         moving.userData.press = node.press
         moving.userData.toggle = node.toggle
