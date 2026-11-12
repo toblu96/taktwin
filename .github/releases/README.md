@@ -1,8 +1,16 @@
+# Releases
+
+1. **Actions → prepare-release → Run workflow.** It works out the next version from the conventional commits since the last release (a feature makes 0.3.0 of 0.2.1, anything else 0.2.2), or takes the one you give, such as `0.3.0-beta.1`. It sets the version and opens the pull request `chore(release): v…` with the release notes in it.
+2. **Add highlights**, if the release has any: on the pull request's branch, copy `highlights-template.md` to `<tag>.md`, such as `v0.3.0.md`, and write them there (see below). Highlights merged to `main` before you start prepare-release are on the branch already. If you forget them, edit the published release's notes on GitHub.
+3. **Merge the pull request.** `release-tag` tags it, and the tag builds the app for Windows and macOS and publishes the release with these notes.
+
+The workflows push with the secret `RELEASE_TOKEN`, since what GitHub's built-in token pushes starts no other workflows: the pull request's checks would not run and the tag would build nothing. It is a fine-grained personal access token for this repository only, with read and write access to **Contents** and **Pull requests**. Renew it before it expires.
+
 # Release notes
 
 `scripts/release-notes.sh` writes the notes of a release, and the release workflow publishes them. They are made of three parts:
 
-1. **`<tag>.md`** here, such as `v0.2.0.md`, if there is one: news and highlights, written by hand. Start it with `## 👀 Highlights` and give each highlight a `###` heading. Put screenshots in `images/` and name them relatively, as `![The builder](images/v0.2.0-builder.png)`: the script points them at the files of the release's tag. GIFs and images uploaded to GitHub elsewhere work too.
+1. **`<tag>.md`** here, such as `v0.2.0.md`, if there is one: news and highlights, written by hand. Copy `highlights-template.md` to start one. Start it with `## 👀 Highlights` and give each highlight a `###` heading. Put screenshots in `images/` and name them relatively, as `![The builder](images/v0.2.0-builder.png)`: the script points them at the files of the release's tag. GIFs and images uploaded to GitHub elsewhere work too.
 2. **`updating.md`**: how to update and how to install, the same in every release. `{tag}` and `{version}` become `v0.2.0` and `0.2.0`.
 3. **The changelog**, which git-cliff makes from the conventional commits since the tag before (see `cliff.toml`).
 
@@ -12,4 +20,4 @@ Preview the notes before tagging:
 scripts/release-notes.sh v0.2.0 > /tmp/notes.md
 ```
 
-The highlights file has to be on `main` before the tag, as the script reads it from the tagged commit.
+The notes are made from the tagged commit, which is the merged release pull request: highlights on its branch, or on `main` before it, are in. That keeps a release's notes the same when it is built again, and its images linked to the tag, so that later changes on `main` leave them alone. To change the notes of a published release, edit them on GitHub or with `gh release edit v0.2.1 --notes-file notes.md`.
