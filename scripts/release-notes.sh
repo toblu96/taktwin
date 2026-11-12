@@ -1,8 +1,8 @@
 #!/bin/sh
 # Writes the notes of a release to stdout, as the release workflow publishes them: the
-# highlights in .github/releases/<tag>.md if there are any, how to update and install from
-# .github/releases/updating.md, and the changelog git-cliff makes from the conventional commits
-# since the tag before. See .github/releases/README.md.
+# highlights in .github/releases/<tag>.md if there are any, the changelog git-cliff makes from
+# the conventional commits since the tag before, and how to install, from
+# .github/releases/installing.md. See .github/releases/README.md.
 #
 #   scripts/release-notes.sh v0.2.0 > notes.md
 #
@@ -19,13 +19,14 @@ repo=${GITHUB_REPOSITORY:-toblu96/taktwin}
 cd "$(dirname "$0")/.."
 images="https://raw.githubusercontent.com/$repo/$tag/.github/releases/images/"
 
-if [ -f ".github/releases/$tag.md" ]; then
-  sed -e "s#](images/#]($images#g" -e "s#src=\"images/#src=\"$images#g" ".github/releases/$tag.md"
+# Highlights only when the file has some: more than headings and comments.
+highlights=".github/releases/$tag.md"
+if [ -f "$highlights" ] && perl -0pe 's/<!--.*?-->//gs' "$highlights" | grep -Ev '^[[:space:]]*(#.*)?$' | grep -q .; then
+  sed -e "s#](images/#]($images#g" -e "s#src=\"images/#src=\"$images#g" "$highlights"
   printf '\n\n'
 fi
 
-sed -e "s/{tag}/$tag/g" -e "s/{version}/$version/g" .github/releases/updating.md
-printf '\n## 👉 Changelog\n\n'
+printf '## 👉 Changelog\n\n'
 
 if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
   previous=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "$tag^" 2>/dev/null || true)
@@ -43,3 +44,7 @@ fi
 if command -v git-cliff >/dev/null 2>&1; then cliff=git-cliff; else cliff="npx --yes git-cliff@2"; fi
 # shellcheck disable=SC2086
 $cliff --config cliff.toml --strip header $unreleased $range | cat -s
+
+# How to install, last.
+printf '\n'
+sed -e "s/{tag}/$tag/g" -e "s/{version}/$version/g" .github/releases/installing.md
