@@ -4,4 +4,4 @@
 package version
 
 // Version is the app's semantic version, without the v.
-const Version = "0.2.0"
+const Version = "0.2.1"
