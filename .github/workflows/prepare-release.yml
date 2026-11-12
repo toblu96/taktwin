@@ -1,0 +1,88 @@
+name: prepare-release
+
+# Opens the pull request of the next release, from Actions → prepare-release → Run workflow. It
+# sets the version (from the conventional commits since the last release, or as given) and
+# shows the release notes in the pull request. Highlights are added on its branch by hand. Merging it tags the release (release-tag.yml), and the tag builds
+# and publishes it (release.yml).
+#
+# It pushes with the secret RELEASE_TOKEN: what the built-in token pushes starts no other
+# workflows, so the pull request's checks would never run. See .github/releases/README.md.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version, such as 0.3.0 or 0.3.0-beta.1. Empty works it out from the commits.
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release token
+        env:
+          TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: test -n "$TOKEN" || { echo "::error::The secret RELEASE_TOKEN is missing; see .github/releases/README.md"; exit 1; }
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Version
+        id: v
+        env:
+          INPUT: ${{ inputs.version }}
+        run: |
+          latest=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo none)
+          v=${INPUT#v}
+          if [ -z "$v" ]; then
+            v=$(npx --yes git-cliff@2 --config cliff.toml --bumped-version 2>/dev/null)
+            v=${v#v}
+          fi
+          if [ "v$v" = "$latest" ] || git rev-parse -q --verify "refs/tags/v$v" >/dev/null; then
+            echo "::error::v$v is released already: nothing new to release, or give a version"
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Releasing v$v after $latest"
+      - name: Version and notes
+        env:
+          V: ${{ steps.v.outputs.version }}
+        run: |
+          scripts/set-version.sh "$V"
+          scripts/release-notes.sh "v$V" > notes.md
+      - name: Pull request
+        env:
+          V: ${{ steps.v.outputs.version }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          branch="chore/release-v$V"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add -A -- . ':!notes.md'
+          git commit -m "chore(release): v$V"
+          git push --force origin "$branch"
+          {
+            echo "Merging this releases **v$V**: it is tagged, built for Windows and macOS, and published with the notes below."
+            echo
+            if [ -f ".github/releases/v$V.md" ]; then
+              echo "The highlights come from \`.github/releases/v$V.md\`. The notes are made from the merged commit, so what is on this branch when you merge is what the release shows."
+            else
+              echo "No highlights yet. To add some, create \`.github/releases/v$V.md\` on this branch from \`.github/releases/highlights-template.md\`, with screenshots in \`.github/releases/images/\`; see \`.github/releases/README.md\`. The notes are made from the merged commit, so what is on this branch when you merge is what the release shows."
+            fi
+            echo
+            echo "---"
+            echo
+            cat notes.md
+          } > body.md
+          if gh pr view "$branch" --json state -q .state 2>/dev/null | grep -q OPEN; then
+            gh pr edit "$branch" --title "chore(release): v$V" --body-file body.md
+          else
+            gh pr create --base main --head "$branch" --title "chore(release): v$V" --body-file body.md
+          fi

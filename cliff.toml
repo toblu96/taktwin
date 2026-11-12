@@ -1,4 +1,5 @@
-# git-cliff turns the conventional commits since the previous tag into a release's changelog.
+# git-cliff turns the conventional commits into the changelog part of a release's notes
+# (scripts/release-notes.sh), and works out the next version from them.
 # https://git-cliff.org/docs/configuration
 
 [changelog]
@@ -10,8 +11,15 @@ body = """
 - {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | upper_first }}{% if commit.breaking %} (**breaking**){% endif %}\
 {% endfor %}
 {% endfor %}
+
 """
-trim = true
+trim = false
+
+# While the version is 0.x, a feature bumps the minor version and so does a breaking change;
+# everything else bumps the patch version.
+[bump]
+features_always_bump_minor = true
+breaking_always_bump_major = false
 
 [git]
 conventional_commits = true
