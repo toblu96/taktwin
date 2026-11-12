@@ -1,9 +1,8 @@
 name: prepare-release
 
 # Opens the pull request of the next release, from Actions → prepare-release → Run workflow. It
-# sets the version (from the conventional commits since the last release, or as given),
-# brings CHANGELOG.md up to date, adds a highlights file to fill in, and shows the release
-# notes in the pull request. Merging it tags the release (release-tag.yml), and the tag builds
+# sets the version (from the conventional commits since the last release, or as given), adds a
+# highlights file to fill in, and shows the release notes in the pull request. Merging it tags the release (release-tag.yml), and the tag builds
 # and publishes it (release.yml).
 #
 # It pushes with the secret RELEASE_TOKEN: what the built-in token pushes starts no other
@@ -51,12 +50,11 @@ jobs:
           fi
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "Releasing v$v after $latest"
-      - name: Version, changelog and highlights
+      - name: Version and highlights
         env:
           V: ${{ steps.v.outputs.version }}
         run: |
           scripts/set-version.sh "$V"
-          npx --yes git-cliff@2 --config cliff.toml --tag "v$V" 2>/dev/null | cat -s > CHANGELOG.md
           if [ ! -f ".github/releases/v$V.md" ]; then
             cp .github/releases/highlights-template.md ".github/releases/v$V.md"
           fi
@@ -76,7 +74,7 @@ jobs:
           {
             echo "Merging this releases **v$V**: it is tagged, built for Windows and macOS, and published with the notes below."
             echo
-            echo "Before merging, write the highlights in \`.github/releases/v$V.md\` on this branch, with screenshots in \`.github/releases/images/\`, or leave the file as it is for none."
+            echo "Before merging, write the highlights in \`.github/releases/v$V.md\` on this branch, with screenshots in \`.github/releases/images/\`, or leave the file as it is for none. The notes are made from the merged commit, so what is on this branch when you merge is what the release shows."
             echo
             echo "---"
             echo

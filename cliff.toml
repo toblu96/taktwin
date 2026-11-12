@@ -1,16 +1,10 @@
-# git-cliff turns the conventional commits into the changelog: CHANGELOG.md with every release,
-# and the part of each release's notes (scripts/release-notes.sh), and it works out the next
-# version from them. https://git-cliff.org/docs/configuration
+# git-cliff turns the conventional commits into the changelog part of a release's notes
+# (scripts/release-notes.sh), and works out the next version from them.
+# https://git-cliff.org/docs/configuration
 
 [changelog]
-header = """
-# Changelog
-
-Every release of Taktwin, made from its conventional commits.
-
-"""
+header = ""
 body = """
-{% if version %}## {{ version }} ({{ timestamp | date(format="%Y-%m-%d") }}){% else %}## Unreleased{% endif %}
 {% for group, commits in commits | group_by(attribute="group") %}
 ### {{ group | striptags | trim | upper_first }}
 {% for commit in commits %}
