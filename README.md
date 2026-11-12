@@ -37,11 +37,10 @@ Taktwin opens with a pallet loading line. Open the PLC panel, choose **Edit prog
 
 - [User guide](docs/user-guide.md): stations and collections, the builder, the I/O test, connecting a PLC, the soft PLC and updates.
 - [Collection format](catalog/README.md): how stations, modules and workpieces are described, next to the [JSON Schemas](schema).
-- [Development](docs/development.md): building the app, running the tests and how the code is organised.
+- [Development](docs/development.md): building the app, running the tests, how the code is organised and how releases are made.
 
-## ❤️ Contributing
-
-Issues and pull requests are welcome. Read the [contribution guide](docs/contributing.md) for how commits, branches and releases work.
+> [!NOTE]
+> Taktwin is a personal project, developed for a small circle. Issues and pull requests are not open for now.
 
 ## License
 
