@@ -2,7 +2,7 @@ name: release
 
 # A tag v0.2.0 on a commit whose internal/version says 0.2.0 builds the app for Windows and
 # macOS and publishes a GitHub release with the installers, SHA256SUMS and the notes of
-# scripts/release-notes.sh: highlights written by hand, how to update, and the changelog. A tag with a pre-release, such as
+# scripts/release-notes.sh: highlights written by hand, the changelog, and how to install. A tag with a pre-release, such as
 # v0.2.0-beta.1, makes a pre-release.
 on:
   push:
@@ -121,8 +121,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      # The highlights of .github/releases/<tag>.md, how to update and install, and the
-      # changelog of the conventional commits since the tag before.
+      # The highlights of .github/releases/<tag>.md, the changelog of the conventional commits
+      # since the tag before, and how to install.
       - run: scripts/release-notes.sh "$GITHUB_REF_NAME" > notes.md && cat notes.md
       - run: |
           pre=""

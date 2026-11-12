@@ -1,12 +1,3 @@
-## ✅ Updating
-
-Taktwin updates itself. It looks for a new version when it starts, and **Settings → Updates** shows it: click **Download and install**, then **Restart now**. Your stations, programs and collections stay where they are, in your Taktwin folder.
-
-Taktwin 0.1.0 does not update itself yet: install {tag} over it, from the files below.
-
-> [!NOTE]
-> Collections update on their own: import the new `.taktwin` file in **Settings → Collections**, and it replaces the old one.
-
 ## 📦 Installing
 
 The app is not signed yet, so the system warns the first time.
