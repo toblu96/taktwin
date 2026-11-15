@@ -9,8 +9,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-
-	"github.com/toblu96/taktwin/internal/plcio"
 )
 
 // The levels of the catalog: stations, the modules they are built from, the accessories that
@@ -427,42 +425,5 @@ func round2(v float64) float64 {
 	return f
 }
 
-// AddressMap returns a PLC address map of the station by id. An empty id is the
-// station's own addresses.
-func (p *Plan) AddressMap(mapID string) (plcio.AddressMap, error) {
-	var out plcio.AddressMap
-	if mapID == "" {
-		return out, nil
-	}
-	for i := range p.maps {
-		if p.maps[i].ID != mapID {
-			continue
-		}
-		convert := func(defs []PLCBindingDef, find func(string) (plcio.Addr, bool), wantInput bool) ([]plcio.Binding, error) {
-			var list []plcio.Binding
-			for _, b := range defs {
-				local, ok := find(b.Signal)
-				if !ok {
-					return nil, fmt.Errorf("PLC map %s: no signal %q", mapID, b.Signal)
-				}
-				if len(p.Naming) == 0 {
-					return nil, fmt.Errorf("PLC map %s: the station has no PLC", mapID)
-				}
-				if _, isInput, err := p.Naming[0].Parse(b.Variable); err != nil {
-					return nil, fmt.Errorf("PLC map %s: %w", mapID, err)
-				} else if isInput != wantInput {
-					return nil, fmt.Errorf("PLC map %s: %s is on the wrong side for %s", mapID, b.Variable, b.Signal)
-				}
-				list = append(list, plcio.Binding{Local: local, Variable: b.Variable, Invert: b.Invert})
-			}
-			return list, nil
-		}
-		var err error
-		if out.Inputs, err = convert(p.maps[i].Inputs, p.PLCInput, true); err != nil {
-			return out, err
-		}
-		out.Outputs, err = convert(p.maps[i].Outputs, p.PLCOutput, false)
-		return out, err
-	}
-	return out, fmt.Errorf("the station has no PLC map %q", mapID)
-}
+// Maps are the station's maps for PLC programs written for another wiring, of its first PLC.
+func (p *Plan) Maps() []PLCMapDef { return p.maps }

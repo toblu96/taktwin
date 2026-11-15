@@ -25,9 +25,19 @@ export interface LinkInfo {
     "roundTrip": number;
 
     /**
-     * Variables is how many of the image's variables the server has.
+     * Variables is how many signals are exchanged.
      */
     "variables": number;
+
+    /**
+     * Problems are the bindings that cannot be exchanged, and why.
+     */
+    "problems"?: string[] | null;
+
+    /**
+     * Unbound are the station's signals the connection does not exchange.
+     */
+    "unbound"?: string[] | null;
 }
 
 /**

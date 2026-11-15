@@ -26,12 +26,13 @@ The app's own package embeds the built frontend, so `go test ./...` from the roo
 | `schema/` | JSON Schemas of the files of a collection, generated from the Go types |
 | `internal/model` | Loads and validates model files, and resolves them into numbers |
 | `internal/sim` | Runs any resolved station from a small set of device and transport primitives, and the controllers modules bring |
-| `internal/plcio` | The PLC image, how a PLC names its variables, and the `Controller` interface |
+| `internal/plcio` | The PLC image, its addresses, and the `Controller` interface |
 | `internal/softplc` | The PLC used while none is connected, which keeps every output off |
 | `internal/engine` | Fixed 2 ms simulation clock that couples station and PLC, with no UI dependency |
 | `internal/exercise` | Checks a station against an exercise file line by line, in the app or in tests |
-| `internal/opclink` | The station as OPC UA client of a PLC, implementing the `Controller` interface |
-| `internal/opcsim` | An OPC UA server around any controller |
+| `internal/link` | Couples a PLC of a station to a controller through a connection and a driver, implementing the `Controller` interface; no protocol of its own. See [ADR 0001](adr/0001-signals-mapping-and-connection-drivers.md) |
+| `internal/link/opcua` | The OPC UA driver: a client of any server |
+| `internal/opcsim` | An OPC UA server around any controller, the soft PLC's |
 | `st/` | Structured Text compiler and runtime, a Go module of its own with no dependencies. See [st/README.md](../st/README.md) |
 | `internal/plcprog` | A PLC's ST project in your folder, and the soft PLC that runs it behind an OPC UA server |
 | `internal/simapp` | Wails services over the engine, the builder and the library |

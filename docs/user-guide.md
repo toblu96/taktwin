@@ -30,9 +30,14 @@ The I/O test cuts the program off from the I/O for the whole station. Start it i
 
 ### Connecting a PLC
 
-The station is the OPC UA client, and the PLC is the server. Choose this on the PLC in the Simulation page, or from the button in the top bar. Each PLC of a station has its own connection.
+Choose how a PLC is run on the PLC in the Simulation page, or from the button in the top bar. Each PLC of a station has its own connection.
 
-The PLC must offer its variable list over OPC UA, named as the station's PLC module says in its `addresses`: for the reference collection's cabinet, the list `Bits` with `IB0Bit00` … for inputs and `QB0Bit00` … for outputs. In CODESYS, add a Symbol Configuration with OPC UA support to the application, tick the list, and download. Then connect to `opc.tcp://<host>:4840` with no security and an anonymous login. A PLC over OPC UA runs on the wall clock, so the simulation stays at 1× with it.
+- **Soft PLC** runs the program written in the app's editor. It has an OPC UA server of its own on `opc.tcp://127.0.0.1:4841` (or the next free port), with a node for each signal named by its address, such as `cabinet.%IX0.3`, so UaExpert can watch it.
+- **External** connects to a controller outside the app through a connection. Pick one and fill in its form:
+  - **CODESYS** expects the variable list named as the station's PLC module says in its `addresses`: for the reference collection's cabinet, the list `Bits` with `IB0Bit00` … for inputs and `QB0Bit00` … for outputs. In CODESYS, add a Symbol Configuration with OPC UA support to the application, tick the list, and download. The form asks for the server address, the namespace of the variables (`ns=4` for CODESYS Control Win) and the NodeId of the list without its namespace, as UaExpert shows them.
+  - **A connection file** in the `connections` folder of your folder, or of a collection, binds the station's signals to any server's nodes, such as those of a FluidSIM project. [catalog/README.md](../catalog/README.md#connections) describes the format.
+
+The station is the client, and the controller the server, with no security and an anonymous login so far. The panel shows how many signals are exchanged, which of them the controller does not have or does not allow, and which signals the connection leaves out. A PLC over a connection runs on the wall clock, so the simulation stays at 1× with it.
 
 ### Updating
 

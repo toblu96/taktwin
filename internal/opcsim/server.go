@@ -1,6 +1,8 @@
-// Package opcsim is a small OPC UA server inside the app: a stand-in for a soft PLC. It
-// runs a PLC program and offers its variable list the same way CODESYS would, named as the
-// PLC module says, so everything over OPC UA can be used without installing anything.
+// Package opcsim is a small OPC UA server inside the app: the soft PLC's. It runs a PLC
+// program and offers its image the way a PLC's OPC UA server does, so the simulation reaches
+// it as it reaches any other controller, and tools such as UaExpert can watch it. Each bit
+// of the image is a node named by its address, as nsu=urn:taktwin:softplc;s=cabinet.%IX0.3,
+// and each analogue input a node of volts, as …;s=cabinet.%IW8.
 package opcsim
 
 import (
@@ -19,6 +21,26 @@ import (
 // DefaultPort is next to CODESYS's 4840, so both can run on one machine.
 const DefaultPort = 4841
 
+// Namespace is the URI of the namespace of the image's nodes.
+const Namespace = "urn:taktwin:softplc"
+
+// Space is how the server names the nodes of the image.
+type Space struct {
+	// PLC is the instance of the PLC module, which comes before each address.
+	PLC string
+	// Labels name addresses for people, such as "IB0Bit03 B1" for %IX0.3, as the nodes'
+	// display names.
+	Labels map[string]string
+}
+
+// Key is the name of the node of an address in the namespace.
+func (sp Space) Key(a plcio.Address) string {
+	if sp.PLC == "" {
+		return a.String()
+	}
+	return sp.PLC + "." + a.String()
+}
+
 // Server serves one PLC program.
 type Server struct {
 	srv  *server.Server
@@ -27,17 +49,14 @@ type Server struct {
 	done chan struct{}
 	port int
 
-	mu     sync.Mutex
-	ctl    plcio.Controller
-	naming plcio.Naming
+	mu    sync.Mutex
+	ctl   plcio.Controller
+	space Space
 }
 
 // Start begins serving on localhost and running the program. The port 0 is not supported,
 // as the server has to know its own address for its endpoint list.
-func Start(ctx context.Context, port int, ctl plcio.Controller, naming plcio.Naming) (*Server, error) {
-	if err := naming.Check(); err != nil {
-		return nil, err
-	}
+func Start(ctx context.Context, port int, ctl plcio.Controller, space Space) (*Server, error) {
 	srv := server.New(
 		server.EndPoint("127.0.0.1", port),
 		server.EnableSecurity("None", ua.MessageSecurityModeNone),
@@ -48,9 +67,18 @@ func Start(ctx context.Context, port int, ctl plcio.Controller, naming plcio.Nam
 	if err := srv.Start(ctx); err != nil {
 		return nil, fmt.Errorf("starting the simulated OPC UA server on port %d: %w", port, err)
 	}
-	s := &Server{srv: srv, port: port, ctl: ctl, naming: naming, done: make(chan struct{})}
-	s.ns = server.NewMapNamespace(srv, "Taktwin")
-	srv.AddNamespace(lockedSpace{s.ns})
+	s := &Server{srv: srv, port: port, ctl: ctl, space: space, done: make(chan struct{})}
+	// The library registers a map namespace as it makes it, and lockedSpace again after it,
+	// at the next index. Only lockedSpace has the namespace's URI, so that a client that
+	// looks the namespace up by its URI finds that one.
+	s.ns = server.NewMapNamespace(srv, Namespace+":unlocked")
+	labels := map[string]string{}
+	for address, label := range space.Labels {
+		if a, err := plcio.ParseAddress(address); err == nil {
+			labels[space.Key(a)] = label
+		}
+	}
+	srv.AddNamespace(lockedSpace{s.ns, labels})
 	root, err := srv.Namespace(0)
 	if err != nil {
 		_ = srv.Close()
@@ -66,9 +94,7 @@ func Start(ctx context.Context, port int, ctl plcio.Controller, naming plcio.Nam
 	}
 	// REAL in volts, the simplest way to declare them in a program.
 	for channel := range plcio.AnalogInputs {
-		if naming.Analog != "" {
-			s.ns.SetValue(s.analogKey(channel), float32(0))
-		}
+		s.ns.SetValue(s.analogKey(channel), float32(0))
 	}
 
 	scan, stop := context.WithCancel(ctx)
@@ -79,11 +105,11 @@ func Start(ctx context.Context, port int, ctl plcio.Controller, naming plcio.Nam
 
 // StartOnFreePort is Start on the first free port from DefaultPort, as another instance
 // of the app or another station may already have a server.
-func StartOnFreePort(ctx context.Context, ctl plcio.Controller, naming plcio.Naming) (*Server, error) {
+func StartOnFreePort(ctx context.Context, ctl plcio.Controller, space Space) (*Server, error) {
 	var err error
 	for port := DefaultPort; port < DefaultPort+20; port++ {
 		var s *Server
-		if s, err = Start(ctx, port, ctl, naming); err == nil {
+		if s, err = Start(ctx, port, ctl, space); err == nil {
 			return s, nil
 		}
 	}
@@ -133,35 +159,45 @@ func (s *Server) run(ctx context.Context) {
 
 // lockedSpace reads values under the namespace's lock. The library's own Attribute does
 // not, and the program updates values while clients read them, which Go can answer by
-// stopping the whole app. Registered after the plain namespace, it takes over its id.
-type lockedSpace struct{ *server.MapNamespace }
+// stopping the whole app. Registered after the plain namespace, it takes over its id. It
+// also gives the nodes their display names.
+type lockedSpace struct {
+	*server.MapNamespace
+	labels map[string]string // by key
+}
+
+// Name implements server.NameSpace: the namespace URI.
+func (l lockedSpace) Name() string { return Namespace }
 
 // Attribute implements server.NameSpace.
 func (l lockedSpace) Attribute(n *ua.NodeID, a ua.AttributeID) *ua.DataValue {
 	l.Mu.RLock()
 	defer l.Mu.RUnlock()
-	return l.MapNamespace.Attribute(n, a)
+	dv := l.MapNamespace.Attribute(n, a)
+	if a == ua.AttributeIDDisplayName && dv.Status == ua.StatusOK {
+		if label, ok := l.labels[n.StringID()]; ok {
+			dv.Value = ua.MustVariant(&ua.LocalizedText{EncodingMask: ua.LocalizedTextText, Text: label})
+		}
+	}
+	return dv
 }
 
 func (s *Server) analogKey(channel int) string {
-	return s.naming.List + "." + s.naming.AnalogInput(channel)
+	return s.space.Key(plcio.AnalogInputAddress(channel))
 }
 
 // Analog returns what the PLC reads on its analogue inputs, in volts.
 func (s *Server) Analog() plcio.Analog {
 	var in plcio.Analog
 	for channel := range in {
-		if s.naming.Analog == "" {
-			continue
-		}
 		v, _ := s.ns.GetValue(s.analogKey(channel)).(float32)
 		in[channel] = float64(v)
 	}
 	return in
 }
 
-func (s *Server) inputKey(a plcio.Addr) string  { return s.naming.List + "." + s.naming.Input(a) }
-func (s *Server) outputKey(a plcio.Addr) string { return s.naming.List + "." + s.naming.Output(a) }
+func (s *Server) inputKey(a plcio.Addr) string  { return s.space.Key(plcio.BitAddress(true, a)) }
+func (s *Server) outputKey(a plcio.Addr) string { return s.space.Key(plcio.BitAddress(false, a)) }
 
 // Step reports what the program is doing, if it can.
 func (s *Server) Step() (plcio.StepInfo, bool) {
