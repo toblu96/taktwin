@@ -125,8 +125,9 @@ func Start(ctx context.Context, port int, ctl plcio.Controller, space Space) (*S
 	s := &Server{srv: srv, port: port, ctl: ctl, space: space, done: make(chan struct{})}
 	// The library registers a map namespace as it makes it, and lockedSpace again after it,
 	// at the next index. Only lockedSpace has the namespace's URI, so that a client that
-	// looks the namespace up by its URI finds that one.
-	s.ns = server.NewMapNamespace(srv, Namespace+":unlocked")
+	// looks the namespace up by its URI finds that one. The name of the first is what a
+	// browser shows as the folder of the nodes.
+	s.ns = server.NewMapNamespace(srv, "Taktwin soft PLC")
 	labels := map[string]string{}
 	for address, label := range space.Labels {
 		if a, err := plcio.ParseAddress(address); err == nil {
@@ -216,6 +217,20 @@ type lockedSpace struct {
 
 // Name implements server.NameSpace: the namespace URI.
 func (l lockedSpace) Name() string { return Namespace }
+
+// Browse implements server.NameSpace, with the nodes' display names.
+func (l lockedSpace) Browse(bd *ua.BrowseDescription) *ua.BrowseResult {
+	res := l.MapNamespace.Browse(bd)
+	for _, r := range res.References {
+		if r.NodeID == nil || r.NodeID.NodeID == nil {
+			continue
+		}
+		if label, ok := l.labels[r.NodeID.NodeID.StringID()]; ok {
+			r.DisplayName = &ua.LocalizedText{EncodingMask: ua.LocalizedTextText, Text: label}
+		}
+	}
+	return res
+}
 
 // Attribute implements server.NameSpace.
 func (l lockedSpace) Attribute(n *ua.NodeID, a ua.AttributeID) *ua.DataValue {

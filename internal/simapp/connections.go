@@ -66,6 +66,7 @@ func (s *Service) connections(plc string) ([]offered, error) {
 			}
 		}
 	}
+	out = append(out, offered{genericOPCUA(), "Taktwin"})
 	lib := Library()
 	names := map[string]string{}
 	for _, c := range lib.Collections() {
@@ -87,7 +88,7 @@ func (s *Service) connections(plc string) ([]offered, error) {
 			continue
 		}
 		seen[c.ID] = true
-		out = append(out, offered{c, cmp.Or(names[f.Collection], "Your folder")})
+		out = append(out, offered{c, cmp.Or(names[f.Collection], yourFolder)})
 	}
 	return out, nil
 }

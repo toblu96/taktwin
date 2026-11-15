@@ -238,7 +238,7 @@ Without it, the templates of `addresses` show them, as `IB0Bit03` and `AI0`. An 
 
 ## Connections
 
-A connection says how a PLC of a station is coupled to a controller outside the app, such as a CODESYS PLC or a FluidSIM project: which driver talks to it, how it is reached, and which item of it each signal of the station is exchanged with. The station itself never changes for it. The PLC panel offers the app's own connections, one to CODESYS and one for each `plc.maps` entry of the station, and the files in `connections/` of the user's folder and of the collections.
+A connection says how a PLC of a station is coupled to a controller outside the app, such as a CODESYS PLC or a FluidSIM project: which driver talks to it, how it is reached, and which item of it each signal of the station is exchanged with. The station itself never changes for it. The PLC panel offers the app's own connections, one to CODESYS, one for each `plc.maps` entry of the station and an empty one to any OPC UA server, and the files in `connections/` of the user's folder and of the collections. Its connection editor writes such files into the user's folder.
 
 ```json
 {
@@ -296,7 +296,7 @@ The OPC UA driver is a client of any server. Its settings:
 An item is a node, by `nodeId` or by browse `path`:
 
 - `nodeId` as the server writes it, `ns=<index>;s=<name>`, or with the namespace's URI, `nsu=<URI>;s=<name>`, which holds even if the server puts the namespace at another index. `i=`, `g=` and `b=` identifiers work too.
-- `path`, such as `/2:Projects/2:Task 2/2:B1`: browse names with the index of their namespace, followed from the Objects folder, or from the node `from`.
+- `path`, such as `/2:Projects/2:Task 2/2:B1`: browse names with the index of their namespace, followed from the Objects folder, or from the node `from`. With `namespace`, a namespace URI, names without an index are of that namespace, whatever index the server gives it: `{ "path": "/Projects/Task 2/PLC/M1", "namespace": "{fs}" }`. A path finds a node whose NodeId the server numbers as it pleases, such as the outputs of a FluidSIM GRAFCET PLC.
 
 When it connects, the driver checks every node once: that it exists, can be written for an input and read for an output, and holds a Boolean or a number. A node that fails is left out and listed, and the others are exchanged. Values are written and read as the node's own type: a bit as `true` and `false` or `1` and `0`; an analogue value as the PLC has it in its image into an integer, such as 0 to 27648, and as it is on the wire into a float, such as volts, unless the binding scales it. Inputs are written when they change, outputs read on every interval. When the connection is lost, the PLC's outputs go off, and the driver connects again.
 

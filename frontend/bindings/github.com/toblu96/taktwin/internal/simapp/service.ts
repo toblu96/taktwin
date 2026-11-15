@@ -15,6 +15,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wails
 import * as engine$0 from "../engine/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as link$0 from "../link/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as model$0 from "../model/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -26,6 +29,14 @@ import * as $models from "./models.js";
  */
 export function AcknowledgeFellOff(): $CancellablePromise<void> {
     return $Call.ByID(2028513412);
+}
+
+/**
+ * BrowseConnection lists what the controller of a connection being edited offers below a
+ * node, "" for the top, to pick the items of bindings from.
+ */
+export function BrowseConnection(doc: string, values: { [_ in string]?: any } | null, under: string): $CancellablePromise<link$0.Node[] | null> {
+    return $Call.ByID(4148559188, doc, values, under);
 }
 
 /**
@@ -51,6 +62,13 @@ export function ClearTestOutputsFor(plc: string): $CancellablePromise<void> {
 }
 
 /**
+ * ConnectionFor gives a connection one of the station's PLCs can use, by id, to edit.
+ */
+export function ConnectionFor(plc: string, id: string): $CancellablePromise<$models.ConnectionDoc> {
+    return $Call.ByID(1920339513, plc, id);
+}
+
+/**
  * ConnectionsFor lists the connections one of the station's PLCs can use, by its module,
  * the first one for "": the app's own for CODESYS, one for each address map of the station,
  * then the files of the user's folder and of the collections.
@@ -68,10 +86,25 @@ export function DefaultStation(): $CancellablePromise<string> {
 }
 
 /**
+ * DeleteConnection removes a connection file of the user's folder, by id.
+ */
+export function DeleteConnection(id: string): $CancellablePromise<void> {
+    return $Call.ByID(2776582773, id);
+}
+
+/**
  * Exercises lists the exercises of the station in the simulation.
  */
 export function Exercises(): $CancellablePromise<$models.ExerciseInfo[] | null> {
     return $Call.ByID(2470516493);
+}
+
+/**
+ * FindCODESYSList looks for the variable list of the app's CODESYS connection on the server
+ * its form names, and gives the form's values with where the list is filled in.
+ */
+export function FindCODESYSList(plc: string, values: { [_ in string]?: any } | null): $CancellablePromise<{ [_ in string]?: any } | null> {
+    return $Call.ByID(2840011845, plc, values);
 }
 
 /**
@@ -105,6 +138,14 @@ export function PLCFor(plc: string): $CancellablePromise<$models.PLCConfig> {
 }
 
 /**
+ * PreviewConnection resolves a connection being edited, given as its file, against one of
+ * the station's PLCs, with the values of its form.
+ */
+export function PreviewConnection(plc: string, doc: string, values: { [_ in string]?: any } | null): $CancellablePromise<$models.Preview> {
+    return $Call.ByID(1333851814, plc, doc, values);
+}
+
+/**
  * Reset restarts the station and the PLC.
  */
 export function Reset(): $CancellablePromise<void> {
@@ -116,6 +157,14 @@ export function Reset(): $CancellablePromise<void> {
  */
 export function RunAction(name: string, args: { [_ in string]?: string } | null): $CancellablePromise<void> {
     return $Call.ByID(3606354813, name, args);
+}
+
+/**
+ * SaveConnection checks a connection being edited against one of the station's PLCs, with
+ * the values of its form, and writes it into the connections folder of the user's folder.
+ */
+export function SaveConnection(plc: string, doc: string, values: { [_ in string]?: any } | null): $CancellablePromise<$models.ConnectionInfo> {
+    return $Call.ByID(606904059, plc, doc, values);
 }
 
 /**
@@ -209,6 +258,14 @@ export function SetTestOutput(variable: string, on: boolean): $CancellablePromis
  */
 export function SetTestOutputFor(plc: string, variable: string, on: boolean): $CancellablePromise<void> {
     return $Call.ByID(2188623522, plc, variable, on);
+}
+
+/**
+ * SignalsFor lists the signals of one of the station's PLCs, by its module, the first one for
+ * "": every bit its wiring reaches and every analogue channel.
+ */
+export function SignalsFor(plc: string): $CancellablePromise<$models.SignalInfo[] | null> {
+    return $Call.ByID(3738440250, plc);
 }
 
 /**

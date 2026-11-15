@@ -2,6 +2,7 @@ package opcua
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -242,20 +243,22 @@ func TestAnyServerByNamespaceURI(t *testing.T) {
 	until(t, "MB3 off", func() bool { return !l.Scan(in).Get(plcio.Addr{Bit: 2}) })
 }
 
-// A browse path is browse names with the index of their namespace. (The library's test
-// server cannot follow one, so this only reads them.)
+// A browse path is browse names with the index of their namespace, or of the item's
+// namespace without one. (The library's test server cannot follow one, so this only reads
+// them.)
 func TestBrowsePathsAreRead(t *testing.T) {
-	names, err := parsePath("/2:Projects/2:Task 2/Objects")
+	names, err := parsePath("/2:Projects/Task 2/0:Objects/B1:Start", 3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(names) != 3 || names[0].NamespaceIndex != 2 || names[1].Name != "Task 2" || names[2].NamespaceIndex != 0 || names[2].Name != "Objects" {
-		t.Errorf("names: %+v %+v %+v", names[0], names[1], names[2])
-	}
-	for _, bad := range []string{"/2:a//2:b", "x:a"} {
-		if _, err := parsePath(bad); err == nil {
-			t.Errorf("%s is no path", bad)
+	want := []string{"2:Projects", "3:Task 2", "0:Objects", "3:B1:Start"}
+	for i, n := range names {
+		if got := fmt.Sprintf("%d:%s", n.NamespaceIndex, n.Name); i >= len(want) || got != want[i] {
+			t.Errorf("step %d is %s", i, got)
 		}
+	}
+	if _, err := parsePath("/2:a//2:b", 0); err == nil {
+		t.Error("an empty step")
 	}
 }
 
@@ -302,4 +305,30 @@ func TestSoftPLCsShareAMachine(t *testing.T) {
 	}
 	l := start(t, SoftPLC(b.Endpoint(), "b"), link.Image(), nil)
 	until(t, "the connection", func() bool { return l.Link().State == plcio.LinkConnected && len(l.Link().Problems) == 0 })
+}
+
+// A NodeId written with its namespace's URI goes to the server as a plain NodeId with the
+// namespace's index: a server may decode a request strictly and refuse one that says it
+// carries a URI.
+func TestANamespaceURIBecomesItsIndex(t *testing.T) {
+	namespaces := []string{"http://opcfoundation.org/UA/", "urn:a", "urn:b"}
+	id, err := parseNodeID("nsu=urn:b;s=Task 2.B1.state_man", namespaces)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id.String() != "ns=2;s=Task 2.B1.state_man" {
+		t.Errorf("NodeId %s", id)
+	}
+	data, err := id.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data[0]&0xc0 != 0 {
+		t.Errorf("the encoding says it carries a URI or a server index: %08b", data[0])
+	}
+	for _, bad := range []string{"nsu=urn:c;s=x", "nsu=urn:b", "ns=x;s=y"} {
+		if _, err := parseNodeID(bad, namespaces); err == nil {
+			t.Errorf("%s", bad)
+		}
+	}
 }

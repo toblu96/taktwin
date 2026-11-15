@@ -7,7 +7,8 @@ import SettingsPage from './components/SettingsPage.vue'
 import TopBar from './components/TopBar.vue'
 import StationDock from './components/StationDock.vue'
 import ProgramIde from './ide/ProgramIde.vue'
-import { connect, loadError, page, programming } from './sim'
+import ConnectionEditor from './components/ConnectionEditor.vue'
+import { connect, editingConnection, loadError, page, programming } from './sim'
 import { connectUpdates } from './update'
 import StationViewer from './viewer/StationViewer.vue'
 
@@ -27,6 +28,7 @@ onMounted(() => {
         <StationViewer :active="page === 'simulation'" />
         <StationDock place="bottom" />
         <ProgramIde v-if="programming !== null" :plc="programming" @close="programming = null" />
+        <ConnectionEditor v-if="editingConnection" :key="editingConnection.id" v-bind="editingConnection" @close="editingConnection = null" />
       </main>
       <ContextPanel />
     </div>
