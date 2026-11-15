@@ -58,8 +58,10 @@ type WiringPin struct {
 	Analog   bool   `json:"analog"`
 	Function string `json:"function"`
 	Source   string `json:"source"`
-	Address  string `json:"address"`
-	Name     string `json:"name"`
+	// Address is the PLC address the pin reaches, as %IX0.3, and Shown how the PLC shows it.
+	Address string `json:"address"`
+	Shown   string `json:"shown"`
+	Name    string `json:"name"`
 	// PLC is the PLC the address is of, where the station has more than one.
 	PLC string `json:"plc"`
 }
@@ -136,7 +138,7 @@ func (s *BuilderService) wiring() WiringState {
 			wc := WiringConnector{Ref: s.cableRef(in.ID, c.ID), ID: c.ID, Type: c.Type, Label: s.bundle.Connectors[c.Type].Label, Color: s.bundle.Connectors[c.Type].Color, Byte: c.Byte, Pins: []WiringPin{}}
 			if kind == "terminal" && !c.Internal {
 				for _, p := range sc.Pins {
-					wc.Pins = append(wc.Pins, WiringPin{Pin: p.Pin, Output: p.Output, Analog: p.Analog, Function: p.Function, Source: p.Source, Address: p.Address, Name: names[p.PLC+":"+p.Address], PLC: p.PLC})
+					wc.Pins = append(wc.Pins, WiringPin{Pin: p.Pin, Output: p.Output, Analog: p.Analog, Function: p.Function, Source: p.Source, Address: p.Address, Shown: p.Shown, Name: names[p.PLC+":"+p.Address], PLC: p.PLC})
 				}
 			}
 			box.Connectors = append(box.Connectors, wc)
@@ -379,12 +381,12 @@ func (s *BuilderService) SetSignal(plc, address, name string) (BuilderState, err
 	if k < 0 || k >= len(s.plan.Naming) {
 		return BuilderState{}, fmt.Errorf("the station has no PLC %s", plc)
 	}
-	if _, _, err := s.plan.Naming[k].Parse(address); err != nil {
-		if _, ok := s.plan.Naming[k].ParseAnalog(address); !ok {
-			return BuilderState{}, fmt.Errorf("the PLC has no signal %s", address)
-		}
+	at, err := s.plan.Address(k, address)
+	if err != nil {
+		return BuilderState{}, fmt.Errorf("the PLC has no signal %s", address)
 	}
-	i := slices.IndexFunc(def.Signals, func(sig draftSignal) bool { return sig.Address == address })
+	address = at.String()
+	i := slices.IndexFunc(def.Signals, func(sig draftSignal) bool { return canonical(s.plan, k, sig.Address) == address })
 	switch {
 	case name == "" && i >= 0:
 		def.Signals = slices.Delete(def.Signals, i, i+1)
@@ -416,12 +418,15 @@ func (s *BuilderService) rewired(d *draft) (BuilderState, error) {
 	// Moved addresses, as PLC:address.
 	if len(moved) > 0 {
 		for _, def := range append([]*draftPLC{&d.PLC}, pointers(d.PLCs)...) {
-			plc := def.Module
+			plc, k := def.Module, slices.Index(s.plan.PLCs, def.Module)
+			if def == &d.PLC {
+				k = 0
+			}
 			if len(d.PLCs) == 0 {
 				plc = ""
 			}
 			for i := range def.Signals {
-				if now, ok := moved[plc+":"+def.Signals[i].Address]; ok {
+				if now, ok := moved[plc+":"+canonical(s.plan, k, def.Signals[i].Address)]; ok {
 					_, def.Signals[i].Address, _ = strings.Cut(now, ":")
 				}
 			}
@@ -452,4 +457,14 @@ func pointers[T any](list []T) []*T {
 		out[i] = &list[i]
 	}
 	return out
+}
+
+// canonical writes an address of the PLC k of a plan as %IX0.3, which a station may give as
+// such or by the name its PLC module gives the variable; "" for none.
+func canonical(plan *model.Plan, k int, address string) string {
+	a, err := plan.Address(k, address)
+	if err != nil {
+		return ""
+	}
+	return a.String()
 }

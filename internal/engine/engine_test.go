@@ -138,7 +138,7 @@ func TestPausedRunDoesNotAdvance(t *testing.T) {
 	}
 }
 
-// In an I/O test, an output is switched by the name the PLC module gives it.
+// In an I/O test, an output is switched by its address, or the name the PLC module gives it.
 func TestAnIOTestSwitchesOutputsByTheirNames(t *testing.T) {
 	e, err := New(mustLoad(t), softplc.Idle{})
 	if err != nil {
@@ -154,11 +154,17 @@ func TestAnIOTestSwitchesOutputsByTheirNames(t *testing.T) {
 	if !e.Snapshot().Outputs.Get(plcio.Addr{Byte: 0, Bit: 0}) {
 		t.Error("QB0Bit00 is on")
 	}
-	if err := e.SetTestOutputFor("", "AB0Bit00", true); err == nil {
-		t.Error("the cabinet has no output AB0Bit00")
+	if err := e.SetTestOutputFor("", "%QX0.1", true); err != nil {
+		t.Fatal(err)
 	}
-	if err := e.SetTestOutputFor("", "IB0Bit00", true); err == nil {
-		t.Error("an input is no output")
+	e.Advance(50 * time.Millisecond)
+	if !e.Snapshot().Outputs.Get(plcio.Addr{Byte: 0, Bit: 1}) {
+		t.Error("%QX0.1 is on")
+	}
+	for _, bad := range []string{"AB0Bit00", "IB0Bit00", "%IX0.0", "%QW8", "%QX9.0"} {
+		if err := e.SetTestOutputFor("", bad, true); err == nil {
+			t.Errorf("%s is no output of the cabinet", bad)
+		}
 	}
 }
 

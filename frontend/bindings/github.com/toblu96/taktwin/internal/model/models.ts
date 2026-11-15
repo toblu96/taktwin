@@ -222,7 +222,12 @@ export interface Scene {
  */
 export interface SceneAnalog {
     "name": string;
+
+    /**
+     * Address is the input's word, as %IW8, and Shown how the PLC shows it.
+     */
     "address": string;
+    "shown": string;
     "description"?: string;
     "channel": number;
 }
@@ -442,7 +447,12 @@ export interface ScenePin {
     "invert"?: boolean;
     "state": number;
     "plcName"?: string;
+
+    /**
+     * Address is the PLC address the pin reaches, as %IX0.3, and Shown how its PLC shows it.
+     */
     "address"?: string;
+    "shown"?: string;
 
     /**
      * PLC is the PLC module that Address is of, where the station has more than one.
@@ -460,7 +470,12 @@ export interface ScenePin {
  */
 export interface SceneSignal {
     "name": string;
+
+    /**
+     * Address is where the bit is, as %IX0.3, and Shown how the PLC shows it, as I0.3.
+     */
     "address": string;
+    "shown": string;
     "variable"?: string;
     "description"?: string;
     "byte": number;

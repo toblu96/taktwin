@@ -93,7 +93,7 @@ const groups = computed(() => [
           </template>
           <template v-else>
             <td class="mono variable">{{ signal.variable }}</td>
-            <td class="mono address">{{ signal.address }}</td>
+            <td class="mono address" :title="signal.address">{{ signal.shown || signal.address }}</td>
           </template>
         </tr>
       </tbody>
@@ -106,7 +106,7 @@ const groups = computed(() => [
         <tr v-for="signal in plcScene.analog" :key="signal.address" :title="signal.description">
           <td class="dot-cell volts mono">{{ (plcView?.analog?.[signal.channel] ?? 0).toFixed(2) }} V</td>
           <td class="name">{{ signal.name }}</td>
-          <td class="mono address">{{ signal.address }}</td>
+          <td class="mono address" :title="signal.address">{{ signal.shown || signal.address }}</td>
         </tr>
       </tbody>
     </table>

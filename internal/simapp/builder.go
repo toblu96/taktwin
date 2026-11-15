@@ -20,6 +20,7 @@ import (
 
 	"github.com/toblu96/taktwin/internal/engine"
 	"github.com/toblu96/taktwin/internal/model"
+	"github.com/toblu96/taktwin/internal/plcio"
 	"github.com/toblu96/taktwin/internal/sim"
 	"github.com/toblu96/taktwin/internal/softplc"
 )
@@ -811,17 +812,17 @@ func (s *BuilderService) resolve(d *draft) (*model.Bundle, *model.Plan, error) {
 	connected := map[string]bool{}
 	key := func(k int, address string) string { return fmt.Sprint(k, address) }
 	for _, b := range plan.PLCIn {
-		connected[key(b.PLC, plan.Naming[b.PLC].Input(b.Addr))] = true
+		connected[key(b.PLC, plcio.BitAddress(true, b.Addr).String())] = true
 	}
 	for _, b := range plan.PLCOut {
-		connected[key(b.PLC, plan.Naming[b.PLC].Output(b.Addr))] = true
+		connected[key(b.PLC, plcio.BitAddress(false, b.Addr).String())] = true
 	}
 	for _, a := range plan.PLCAnalog {
-		connected[key(a.PLC, plan.Naming[a.PLC].AnalogInput(a.Channel))] = true
+		connected[key(a.PLC, plcio.AnalogInputAddress(a.Channel).String())] = true
 	}
 	for k, id := range plan.PLCs {
 		if def := d.plcDef(id); def != nil && (k > 0 || def == &d.PLC) {
-			def.Signals = slices.DeleteFunc(def.Signals, func(sig draftSignal) bool { return !connected[key(k, sig.Address)] })
+			def.Signals = slices.DeleteFunc(def.Signals, func(sig draftSignal) bool { return !connected[key(k, canonical(plan, k, sig.Address))] })
 		}
 	}
 	return s.load(d)

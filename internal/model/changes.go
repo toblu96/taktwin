@@ -114,7 +114,11 @@ func (b *Bundle) Change(c StationChanges) error {
 			}
 		}
 		for i := range st.PLC.Signals {
-			if now, ok := moved[st.PLC.Signals[i].Address]; ok {
+			a, err := plan.Address(0, st.PLC.Signals[i].Address)
+			if err != nil {
+				continue
+			}
+			if now, ok := moved[a.String()]; ok {
 				st.PLC.Signals[i].Address = now
 			}
 		}

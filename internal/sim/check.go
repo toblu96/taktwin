@@ -222,7 +222,7 @@ func sweep(plan *model.Plan) []model.SceneCheck {
 		for range int(sweepTime / 0.002) {
 			sweep.Step(0.002, image)
 		}
-		name := plan.Naming[o.PLC].Output(o.Addr)
+		name := plan.Show(o.PLC, plcio.BitAddress(false, o.Addr))
 		if n := names[o.Addr]; n != "" {
 			name = n + " (" + name + ")"
 		}

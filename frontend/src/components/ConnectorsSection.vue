@@ -63,7 +63,7 @@ function switchPin(pin: ScenePin) {
           <td class="wire mono" :title="pin.invert ? 'Inverted at the source' : ''">
             <span v-if="pin.analog && pin.wired" class="volts">{{ (snapshot?.states?.[pin.state] ?? 0).toFixed(2) }} V</span>
             <template v-if="pin.plcName"
-              >{{ pin.invert ? '¬' : '' }}{{ pin.plcName }}<br /><small>{{ pin.address }}</small></template
+              >{{ pin.invert ? '¬' : '' }}{{ pin.plcName }}<br /><small :title="pin.address">{{ pin.shown || pin.address }}</small></template
             >
             <small v-else-if="pin.wired && !pin.address && !service.SetPin && !pin.analog">not wired to PLC</small>
           </td>

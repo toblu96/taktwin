@@ -19,7 +19,7 @@ The **Builder** page puts a station together without editing files. Start from a
 - The right side has the settings of the selected module: **Build settings** first, **Physics** below.
 - The station checks have their own tab and update with every change.
 - A selected stand shows a **+** on each side where there is room, to put another stand beside it, so that a station grows into a line, each stand with its own PLC.
-- **Wiring** shows the PLCs, consoles, interfaces and I/O terminals with the cables between them. Click a connector, then another of its kind, to move its cable; click a pin to move what it carries. Each pin shows the PLC address it reaches and the name the PLC knows it by, which can be changed.
+- **Wiring** shows the PLCs, consoles, interfaces and I/O terminals with the cables between them. Click a connector, then another of its kind, to move its cable; click a pin to move what it carries. Each pin shows the PLC address it reaches, as the PLC module shows them, and the name the PLC knows it by, which can be changed.
 - **Save** writes it to your folder, and **Try in Simulation** opens it there.
 
 ## Running a station

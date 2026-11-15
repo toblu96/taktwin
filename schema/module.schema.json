@@ -414,6 +414,29 @@
       },
       "type": "object"
     },
+    "Format": {
+      "additionalProperties": false,
+      "description": "Format is how a PLC module shows the addresses of its image: a template for bits of the inputs and of the outputs, with {byte}, {bit} (or {bit:2} for two digits), and for words, with {byte} and, for an analogue input, {channel}. Without a template, an address is shown as it is, such as %IX0.3.",
+      "properties": {
+        "input": {
+          "description": "Input shows an input bit, such as \"I{byte}.{bit}\" for I0.3.",
+          "type": "string"
+        },
+        "inputWord": {
+          "description": "InputWord shows an input word, such as \"IW{byte}\" or, for analogue inputs, \"AI{channel}\".",
+          "type": "string"
+        },
+        "output": {
+          "description": "Output shows an output bit, such as \"Q{byte}.{bit}\" for Q0.3.",
+          "type": "string"
+        },
+        "outputWord": {
+          "description": "OutputWord shows an output word, such as \"QW{byte}\".",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "GeometryDef": {
       "additionalProperties": false,
       "description": "GeometryDef uses the names and parameters of three.js geometries where one exists. From and To on a CylinderGeometry, and SectorGeometry, are extensions. ExtrudeGeometry takes its Shape as Points and Holes, and extrudes along +z.",
@@ -702,7 +725,7 @@
         },
         "addresses": {
           "$ref": "#/$defs/Naming",
-          "description": "Addresses is how the program of a module of the plc role names the variables of its image, which it needs: inputs, outputs and analogue inputs, with {byte}, {bit} (or {bit:2} for two digits) and {channel}, and the variable list they are in, as a PLC offers them over OPC UA. Station files name the PLC's signals by these names."
+          "description": "Addresses is how the program of a module of the plc role names the variables of its image, which it needs: inputs, outputs and analogue inputs, with {byte}, {bit} (or {bit:2} for two digits) and {channel}, and the variable list they are in, as a PLC offers them over OPC UA. Older station files name the PLC's signals by these names."
         },
         "cables": {
           "items": {
@@ -794,6 +817,10 @@
             "$ref": "#/$defs/ParameterDef"
           },
           "type": "array"
+        },
+        "plc": {
+          "$ref": "#/$defs/PLCModuleDef",
+          "description": "PLC describes the image of a module of the plc role apart from any protocol."
         },
         "role": {
           "description": "Role is what a module is to the builder beyond something to screw on, one of the Role constants. Without one, it is just that.",
@@ -988,6 +1015,17 @@
         "boolean"
       ]
     },
+    "PLCModuleDef": {
+      "additionalProperties": false,
+      "description": "PLCModuleDef is what a PLC module says about its image, apart from any protocol.",
+      "properties": {
+        "addressFormat": {
+          "$ref": "#/$defs/Format",
+          "description": "AddressFormat is how the PLC shows the addresses of its image, such as I0.3 or E0.3 for %IX0.3. Without it, the templates of Addresses show them, or else they are shown as they are."
+        }
+      },
+      "type": "object"
+    },
     "ParameterDef": {
       "additionalProperties": false,
       "description": "ParameterDef declares a module parameter. One with a Label is a setting that people can change, of a Kind: build for how the module is put together, such as the number on a slide or the angle of a sensor, or physics for how it behaves, such as the speed of a belt. Description says in a sentence or two what it does. A setting that is a number keeps between Min and Max, in steps of Step, or takes one of Options. One without a Label is the module's own business, and not offered to people.",
@@ -1139,6 +1177,10 @@
         },
         "spare": {
           "type": "boolean"
+        },
+        "symbol": {
+          "description": "Symbol is the name the PLC program gives the signal of this pin by default, such as B1, where the station names none.",
+          "type": "string"
         },
         "when": {
           "$ref": "#/$defs/Num",
