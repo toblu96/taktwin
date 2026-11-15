@@ -2,6 +2,7 @@ package opcua
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -242,20 +243,22 @@ func TestAnyServerByNamespaceURI(t *testing.T) {
 	until(t, "MB3 off", func() bool { return !l.Scan(in).Get(plcio.Addr{Bit: 2}) })
 }
 
-// A browse path is browse names with the index of their namespace. (The library's test
-// server cannot follow one, so this only reads them.)
+// A browse path is browse names with the index of their namespace, or of the item's
+// namespace without one. (The library's test server cannot follow one, so this only reads
+// them.)
 func TestBrowsePathsAreRead(t *testing.T) {
-	names, err := parsePath("/2:Projects/2:Task 2/Objects")
+	names, err := parsePath("/2:Projects/Task 2/0:Objects/B1:Start", 3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(names) != 3 || names[0].NamespaceIndex != 2 || names[1].Name != "Task 2" || names[2].NamespaceIndex != 0 || names[2].Name != "Objects" {
-		t.Errorf("names: %+v %+v %+v", names[0], names[1], names[2])
-	}
-	for _, bad := range []string{"/2:a//2:b", "x:a"} {
-		if _, err := parsePath(bad); err == nil {
-			t.Errorf("%s is no path", bad)
+	want := []string{"2:Projects", "3:Task 2", "0:Objects", "3:B1:Start"}
+	for i, n := range names {
+		if got := fmt.Sprintf("%d:%s", n.NamespaceIndex, n.Name); i >= len(want) || got != want[i] {
+			t.Errorf("step %d is %s", i, got)
 		}
+	}
+	if _, err := parsePath("/2:a//2:b", 0); err == nil {
+		t.Error("an empty step")
 	}
 }
 

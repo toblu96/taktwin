@@ -61,8 +61,12 @@ type Item struct {
 	// i=, g= or b= for other kinds of identifier.
 	NodeID string `json:"nodeId,omitempty"`
 	// Path is a browse path, such as /2:Projects/2:B1/2:state: browse names, each with the
-	// index of its namespace, followed from From.
+	// index of its namespace, followed from From. A name without an index is of Namespace,
+	// or else of namespace 0.
 	Path string `json:"path,omitempty"`
+	// Namespace is the URI of the namespace of a path's names without an index, which holds
+	// whatever index the server gives it, as /Projects/B1/state with FluidSIM's URI.
+	Namespace string `json:"namespace,omitempty"`
 	// From is the node a path starts from; the Objects folder without it.
 	From string `json:"from,omitempty"`
 }
@@ -283,7 +287,16 @@ func (s *session) nodeID(ctx context.Context, item Item, namespaces []string) (*
 				return nil, err
 			}
 		}
-		names, err := parsePath(item.Path)
+		var ns uint16
+		if item.Namespace != "" {
+			uri := strings.TrimPrefix(item.Namespace, "nsu=")
+			i := slices.Index(namespaces, uri)
+			if i < 0 {
+				return nil, fmt.Errorf("the server has no namespace %s", uri)
+			}
+			ns = uint16(i)
+		}
+		names, err := parsePath(item.Path, ns)
 		if err != nil {
 			return nil, err
 		}
@@ -321,22 +334,20 @@ func parseNodeID(s string, namespaces []string) (*ua.NodeID, error) {
 }
 
 // parsePath reads a browse path such as /2:Projects/2:B1, each step a browse name with the
-// index of its namespace, or of namespace 0 without one.
-func parsePath(path string) ([]*ua.QualifiedName, error) {
+// index of its namespace, or of namespace ns without one.
+func parsePath(path string, ns uint16) ([]*ua.QualifiedName, error) {
 	var names []*ua.QualifiedName
 	for _, step := range strings.Split(strings.TrimPrefix(path, "/"), "/") {
 		if step == "" {
 			return nil, fmt.Errorf("%q has an empty step", path)
 		}
-		ns, name, ok := strings.Cut(step, ":")
-		if !ok {
-			names = append(names, &ua.QualifiedName{Name: step})
+		index, name, ok := strings.Cut(step, ":")
+		if _, err := strconv.ParseUint(index, 10, 16); !ok || err != nil {
+			// A name without an index, which may hold a colon itself.
+			names = append(names, &ua.QualifiedName{NamespaceIndex: ns, Name: step})
 			continue
 		}
-		n, err := strconv.ParseUint(ns, 10, 16)
-		if err != nil {
-			return nil, fmt.Errorf("%q: %s has no namespace index", path, step)
-		}
+		n, _ := strconv.ParseUint(index, 10, 16)
 		names = append(names, &ua.QualifiedName{NamespaceIndex: uint16(n), Name: name})
 	}
 	return names, nil
