@@ -110,6 +110,8 @@ type Binding struct {
 	Scale  *Scale
 	// Item is the driver's, with the vars filled in. The link itself never reads it.
 	Item json.RawMessage
+	// Generated is set for a binding a template of the connection made.
+	Generated bool
 }
 
 // Analog says whether the binding carries an analogue value.
@@ -380,19 +382,9 @@ type Resolved struct {
 // gave its vars. Explicit bindings take the place of generated ones that write the same:
 // for an input, the same item; for an output, the same signal.
 func (c Connection) Resolve(signals []Signal, given map[string]any) (Resolved, error) {
-	values, err := c.Values(given)
+	vars, err := c.vars(given)
 	if err != nil {
 		return Resolved{}, err
-	}
-	vars := map[string]string{}
-	for name, v := range values {
-		vars[name] = text(v)
-	}
-	for name, uri := range c.Namespaces {
-		if _, taken := vars[name]; taken {
-			return Resolved{}, fmt.Errorf("%s is both a var and a namespace", name)
-		}
-		vars[name] = uri
 	}
 	r := Resolved{Driver: c.Driver}
 	if r.Settings, err = fillJSON(c.Settings, vars); err != nil {
@@ -409,7 +401,7 @@ func (c Connection) Resolve(signals []Signal, given map[string]any) (Resolved, e
 			if err != nil {
 				return r, fmt.Errorf("generate[%d]: %w", i, err)
 			}
-			generated = append(generated, Binding{Signal: s, Item: item})
+			generated = append(generated, Binding{Signal: s, Item: item, Generated: true})
 		}
 	}
 	for i, d := range c.Bindings {
@@ -458,6 +450,40 @@ func (c Connection) Resolve(signals []Signal, given map[string]any) (Resolved, e
 		}
 	}
 	return r, nil
+}
+
+// vars are the texts {name}s stand for: the values someone gave the vars, with the defaults
+// for the others, and the namespaces.
+func (c Connection) vars(given map[string]any) (map[string]string, error) {
+	values, err := c.Values(given)
+	if err != nil {
+		return nil, err
+	}
+	vars := map[string]string{}
+	for name, v := range values {
+		vars[name] = text(v)
+	}
+	for name, uri := range c.Namespaces {
+		if _, taken := vars[name]; taken {
+			return nil, fmt.Errorf("%s is both a var and a namespace", name)
+		}
+		vars[name] = uri
+	}
+	return vars, nil
+}
+
+// SettingsWith fills in the driver's settings with the values someone gave the vars, which
+// is all a browser needs.
+func (c Connection) SettingsWith(given map[string]any) (json.RawMessage, error) {
+	vars, err := c.vars(given)
+	if err != nil {
+		return nil, err
+	}
+	settings, err := fillJSON(c.Settings, vars)
+	if err != nil {
+		return nil, fmt.Errorf("settings: %w", err)
+	}
+	return settings, nil
 }
 
 // canonical writes JSON the same way whatever order or spacing it came in.

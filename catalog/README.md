@@ -238,7 +238,7 @@ Without it, the templates of `addresses` show them, as `IB0Bit03` and `AI0`. An 
 
 ## Connections
 
-A connection says how a PLC of a station is coupled to a controller outside the app, such as a CODESYS PLC or a FluidSIM project: which driver talks to it, how it is reached, and which item of it each signal of the station is exchanged with. The station itself never changes for it. The PLC panel offers the app's own connections, one to CODESYS and one for each `plc.maps` entry of the station, and the files in `connections/` of the user's folder and of the collections.
+A connection says how a PLC of a station is coupled to a controller outside the app, such as a CODESYS PLC or a FluidSIM project: which driver talks to it, how it is reached, and which item of it each signal of the station is exchanged with. The station itself never changes for it. The PLC panel offers the app's own connections, one to CODESYS, one for each `plc.maps` entry of the station and an empty one to any OPC UA server, and the files in `connections/` of the user's folder and of the collections. Its connection editor writes such files into the user's folder.
 
 ```json
 {

@@ -81,7 +81,7 @@ func TestThePLCOffersItsConnections(t *testing.T) {
 	for _, c := range list {
 		ids = append(ids, c.ID+"@"+c.Source)
 	}
-	if !slices.Equal(ids, []string{"codesys@Taktwin", "mine@Your folder"}) {
+	if !slices.Equal(ids, []string{"codesys@Taktwin", "opcua@Taktwin", "mine@Your folder"}) {
 		t.Errorf("connections: %v", ids)
 	}
 	for _, want := range []string{`"default": "CODESYS Control Win V3 x64"`, `"default": "Application"`, `"default": "Bits"`} {

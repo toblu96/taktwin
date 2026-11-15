@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { ConnectionInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import { simulation } from '../sim'
+import { editingConnection, savedConnection, simulation } from '../sim'
 
 const { plcId, plcView } = simulation
 
@@ -151,6 +151,38 @@ onMounted(async () => {
 })
 
 const help = computed(() => MODES.find((m) => m.id === mode.value)?.help)
+
+function editBindings() {
+  editingConnection.value = { plc: plcId.value, id: connection.value, values: { ...values.value } }
+}
+
+// After the editor saved a connection, or deleted one, the list shows it as it is now.
+watch(savedConnection, async (saved) => {
+  if (!saved || saved.plc !== plcId.value) return
+  await loadConnections()
+  if (saved.id) {
+    connection.value = saved.id
+    // The form keeps what was filled in to edit it, once the new connection's form is up.
+    await nextTick()
+    if (saved.values) values.value = { ...values.value, ...saved.values }
+  }
+  savedConnection.value = null
+})
+
+const finding = ref(false)
+
+// Looks for the variable list on the server the form names, and fills in where it is.
+async function find() {
+  finding.value = true
+  message.value = ''
+  try {
+    values.value = { ...values.value, ...((await Service.FindCODESYSList(plcId.value, values.value)) ?? {}) }
+  } catch (error) {
+    message.value = (error as Error).message
+  } finally {
+    finding.value = false
+  }
+}
 const link = computed(() => plcView.value?.link ?? null)
 
 const pending = computed(() => {
@@ -235,6 +267,17 @@ async function apply() {
           <small v-if="f.description" class="hint">{{ f.description }}</small>
         </label>
       </template>
+      <div class="actions">
+        <button
+          v-if="connection.startsWith('codesys')"
+          :disabled="finding"
+          title="Looks for the variable list on the server and fills in where it is"
+          @click="find"
+        >
+          {{ finding ? 'Looking…' : 'Find on the server' }}
+        </button>
+        <button :disabled="!connection" title="Which node each signal is exchanged with" @click="editBindings">Edit bindings</button>
+      </div>
     </template>
     <button v-if="pending" class="apply" :disabled="busy || (mode === 'external' && !connection)" @click="apply">
       {{ mode === 'none' ? 'Disconnect the PLC' : 'Connect' }} and restart the station
@@ -375,6 +418,16 @@ async function apply() {
 
 .failed .detail {
   color: var(--danger);
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.actions button {
+  flex: 1;
 }
 
 .check {

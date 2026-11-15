@@ -169,6 +169,11 @@ export async function loadStation(id: string) {
 // null while none is.
 export const programming = ref<string | null>(null)
 
+// The connection whose editor is open over the 3D view, with the PLC it is for and the values
+// of its form, or null while none is. Saved is the id it was saved under, once it is.
+export const editingConnection = ref<{ plc: string; id: string; values: Record<string, unknown> } | null>(null)
+export const savedConnection = ref<{ plc: string; id: string; values?: Record<string, unknown> } | null>(null)
+
 // Puts the station of an exercise into the simulation, set up as the exercise changes it.
 export async function openExercise(id: string) {
   simulation.selection.value = null

@@ -224,6 +224,23 @@ export interface CollectionInfo {
 }
 
 /**
+ * ConnectionDoc is a connection as the connection editor edits it.
+ */
+export interface ConnectionDoc {
+    /**
+     * JSON is the connection file.
+     */
+    "json": string;
+    "info": ConnectionInfo;
+
+    /**
+     * Yours is set for a connection file of the user's folder; saving any other puts a copy
+     * there, which then takes its place.
+     */
+    "yours": boolean;
+}
+
+/**
  * ConnectionInfo is a connection a PLC of the station can use, for the PLC panel.
  */
 export interface ConnectionInfo {
@@ -287,6 +304,37 @@ export interface PLCConfig {
 }
 
 /**
+ * Preview is what a connection being edited exchanges.
+ */
+export interface Preview {
+    "bindings": PreviewBinding[] | null;
+
+    /**
+     * Unbound are the addresses of the signals it does not exchange.
+     */
+    "unbound": string[] | null;
+
+    /**
+     * Error says why it does not resolve, if it does not.
+     */
+    "error"?: string;
+}
+
+/**
+ * PreviewBinding is a binding of a connection being edited, as it resolves.
+ */
+export interface PreviewBinding {
+    "address": string;
+
+    /**
+     * Item is the driver's item, as JSON, with the vars filled in.
+     */
+    "item": string;
+    "invert": boolean;
+    "generated": boolean;
+}
+
+/**
  * ProgramProject is a PLC's project as the editor opens it.
  */
 export interface ProgramProject {
@@ -320,6 +368,26 @@ export interface ProgramStatus {
     "loadedAt": string;
     "connected": boolean;
     "station": string;
+}
+
+/**
+ * SignalInfo is a signal of a PLC as the connection editor lists it.
+ */
+export interface SignalInfo {
+    /**
+     * Address is where it is, as %IX0.3, and Shown how the PLC shows it.
+     */
+    "address": string;
+    "shown": string;
+    "symbol": string;
+    "description"?: string;
+
+    /**
+     * Input is set for a signal the PLC reads, which a connection writes to its item.
+     */
+    "input": boolean;
+    "analog": boolean;
+    "unit"?: string;
 }
 
 /**
