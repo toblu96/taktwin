@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -297,23 +298,26 @@ func (s *session) nodeID(ctx context.Context, item Item, namespaces []string) (*
 	return nil, errors.New("an item needs a nodeId or a path")
 }
 
-// parseNodeID reads a NodeId, with its namespace by URI or by index.
+// parseNodeID reads a NodeId, with its namespace by URI or by index. One by URI becomes one
+// by the index the server gives that URI now: a request carries plain NodeIds, which a
+// server may decode strictly.
 func parseNodeID(s string, namespaces []string) (*ua.NodeID, error) {
-	if strings.HasPrefix(s, "nsu=") {
-		uri, _, _ := strings.Cut(strings.TrimPrefix(s, "nsu="), ";")
-		found := false
-		for _, n := range namespaces {
-			found = found || n == uri
+	if rest, ok := strings.CutPrefix(s, "nsu="); ok {
+		uri, id, ok := strings.Cut(rest, ";")
+		if !ok {
+			return nil, fmt.Errorf("%q is not a NodeId: nsu=<namespace URI>;s=<name>", s)
 		}
-		if !found {
+		index := slices.Index(namespaces, uri)
+		if index < 0 {
 			return nil, fmt.Errorf("the server has no namespace %s", uri)
 		}
+		s = fmt.Sprintf("ns=%d;%s", index, id)
 	}
-	id, err := ua.ParseExpandedNodeID(s, namespaces)
+	id, err := ua.ParseNodeID(s)
 	if err != nil {
 		return nil, fmt.Errorf("%q is not a NodeId: %v", s, err)
 	}
-	return id.NodeID, nil
+	return id, nil
 }
 
 // parsePath reads a browse path such as /2:Projects/2:B1, each step a browse name with the

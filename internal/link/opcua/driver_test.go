@@ -303,3 +303,29 @@ func TestSoftPLCsShareAMachine(t *testing.T) {
 	l := start(t, SoftPLC(b.Endpoint(), "b"), link.Image(), nil)
 	until(t, "the connection", func() bool { return l.Link().State == plcio.LinkConnected && len(l.Link().Problems) == 0 })
 }
+
+// A NodeId written with its namespace's URI goes to the server as a plain NodeId with the
+// namespace's index: a server may decode a request strictly and refuse one that says it
+// carries a URI.
+func TestANamespaceURIBecomesItsIndex(t *testing.T) {
+	namespaces := []string{"http://opcfoundation.org/UA/", "urn:a", "urn:b"}
+	id, err := parseNodeID("nsu=urn:b;s=Aufgabe 2 Vorlage.B1.state_man", namespaces)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id.String() != "ns=2;s=Aufgabe 2 Vorlage.B1.state_man" {
+		t.Errorf("NodeId %s", id)
+	}
+	data, err := id.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data[0]&0xc0 != 0 {
+		t.Errorf("the encoding says it carries a URI or a server index: %08b", data[0])
+	}
+	for _, bad := range []string{"nsu=urn:c;s=x", "nsu=urn:b", "ns=x;s=y"} {
+		if _, err := parseNodeID(bad, namespaces); err == nil {
+			t.Errorf("%s", bad)
+		}
+	}
+}
