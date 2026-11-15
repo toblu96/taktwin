@@ -71,14 +71,24 @@ func TestStationsWithOlderAddressesGiveTheSameTable(t *testing.T) {
 	if !slices.Equal(now.Scene.PLC.Inputs, then.Scene.PLC.Inputs) || !slices.Equal(now.Scene.PLC.Outputs, then.Scene.PLC.Outputs) {
 		t.Errorf("the tables differ:\n%+v\n%+v", now.Scene.PLC, then.Scene.PLC)
 	}
+	start := false
 	for _, in := range now.Scene.Instances {
 		for _, c := range in.Connectors {
 			for _, p := range c.Pins {
 				if p.Address != "" && p.Shown == "" {
 					t.Errorf("%s.%s.%s reaches %s, which is not shown", in.ID, c.ID, p.Pin, p.Address)
 				}
+				if in.ID == "conveyor/io" && c.ID == "T" && p.Pin == "I0" {
+					start = true
+					if p.Address != "%IX0.0" || p.PLCName != "B1" {
+						t.Errorf("the conveyor's start sensor reaches %s as %q, not %%IX0.0 as B1", p.Address, p.PLCName)
+					}
+				}
 			}
 		}
+	}
+	if !start {
+		t.Error("the conveyor's I/O block shows no pin I0")
 	}
 }
 

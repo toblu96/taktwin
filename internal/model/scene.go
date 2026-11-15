@@ -336,7 +336,7 @@ func (r *resolver) sceneConnectors(in *instance) []SceneConnector {
 		}
 		for _, s := range def.Signals {
 			if a, err := r.plan.Address(k, s.Address); err == nil {
-				byAddress[fmt.Sprint(k, a)] = s.Name
+				byAddress[fmt.Sprint(k, a.String())] = s.Name
 			}
 		}
 	}
