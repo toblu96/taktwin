@@ -212,16 +212,23 @@ type ScenePLC struct {
 	Inputs  []SceneSignal `json:"inputs"`
 	Outputs []SceneSignal `json:"outputs"`
 	Analog  []SceneAnalog `json:"analog"`
+	// AnalogOutputs are the analogue outputs, as Analog the inputs.
+	AnalogOutputs []SceneAnalog `json:"analogOutputs"`
 }
 
 // SceneAnalog is a named analogue input of the PLC.
 type SceneAnalog struct {
 	Name string `json:"name"`
-	// Address is the input's word, as %IW8, and Shown how the PLC shows it.
+	// Address is the channel's place in the image, as %IW8, and Shown how the PLC shows it.
 	Address     string `json:"address"`
 	Shown       string `json:"shown"`
 	Description string `json:"description,omitempty"`
 	Channel     int    `json:"channel"`
+	// Range and Unit are those of the value on the wire, such as 0 to 10 V.
+	Range [2]float64 `json:"range"`
+	Unit  string     `json:"unit"`
+	// Type is how the image holds it: INT, the raw value, or REAL, the value itself.
+	Type string `json:"type"`
 }
 
 // SceneDock is a group of station-wide widgets.
@@ -665,7 +672,7 @@ func (r *resolver) binOf(transport string) int {
 
 // scenePLC is the I/O table of the station's PLC k, as def names its signals.
 func (r *resolver) scenePLC(st *StationDef, def StationPLCDef, k int) ScenePLC {
-	p := ScenePLC{Module: def.Module, Maps: []ScenePLCMap{}, Inputs: []SceneSignal{}, Outputs: []SceneSignal{}}
+	p := ScenePLC{Module: def.Module, Maps: []ScenePLCMap{}, Inputs: []SceneSignal{}, Outputs: []SceneSignal{}, Analog: []SceneAnalog{}, AnalogOutputs: []SceneAnalog{}}
 	naming := plcio.Naming{}
 	if k < len(r.plan.Naming) {
 		naming = r.plan.Naming[k]
@@ -704,12 +711,13 @@ func (r *resolver) scenePLC(st *StationDef, def StationPLCDef, k int) ScenePLC {
 			continue
 		}
 		seen[address] = true
-		if channel, ok := at.AnalogInput(); ok {
-			if !slices.ContainsFunc(r.plan.PLCAnalog, func(a PLCAnalogPlan) bool { return a.Channel == channel && a.PLC == k }) {
+		if !at.IsBit() {
+			x, ok := r.plan.AnalogAt(k, at)
+			if !ok {
 				r.fail("address %s is not on a PLC connector", s.Address)
 				continue
 			}
-			p.Analog = append(p.Analog, SceneAnalog{Name: s.Name, Address: address, Shown: r.plan.Show(k, at), Description: s.Description, Channel: channel})
+			r.addAnalog(&p, k, x, s.Name, s.Description)
 			continue
 		}
 		a, inImage := at.InImage()
@@ -771,7 +779,7 @@ func (r *resolver) defaultSignals(p *ScenePLC, named map[string]bool, k int) {
 			used[s.Name] = true
 		}
 	}
-	for _, s := range p.Analog {
+	for _, s := range append(slices.Clone(p.Analog), p.AnalogOutputs...) {
 		used[s.Name] = true
 	}
 	addrs := slices.Sorted(maps.Keys(found))
@@ -782,16 +790,19 @@ func (r *resolver) defaultSignals(p *ScenePLC, named map[string]bool, k int) {
 		if err != nil {
 			continue
 		}
-		a, ok := at.InImage()
-		if !ok {
-			continue // an analogue input
-		}
 		name := q.inst.def.ID + "." + q.name
 		if s := symbol[addr]; s != nil && !used[s.def.Symbol] {
 			name = s.def.Symbol
 		}
 		used[name] = true
 		module := cmp.Or(q.inst.def.Name, q.inst.mod.Name)
+		a, bit := at.InImage()
+		if !bit {
+			if x, ok := r.plan.AnalogAt(k, at); ok {
+				r.addAnalog(p, k, x, name, module+": "+q.def.Function)
+			}
+			continue
+		}
 		sig := SceneSignal{Name: name, Address: addr, Shown: r.plan.Show(k, at), Description: module + ": " + q.def.Function, Byte: a.Byte, Bit: a.Bit}
 		if at.Input {
 			inputs = append(inputs, sig)
@@ -804,4 +815,20 @@ func (r *resolver) defaultSignals(p *ScenePLC, named map[string]bool, k int) {
 	slices.SortFunc(outputs, order)
 	p.Inputs = append(p.Inputs, inputs...)
 	p.Outputs = append(p.Outputs, outputs...)
+	byChannel := func(a, b SceneAnalog) int { return cmp.Compare(a.Channel, b.Channel) }
+	slices.SortStableFunc(p.Analog, byChannel)
+	slices.SortStableFunc(p.AnalogOutputs, byChannel)
+}
+
+// addAnalog lists an analogue channel of PLC k under a name.
+func (r *resolver) addAnalog(p *ScenePLC, k int, x PLCAnalogPlan, name, description string) {
+	a := SceneAnalog{Name: name, Address: x.Address.String(), Shown: r.plan.Show(k, x.Address), Description: description, Channel: x.Channel, Range: x.Scaling.Range, Unit: x.Scaling.Unit, Type: "INT"}
+	if x.Scaling.Real {
+		a.Type = "REAL"
+	}
+	if x.Address.Input {
+		p.Analog = append(p.Analog, a)
+	} else {
+		p.AnalogOutputs = append(p.AnalogOutputs, a)
+	}
 }

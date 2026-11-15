@@ -42,8 +42,9 @@ type Snapshot struct {
 	Hits       []string `json:"hits"`
 	// FellOff counts workpieces lost off the station until someone acknowledges it.
 	FellOff int `json:"fellOff"`
-	// Analog is what the PLC's analogue inputs read, in volts.
-	Analog plcio.Analog `json:"analog"`
+	// Analog are the values of the PLC's analogue inputs and outputs on the wire, such as in
+	// volts, by address.
+	Analog map[string]float64 `json:"analog"`
 	// Link is set while the PLC is reached over a connection. Such a PLC runs on the
 	// wall clock, so the speed cannot be changed.
 	Link *plcio.LinkInfo `json:"link"`
@@ -56,14 +57,14 @@ type Snapshot struct {
 
 // PLCView is the state of one of the station's PLCs.
 type PLCView struct {
-	ID      string          `json:"id"`
-	Plc     string          `json:"plc"`
-	Step    *plcio.StepInfo `json:"step"`
-	Inputs  plcio.Image     `json:"inputs"`
-	Outputs plcio.Image     `json:"outputs"`
-	Analog  plcio.Analog    `json:"analog"`
-	Link    *plcio.LinkInfo `json:"link"`
-	IOTest  bool            `json:"ioTest"`
+	ID      string             `json:"id"`
+	Plc     string             `json:"plc"`
+	Step    *plcio.StepInfo    `json:"step"`
+	Inputs  plcio.Image        `json:"inputs"`
+	Outputs plcio.Image        `json:"outputs"`
+	Analog  map[string]float64 `json:"analog"`
+	Link    *plcio.LinkInfo    `json:"link"`
+	IOTest  bool               `json:"ioTest"`
 }
 
 // plcRun is one PLC of the station and its program.
@@ -186,9 +187,6 @@ func (e *Engine) advance(d time.Duration) {
 			if run.ioTest {
 				run.out = run.testOut
 			} else if e.now >= run.nextScan {
-				if r, ok := run.ctl.(plcio.AnalogReceiver); ok {
-					r.SetAnalog(e.plant.AnalogOf(k))
-				}
 				run.out = run.ctl.Scan(e.plant.InputsOf(k))
 				run.nextScan += run.ctl.Cycle()
 			}
@@ -394,13 +392,38 @@ func (e *Engine) SetTestOutputFor(plc, address string, on bool) error {
 		return fmt.Errorf("%s is an input, and comes from the station", address)
 	}
 	a, ok := at.InImage()
-	if !ok {
-		return fmt.Errorf("%s is no output bit of the PLC", address)
+	if !ok || !slices.ContainsFunc(e.plan.PLCOut, func(o model.PLCBitPlan) bool { return o.PLC == k && o.Addr == a }) {
+		return fmt.Errorf("%s is no output bit of the PLC's connectors", address)
 	}
 	if !run.ioTest {
 		return errors.New("outputs can only be switched by hand during an I/O test")
 	}
 	run.testOut.Set(a, on)
+	return nil
+}
+
+// SetTestAnalogFor sets an analogue output of one of the station's PLCs by hand, to a value
+// on the wire such as volts.
+func (e *Engine) SetTestAnalogFor(plc, address string, value float64) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	run, err := e.plc(plc)
+	if err != nil {
+		return err
+	}
+	k := slices.Index(e.plcs, run)
+	at, err := e.plan.Address(k, address)
+	if err != nil {
+		return err
+	}
+	x, ok := e.plan.AnalogAt(k, at)
+	if !ok || at.Input {
+		return fmt.Errorf("%s is no analogue output of the PLC", address)
+	}
+	if !run.ioTest {
+		return errors.New("outputs can only be set by hand during an I/O test")
+	}
+	x.Scaling.Write(&run.testOut, x.Address, value)
 	return nil
 }
 

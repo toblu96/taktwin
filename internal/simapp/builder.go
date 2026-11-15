@@ -817,8 +817,8 @@ func (s *BuilderService) resolve(d *draft) (*model.Bundle, *model.Plan, error) {
 	for _, b := range plan.PLCOut {
 		connected[key(b.PLC, plcio.BitAddress(false, b.Addr).String())] = true
 	}
-	for _, a := range plan.PLCAnalog {
-		connected[key(a.PLC, plcio.AnalogInputAddress(a.Channel).String())] = true
+	for _, a := range append(slices.Clone(plan.PLCAnalog), plan.PLCAnalogOut...) {
+		connected[key(a.PLC, a.Address.String())] = true
 	}
 	for k, id := range plan.PLCs {
 		if def := d.plcDef(id); def != nil && (k > 0 || def == &d.PLC) {

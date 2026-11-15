@@ -1,13 +1,15 @@
 // Package opcsim is a small OPC UA server inside the app: the soft PLC's. It runs a PLC
 // program and offers its image the way a PLC's OPC UA server does, so the simulation reaches
-// it as it reaches any other controller, and any OPC UA client can watch it. Each bit
-// of the image is a node named by its address, as nsu=urn:taktwin:softplc;s=cabinet.%IX0.3,
-// and each analogue input a node of volts, as …;s=cabinet.%IW8.
+// it as it reaches any other controller, and any OPC UA client can watch it. Each signal of
+// the image is a node named by its address, as nsu=urn:taktwin:softplc;s=cabinet.%IX0.3: a
+// Boolean for a bit, an Int16 for a word such as an analogue channel's INT at %IW8, and a
+// Float for a double word, an analogue channel's REAL.
 package opcsim
 
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -31,6 +33,59 @@ type Space struct {
 	// Labels name addresses for people, such as "IB0Bit03 B1" for %IX0.3, as the nodes'
 	// display names.
 	Labels map[string]string
+	// Addresses are those the server has a node for. Without them, it has those of the image
+	// a PLC module has without saying: each bit of 8 bytes of inputs and of outputs, and the 4
+	// words of each direction from byte 8 on.
+	Addresses []plcio.Address
+}
+
+// addresses are those the server has a node for.
+func (sp Space) addresses() []plcio.Address {
+	if len(sp.Addresses) > 0 {
+		return sp.Addresses
+	}
+	var out []plcio.Address
+	for _, input := range []bool{true, false} {
+		for b := range uint8(8) {
+			for bit := range uint8(8) {
+				out = append(out, plcio.BitAddress(input, plcio.Addr{Byte: b, Bit: bit}))
+			}
+		}
+		for ch := range 4 {
+			out = append(out, plcio.WordAddress(input, 8+2*ch))
+		}
+	}
+	return out
+}
+
+// value is the value of a node for a raw value of the image.
+func value(a plcio.Address, raw uint32) any {
+	switch a.Size {
+	case plcio.SizeByte:
+		return uint8(raw)
+	case plcio.SizeWord:
+		return int16(uint16(raw))
+	case plcio.SizeDouble:
+		return math.Float32frombits(raw)
+	}
+	return raw != 0
+}
+
+// raw is the raw value of the image for the value of a node.
+func raw(v any) uint32 {
+	switch t := v.(type) {
+	case bool:
+		if t {
+			return 1
+		}
+	case uint8:
+		return uint32(t)
+	case int16:
+		return uint32(uint16(t))
+	case float32:
+		return math.Float32bits(t)
+	}
+	return 0
 }
 
 // Key is the name of the node of an address in the namespace.
@@ -85,16 +140,8 @@ func Start(ctx context.Context, port int, ctl plcio.Controller, space Space) (*S
 		return nil, err
 	}
 	root.Objects().AddRef(s.ns.Objects(), id.HasComponent, true)
-	for b := range uint8(plcio.ImageBytes) {
-		for bit := range uint8(8) {
-			a := plcio.Addr{Byte: b, Bit: bit}
-			s.ns.SetValue(s.inputKey(a), false)
-			s.ns.SetValue(s.outputKey(a), false)
-		}
-	}
-	// REAL in volts, the simplest way to declare them in a program.
-	for channel := range plcio.AnalogInputs {
-		s.ns.SetValue(s.analogKey(channel), float32(0))
+	for _, a := range space.addresses() {
+		s.ns.SetValue(space.Key(a), value(a, 0))
 	}
 
 	scan, stop := context.WithCancel(ctx)
@@ -127,34 +174,35 @@ func (s *Server) run(ctx context.Context) {
 	ticker := time.NewTicker(cycle)
 	defer ticker.Stop()
 	var last plcio.Image
+	addresses := s.space.addresses()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
 		}
-		var in plcio.Image
-		for b := range uint8(plcio.ImageBytes) {
-			for bit := range uint8(8) {
-				a := plcio.Addr{Byte: b, Bit: bit}
-				if on, _ := s.ns.GetValue(s.inputKey(a)).(bool); on {
-					in.Set(a, true)
-				}
-			}
-		}
+		in := s.Inputs()
 		s.mu.Lock()
 		out := s.ctl.Scan(in)
 		s.mu.Unlock()
-		for b := range uint8(plcio.ImageBytes) {
-			for bit := range uint8(8) {
-				a := plcio.Addr{Byte: b, Bit: bit}
-				if out.Get(a) != last.Get(a) {
-					s.ns.SetValue(s.outputKey(a), out.Get(a))
-				}
+		for _, a := range addresses {
+			if !a.Input && out.Raw(a) != last.Raw(a) {
+				s.ns.SetValue(s.space.Key(a), value(a, out.Raw(a)))
 			}
 		}
 		last = out
 	}
+}
+
+// Inputs is the input image as the server's nodes have it, which the program reads.
+func (s *Server) Inputs() plcio.Image {
+	var in plcio.Image
+	for _, a := range s.space.addresses() {
+		if a.Input {
+			in.SetRaw(a, raw(s.ns.GetValue(s.space.Key(a))))
+		}
+	}
+	return in
 }
 
 // lockedSpace reads values under the namespace's lock. The library's own Attribute does
@@ -174,6 +222,15 @@ func (l lockedSpace) Attribute(n *ua.NodeID, a ua.AttributeID) *ua.DataValue {
 	l.Mu.RLock()
 	defer l.Mu.RUnlock()
 	dv := l.MapNamespace.Attribute(n, a)
+	if a == ua.AttributeIDDataType && dv.Status == ua.StatusOK {
+		// The library knows the types of only some values.
+		switch l.Data[n.StringID()].(type) {
+		case int16:
+			dv.Value = ua.MustVariant(ua.NewNumericNodeID(0, id.Int16))
+		case uint8:
+			dv.Value = ua.MustVariant(ua.NewNumericNodeID(0, id.Byte))
+		}
+	}
 	if a == ua.AttributeIDDisplayName && dv.Status == ua.StatusOK {
 		if label, ok := l.labels[n.StringID()]; ok {
 			dv.Value = ua.MustVariant(&ua.LocalizedText{EncodingMask: ua.LocalizedTextText, Text: label})
@@ -181,23 +238,6 @@ func (l lockedSpace) Attribute(n *ua.NodeID, a ua.AttributeID) *ua.DataValue {
 	}
 	return dv
 }
-
-func (s *Server) analogKey(channel int) string {
-	return s.space.Key(plcio.AnalogInputAddress(channel))
-}
-
-// Analog returns what the PLC reads on its analogue inputs, in volts.
-func (s *Server) Analog() plcio.Analog {
-	var in plcio.Analog
-	for channel := range in {
-		v, _ := s.ns.GetValue(s.analogKey(channel)).(float32)
-		in[channel] = float64(v)
-	}
-	return in
-}
-
-func (s *Server) inputKey(a plcio.Addr) string  { return s.space.Key(plcio.BitAddress(true, a)) }
-func (s *Server) outputKey(a plcio.Addr) string { return s.space.Key(plcio.BitAddress(false, a)) }
 
 // Step reports what the program is doing, if it can.
 func (s *Server) Step() (plcio.StepInfo, bool) {

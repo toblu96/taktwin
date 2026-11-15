@@ -157,6 +157,9 @@ func New(plan *model.Plan) *Plant {
 	for _, o := range plan.PLCOut {
 		p.plcOut[o.State] = true
 	}
+	for _, o := range plan.PLCAnalogOut {
+		p.plcOut[o.State] = true
+	}
 	p.index()
 	p.Reset()
 	return p
@@ -372,6 +375,9 @@ func (p *Plant) ApplyPlan(plan *model.Plan) {
 	for _, o := range plan.PLCOut {
 		p.plcOut[o.State] = true
 	}
+	for _, o := range plan.PLCAnalogOut {
+		p.plcOut[o.State] = true
+	}
 	p.index()
 }
 
@@ -567,6 +573,13 @@ func (p *Plant) StepAll(dt float64, outs []plcio.Image) {
 			on = outs[o.PLC].Get(o.Addr)
 		}
 		p.v[o.State] = b2f(on && !(o.Switched && p.cut))
+	}
+	for _, o := range p.plan.PLCAnalogOut {
+		v := 0.0
+		if o.PLC < len(outs) {
+			v = o.Scaling.Read(outs[o.PLC], o.Address)
+		}
+		p.v[o.State] = v
 	}
 	for state, value := range p.forced {
 		p.v[state] = value
@@ -2054,7 +2067,8 @@ func (p *Plant) beamHits(origin, dir model.Point, reach float64, f foot, z, heig
 // Inputs returns the input image of the first PLC for the current state.
 func (p *Plant) Inputs() plcio.Image { return p.InputsOf(0) }
 
-// InputsOf returns the input image of PLC k, in the order of Plan.PLCs.
+// InputsOf returns the input image of PLC k, in the order of Plan.PLCs: its bits, and its
+// analogue inputs as the PLC module places them.
 func (p *Plant) InputsOf(k int) plcio.Image {
 	var in plcio.Image
 	for i := range p.plan.PLCIn {
@@ -2062,21 +2076,29 @@ func (p *Plant) InputsOf(k int) plcio.Image {
 			in.Set(s.Addr, p.v[s.State] >= 0.5)
 		}
 	}
-	return in
-}
-
-// Analog returns the first PLC's analogue inputs, in volts.
-func (p *Plant) Analog() plcio.Analog { return p.AnalogOf(0) }
-
-// AnalogOf returns the analogue inputs of PLC k, in volts.
-func (p *Plant) AnalogOf(k int) plcio.Analog {
-	var in plcio.Analog
 	for _, a := range p.plan.PLCAnalog {
 		if a.PLC == k {
-			in[a.Channel] = p.v[a.State]
+			a.Scaling.Write(&in, a.Address, p.v[a.State])
 		}
 	}
 	return in
+}
+
+// Analog returns the analogue values of the first PLC (see AnalogOf).
+func (p *Plant) Analog() map[string]float64 { return p.AnalogOf(0) }
+
+// AnalogOf returns the values of the analogue inputs and outputs of PLC k, on the wire,
+// such as in volts, by address.
+func (p *Plant) AnalogOf(k int) map[string]float64 {
+	out := map[string]float64{}
+	for _, list := range [][]model.PLCAnalogPlan{p.plan.PLCAnalog, p.plan.PLCAnalogOut} {
+		for _, a := range list {
+			if a.PLC == k {
+				out[a.Address.String()] = p.v[a.State]
+			}
+		}
+	}
+	return out
 }
 
 // States returns a copy of all state values, indexed like Scene.States.

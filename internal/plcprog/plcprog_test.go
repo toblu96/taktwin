@@ -2,6 +2,7 @@ package plcprog
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -122,5 +123,50 @@ END_PROGRAM`); err != nil {
 	}
 	if st := s.Status(); len(st.Forced) != 1 {
 		t.Errorf("the status lists what is forced: %+v", st)
+	}
+}
+
+// An analogue channel is in the Bits list at its word, and a program reads its raw value
+// by the name the station gives it, and drives an analogue output.
+func TestAProgramReadsAnAnalogueInput(t *testing.T) {
+	analog := append(slices.Clone(signals),
+		Signal{Name: "H1", Address: "AI0", At: "%IW8", Type: "INT", Description: "Height", Input: true},
+		Signal{Name: "Y1", Address: "AQ0", At: "%QW8", Type: "INT", Description: "Speed"},
+	)
+	p, err := Open(t.TempDir(), analog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bits, err := p.Read(BitsFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"AI0 AT %IW8 : INT;", "AQ0 AT %QW8 : INT;", "IB0Bit00 AT %IX0.0 : BOOL;"} {
+		if !strings.Contains(bits, want) {
+			t.Errorf("the Bits list lacks %s:\n%s", want, bits)
+		}
+	}
+	if err := p.Write("StepChain.st", "PROGRAM StepChain\nY1 := H1 / 2;\nEND_PROGRAM"); err != nil {
+		t.Fatal(err)
+	}
+	prog, diags, _ := p.Build()
+	if prog == nil {
+		t.Fatal(diags)
+	}
+	s := NewSoft("test")
+	if err := s.Download(prog, p.Meta.Step); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Start(); err != nil {
+		t.Fatal(err)
+	}
+	var in plcio.Image
+	in.SetRaw(plcio.WordAddress(true, 8), 27648)
+	// The template maps the Bits list to the names after the step chain, which so sees an
+	// input one cycle later.
+	s.Scan(in)
+	out := s.Scan(in)
+	if got := out.Raw(plcio.WordAddress(false, 8)); got != 13824 {
+		t.Errorf("the output is %d", got)
 	}
 }

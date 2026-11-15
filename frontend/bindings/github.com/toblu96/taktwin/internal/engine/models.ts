@@ -17,7 +17,7 @@ export interface PLCView {
     "step": plcio$0.StepInfo | null;
     "inputs": plcio$0.Image;
     "outputs": plcio$0.Image;
-    "analog": plcio$0.Analog;
+    "analog": { [_ in string]?: number } | null;
     "link": plcio$0.LinkInfo | null;
     "ioTest": boolean;
 }
@@ -52,9 +52,10 @@ export interface Snapshot {
     "fellOff": number;
 
     /**
-     * Analog is what the PLC's analogue inputs read, in volts.
+     * Analog are the values of the PLC's analogue inputs and outputs on the wire, such as in
+     * volts, by address.
      */
-    "analog": plcio$0.Analog;
+    "analog": { [_ in string]?: number } | null;
 
     /**
      * Link is set while the PLC is reached over a connection. Such a PLC runs on the

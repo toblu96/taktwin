@@ -1,6 +1,8 @@
 package st
 
 import (
+	"encoding/binary"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -503,5 +505,66 @@ END_PROGRAM`}, Programs: []string{"Controller"}})
 	count.Set(40000)
 	if count.Get() != 40000-65536 {
 		t.Errorf("an INT wraps: %v", count.Get())
+	}
+}
+
+// Words and double words of the image hold analogue values: an INT as its raw value, a
+// REAL as itself, the low byte first, as CODESYS on a PC has them.
+func TestWordsOfTheImage(t *testing.T) {
+	rt := build(t, map[string]string{
+		"PLC_PRG.st": `
+PROGRAM PLC_PRG
+VAR
+	height AT %IW8 : INT;
+	level AT %ID12 : REAL;
+	speed AT %QW8 : INT;
+	volts AT %QD12 : REAL;
+	flags AT %IB2 : BYTE;
+	seen : WORD;
+END_VAR
+speed := height / 2;
+volts := level * 2.0;
+%QW10 := INT_TO_WORD(-1);
+seen := %IW8;
+%QX0.0 := flags = 16#81;
+END_PROGRAM`})
+	in := make([]byte, ImageBytes)
+	in[8], in[9] = 0x00, 0x6c // 27648
+	binary.LittleEndian.PutUint32(in[12:], math.Float32bits(2.5))
+	in[2] = 0x81
+	out := rt.Scan(in, 0)
+	if got := binary.LittleEndian.Uint16(out[8:]); got != 13824 {
+		t.Errorf("speed is %d", got)
+	}
+	if got := math.Float32frombits(binary.LittleEndian.Uint32(out[12:])); got != 5 {
+		t.Errorf("volts are %v", got)
+	}
+	if out[10] != 0xff || out[11] != 0xff {
+		t.Errorf("a word written by its address: % x", out[10:12])
+	}
+	if out[0]&1 != 1 || read(t, rt, "PLC_PRG.seen") != "16#6C00" {
+		t.Errorf("bytes and words read by their address: %v %s", out[0], read(t, rt, "PLC_PRG.seen"))
+	}
+	// A negative INT keeps its sign.
+	binary.LittleEndian.PutUint16(in[8:], uint16(0xffff^99)) // -100
+	rt.Scan(in, 0)
+	if got := read(t, rt, "PLC_PRG.height"); got != "-100" {
+		t.Errorf("height is %s", got)
+	}
+}
+
+func TestAddressesMustFitTheirVariables(t *testing.T) {
+	for decl, want := range map[string]string{
+		"x AT %IW8 : BOOL;":  "a word of the image is a WORD, INT or UINT",
+		"x AT %ID8 : INT;":   "a double word of the image is a DWORD, DINT, UDINT or REAL",
+		"x AT %IX0.0 : INT;": "a bit of the image is a BOOL",
+		"x AT %IB0 : WORD;":  "a byte of the image is a BYTE, SINT or USINT",
+		"x AT %IW63 : INT;":  "no address of the image",
+		"x AT %MW0 : INT;":   "no address of the image",
+	} {
+		got := errorsOf(t, map[string]string{"P.st": "PROGRAM P\nVAR\n\t" + decl + "\nEND_VAR\nEND_PROGRAM"})
+		if !strings.Contains(got, want) {
+			t.Errorf("%s: %s", decl, got)
+		}
 	}
 }

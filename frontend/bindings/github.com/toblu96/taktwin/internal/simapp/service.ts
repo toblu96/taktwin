@@ -189,6 +189,14 @@ export function SetSpeed(speed: number): $CancellablePromise<void> {
 }
 
 /**
+ * SetTestAnalogFor sets an analogue output of one of the station's PLCs by hand during its
+ * I/O test, to a value on the wire such as volts.
+ */
+export function SetTestAnalogFor(plc: string, address: string, value: number): $CancellablePromise<void> {
+    return $Call.ByID(3705590377, plc, address, value);
+}
+
+/**
  * SetTestOutput switches one output by hand during an I/O test.
  */
 export function SetTestOutput(variable: string, on: boolean): $CancellablePromise<void> {

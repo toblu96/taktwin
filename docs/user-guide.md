@@ -26,7 +26,7 @@ The **Builder** page puts a station together without editing files. Start from a
 
 ### Testing I/O by hand
 
-The I/O test cuts the program off from the I/O for the whole station. Start it in the PLC's panel or on any module with PLC outputs. Outputs can then be switched by hand, while inputs show live. Ending the test switches all outputs off.
+The I/O test cuts the program off from the I/O for the whole station. Start it in the PLC's panel or on any module with PLC outputs. Outputs can then be switched by hand, and analogue outputs set to a value, while inputs show live. Ending the test switches all outputs off.
 
 ### Connecting a PLC
 

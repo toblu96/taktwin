@@ -2,14 +2,55 @@ package st
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"time"
 )
 
 // ImageBytes is how many bytes the input and the output image each have.
 const ImageBytes = 64
 
-// image is a process image: bytes of bits.
+// image is a process image: bytes, with bits, words and double words in them, the low byte
+// of a word first.
 type image []byte
+
+// load reads a variable at a direct address.
+func (im image) load(v ioVar) Value {
+	if v.Size == 'X' {
+		return Value{I: b2i(im.get(v.Byte, v.Bit))}
+	}
+	n := sizeBytes(v.Size)
+	if v.Byte+n > len(im) {
+		return Value{}
+	}
+	var raw uint64
+	for i := n - 1; i >= 0; i-- {
+		raw = raw<<8 | uint64(im[v.Byte+i])
+	}
+	if v.typ.Kind == KReal {
+		return Value{F: float64(math.Float32frombits(uint32(raw)))}
+	}
+	return Value{I: v.typ.wrap(int64(raw))}
+}
+
+// store writes a variable at a direct address.
+func (im image) store(v ioVar, x Value) {
+	if v.Size == 'X' {
+		im.set(v.Byte, v.Bit, x.I != 0)
+		return
+	}
+	n := sizeBytes(v.Size)
+	if v.Byte+n > len(im) {
+		return
+	}
+	raw := uint64(x.I)
+	if v.typ.Kind == KReal {
+		raw = uint64(math.Float32bits(float32(x.F)))
+	}
+	for i := range n {
+		im[v.Byte+i] = byte(raw >> (8 * i))
+	}
+}
 
 func (im image) get(b, bit int) bool { return b < len(im) && im[b]&(1<<bit) != 0 }
 
@@ -49,7 +90,7 @@ type Runtime struct {
 	globals *Agg
 	progs   map[*POU]*Agg
 	in, out image
-	directs map[int]*Value // output bits written as %QXn.m, by n*8+m
+	directs map[string]*directVar // outputs written by their address, as %QX0.1 := TRUE
 	nowMs   int64
 	budget  int
 	depth   int
@@ -109,7 +150,7 @@ func (rt *Runtime) reset(keepRetain bool) {
 		rt.progs[p] = a
 	}
 	rt.in, rt.out = make(image, ImageBytes), make(image, ImageBytes)
-	rt.directs = map[int]*Value{}
+	rt.directs = map[string]*directVar{}
 	rt.state, rt.err, rt.cycles = Stopped, nil, 0
 }
 
@@ -123,15 +164,21 @@ func (rt *Runtime) instance(p *POU) *Agg {
 	return a
 }
 
-// direct gives the cell of an output bit written by its address, as %QX0.1 := TRUE.
-func (rt *Runtime) direct(b, bit int) *Value {
-	k := b*8 + bit
+// directVar is an output written by its address, as %QX0.1 := TRUE or %QW8 := 100.
+type directVar struct {
+	at    ioVar
+	value Value
+}
+
+// direct gives the cell of an output written by its address.
+func (rt *Runtime) direct(at ioVar) *Value {
+	k := fmt.Sprintf("%c%d.%d", at.Size, at.Byte, at.Bit)
 	v := rt.directs[k]
 	if v == nil {
-		v = &Value{}
+		v = &directVar{at: at}
 		rt.directs[k] = v
 	}
-	return v
+	return &v.value
 }
 
 // Start lets the program run on the next cycles. A program that failed starts again only
@@ -164,7 +211,7 @@ func (rt *Runtime) Scan(in []byte, now time.Duration) []byte {
 	copy(rt.in, in)
 	rt.nowMs = now.Milliseconds()
 	for _, b := range rt.prog.inputs {
-		*rt.cell(b) = Value{I: b2i(rt.in.get(b.Byte, b.Bit))}
+		*rt.cell(b) = rt.in.load(b)
 	}
 	rt.applyForces()
 	if rt.state == Running {
@@ -176,10 +223,10 @@ func (rt *Runtime) Scan(in []byte, now time.Duration) []byte {
 		rt.cycles++
 		rt.applyForces()
 		for _, b := range rt.prog.outputs {
-			rt.out.set(b.Byte, b.Bit, rt.cell(b).I != 0)
+			rt.out.store(b, *rt.cell(b))
 		}
-		for k, v := range rt.directs {
-			rt.out.set(k/8, k%8, v.I != 0)
+		for _, v := range rt.directs {
+			rt.out.store(v.at, v.value)
 		}
 	}
 	if rt.state == Failed {
@@ -188,7 +235,7 @@ func (rt *Runtime) Scan(in []byte, now time.Duration) []byte {
 	return append([]byte(nil), rt.out...)
 }
 
-func (rt *Runtime) cell(b ioBit) *Value {
+func (rt *Runtime) cell(b ioVar) *Value {
 	if b.global != nil {
 		return &rt.globals.Elems[b.slot]
 	}

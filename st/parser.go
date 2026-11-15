@@ -492,7 +492,7 @@ func (p *parser) stmt() Stmt {
 		p.expect(";")
 		return &ReturnStmt{Pos: t.Pos}
 	}
-	if t.Kind != tokIdent {
+	if t.Kind != tokIdent && t.Kind != tokAddress {
 		p.fail(t.Pos, "a statement expected, found %s", describe(t))
 	}
 	target := p.postfix()

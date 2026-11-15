@@ -14,7 +14,12 @@ func signal(address, symbol string) Signal {
 	if err != nil {
 		panic(err)
 	}
-	return Signal{Address: a, Symbol: symbol, Shown: "S" + a.String()}
+	s := Signal{Address: a, Symbol: symbol, Shown: "S" + a.String()}
+	if !a.IsBit() {
+		s.Scaling = &plcio.Scaling{Range: [2]float64{0, 10}, Raw: [2]float64{0, 27648}}
+		s.Channel = (a.Byte - 8) / 2
+	}
+	return s
 }
 
 var station = []Signal{
@@ -23,6 +28,7 @@ var station = []Signal{
 	signal("%IW8", "H1"),
 	signal("%QX0.0", "M1"),
 	signal("%QX0.1", ""),
+	signal("%QW8", "Y1"),
 }
 
 func parse(t *testing.T, data string) Connection {
@@ -82,8 +88,8 @@ func TestAConnectionFillsInItsVars(t *testing.T) {
 	if got["%IX0.0"] != "nsu=urn:fluid;s=Sorting.B1.state_man" || got["!%QX0.0"] != "nsu=urn:fluid;s=Sorting.MB3.state" || len(got) != 2 {
 		t.Errorf("bindings: %v", got)
 	}
-	if len(r.Unbound) != 3 {
-		t.Errorf("three signals are not exchanged: %+v", r.Unbound)
+	if len(r.Unbound) != 4 {
+		t.Errorf("four signals are not exchanged: %+v", r.Unbound)
 	}
 	// Without values, the defaults.
 	if r, err = c.Resolve(station, nil); err != nil || !strings.Contains(string(r.Settings), ":62555") {
@@ -151,7 +157,8 @@ func TestExplicitBindingsWinOverGeneratedOnes(t *testing.T) {
   "id": "list", "driver": "opcua",
   "generate": [
     { "signals": "inputs", "item": { "nodeId": "ns=4;s=IB{byte}Bit{bit:2}" } },
-    { "signals": "analog", "item": { "nodeId": "ns=4;s=AI{channel}" } },
+    { "signals": "analogInputs", "item": { "nodeId": "ns=4;s=AI{channel}" } },
+    { "signals": "analogOutputs", "item": { "nodeId": "ns=4;s=AQ{channel}" } },
     { "signals": "outputs", "item": { "nodeId": "ns=4;s=QB{byte}Bit{bit:2}" } }
   ],
   "bindings": [
@@ -169,6 +176,7 @@ func TestExplicitBindingsWinOverGeneratedOnes(t *testing.T) {
 		"%IX0.1":  "ns=4;s=IB0Bit01 + ns=4;s=IB0Bit00",
 		"!%IX0.1": "ns=4;s=IB0Bit05",
 		"%IW8":    "ns=4;s=AI0",
+		"%QW8":    "ns=4;s=AQ0",
 		"%QX0.0":  "ns=4;s=QB0Bit07",
 		"%QX0.1":  "ns=4;s=QB0Bit01",
 	}
@@ -190,7 +198,7 @@ func TestBindingsConvertValues(t *testing.T) {
 	bit := Binding{Signal: signal("%IX0.0", "")}
 	inverted := Binding{Signal: signal("%IX0.0", ""), Invert: true}
 	analog := Binding{Signal: signal("%IW8", "")}
-	scaled := Binding{Signal: signal("%IW10", ""), Scale: &Scale{From: [2]float64{0, 10}, To: [2]float64{0, 27648}}}
+	scaled := Binding{Signal: signal("%IW10", ""), Scale: &Scale{From: [2]float64{0, 10}, To: [2]float64{0, 100}}}
 	for _, c := range []struct {
 		b    Binding
 		v    float64
@@ -198,14 +206,19 @@ func TestBindingsConvertValues(t *testing.T) {
 		want float64
 	}{
 		{bit, 1, KindBool, 1}, {bit, 0, KindInt, 0}, {inverted, 1, KindBool, 0}, {inverted, 0, KindInt, 1},
-		{analog, 1.5, KindFloat, 1.5}, {analog, 1.5, KindInt, 1500},
-		{scaled, 5, KindInt, 13824}, {scaled, 5, KindFloat, 13824},
+		// An integer gets the PLC's raw value, a number the value on the wire, unless scaled.
+		{analog, 1.5, KindFloat, 1.5}, {analog, 5, KindInt, 13824},
+		{scaled, 5, KindInt, 50}, {scaled, 5, KindFloat, 50},
 	} {
 		if got := c.b.Outward(c.v, c.k); got != c.want {
 			t.Errorf("%+v out %v as %v: %v, want %v", c.b.Signal.Address, c.v, c.k, got, c.want)
 		}
 	}
-	if bit.Inward(7) != 1 || bit.Inward(0) != 0 || inverted.Inward(7) != 0 {
+	if bit.Inward(7, KindInt) != 1 || bit.Inward(0, KindBool) != 0 || inverted.Inward(7, KindInt) != 0 {
 		t.Error("anything but 0 is on")
+	}
+	out := Binding{Signal: signal("%QW8", "")}
+	if out.Inward(13824, KindInt) != 5 || out.Inward(2.5, KindFloat) != 2.5 || scaled.Inward(50, KindFloat) != 5 {
+		t.Error("an analogue output comes back the other way round")
 	}
 }

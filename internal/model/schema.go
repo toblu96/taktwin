@@ -392,6 +392,42 @@ type PLCModuleDef struct {
 	// for %IX0.3. Without it, the templates of Addresses show them, or else they are shown
 	// as they are.
 	AddressFormat *plcio.Format `json:"addressFormat,omitempty"`
+	// Image is how many bytes of inputs and of outputs the PLC has, up to 64 each; 16 each
+	// without it, for 8 bytes of bits and 4 analogue words.
+	Image *ImageDef `json:"image,omitempty"`
+	// Analog places the analogue channels in the image. Without it, channel n is the word at
+	// byte 8 + 2n of its direction, an INT of 0 to 27648 for 0 to 10 V.
+	Analog *AnalogLayoutDef `json:"analog,omitempty"`
+}
+
+// ImageDef is the size of a PLC's image, in bytes.
+type ImageDef struct {
+	Inputs  int `json:"inputs"`
+	Outputs int `json:"outputs"`
+}
+
+// AnalogLayoutDef places a PLC's analogue inputs and outputs in its image.
+type AnalogLayoutDef struct {
+	Inputs  []AnalogDef `json:"inputs,omitempty"`
+	Outputs []AnalogDef `json:"outputs,omitempty"`
+}
+
+// AnalogDef is one analogue channel of a PLC: where it is in the image and how its value
+// appears there.
+type AnalogDef struct {
+	// Pin is the PLC's pin of the channel, such as UE1 for an input or UA1 for an output.
+	Pin string `json:"pin"`
+	// Address is where it is in the image: a word as %IW8 for an INT, or a double word as
+	// %ID8 for a REAL.
+	Address string `json:"address"`
+	// Type is INT, the raw value in a word, or REAL, the value itself in a double word.
+	Type string `json:"type,omitempty"`
+	// Range is that of the value on the wire, [0, 10] without it.
+	Range *[2]float64 `json:"range,omitempty"`
+	// Unit is that of Range, V without it.
+	Unit string `json:"unit,omitempty"`
+	// Raw is the range of the INT that stands for Range, [0, 27648] without it.
+	Raw *[2]float64 `json:"raw,omitempty"`
 }
 
 // ConnectorDef is a physical connector. Type names an entry of connectors.json,
@@ -403,7 +439,11 @@ type ConnectorDef struct {
 	Type string `json:"type"`
 	When Num    `json:"when"`
 	Byte *int   `json:"byte,omitempty"`
-	// AnalogIn makes the connector's UE pins the PLC's analogue inputs: UE1 is channel 0.
+	// Analog makes the connector's UE pins the PLC's analogue inputs and its UA pins its
+	// analogue outputs: UE1 and UA1 are channel 0. The PLC module's plc.analog places them in
+	// the image.
+	Analog bool `json:"analog,omitempty"`
+	// AnalogIn is the older name of Analog.
 	AnalogIn bool     `json:"analogIn,omitempty"`
 	Internal bool     `json:"internal,omitempty"`
 	Pins     []PinDef `json:"pins,omitempty"`

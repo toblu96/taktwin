@@ -120,7 +120,7 @@ func codesys(naming plcio.Naming, m *model.PLCMapDef) link.Connection {
 	}
 	c.Generate = []link.GenerateDef{{Signals: "inputs", Item: item(naming.Inputs)}, {Signals: "outputs", Item: item(naming.Outputs)}}
 	if naming.Analog != "" {
-		c.Generate = append(c.Generate, link.GenerateDef{Signals: "analog", Item: item(naming.Analog)})
+		c.Generate = append(c.Generate, link.GenerateDef{Signals: "analogInputs", Item: item(naming.Analog)})
 	}
 	if m != nil {
 		c.ID, c.Name = "codesys-"+m.ID, "CODESYS: "+m.Name
@@ -147,10 +147,12 @@ func (s *Service) signals(plc string) []link.Signal {
 // space is how the soft PLC of one of the station's PLCs names its nodes, under s.mu.
 func (s *Service) space(plc, id string) opcsim.Space {
 	labels := map[string]string{}
+	var addresses []plcio.Address
 	for _, sig := range s.signals(plc) {
 		labels[sig.Address.String()] = strings.TrimSpace(sig.Shown + " " + sig.Symbol)
+		addresses = append(addresses, sig.Address)
 	}
-	return opcsim.Space{PLC: id, Labels: labels}
+	return opcsim.Space{PLC: id, Labels: labels, Addresses: addresses}
 }
 
 // connection finds a connection by id for one of the station's PLCs, under s.mu.

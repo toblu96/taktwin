@@ -292,6 +292,12 @@ func (s *Service) SetTestOutputFor(plc, variable string, on bool) error {
 	return s.current().SetTestOutputFor(plc, variable, on)
 }
 
+// SetTestAnalogFor sets an analogue output of one of the station's PLCs by hand during its
+// I/O test, to a value on the wire such as volts.
+func (s *Service) SetTestAnalogFor(plc, address string, value float64) error {
+	return s.current().SetTestAnalogFor(plc, address, value)
+}
+
 // ClearTestOutputsFor switches all outputs of one of the station's PLCs off during its I/O
 // test.
 func (s *Service) ClearTestOutputsFor(plc string) error { return s.current().ClearTestOutputsFor(plc) }

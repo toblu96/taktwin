@@ -46,8 +46,8 @@ type Problem struct {
 // Exchange is what a session exchanges values with: one value per binding, in the order
 // of the bindings, as Binding.Outward and Binding.Inward make them.
 type Exchange interface {
-	// Inputs gives the station's value of each binding: 0 or 1 for a bit, volts for an
-	// analogue input. Those of output bindings are 0.
+	// Inputs gives the station's value of each binding: 0 or 1 for a bit, the value on the
+	// wire, such as volts, for an analogue input. Those of output bindings are 0.
 	Inputs() []float64
 	// SetOutputs takes the value the controller gives each output binding; the others are
 	// ignored. It also tells the link that one exchange is done.
@@ -118,7 +118,6 @@ type Link struct {
 
 	mu        sync.Mutex
 	in        plcio.Image
-	ai        plcio.Analog
 	out       plcio.Image
 	info      plcio.LinkInfo
 	last      time.Time // the last exchange began
@@ -156,13 +155,6 @@ func (l *Link) Scan(in plcio.Image) plcio.Image {
 		return plcio.Image{}
 	}
 	return l.out
-}
-
-// SetAnalog implements plcio.AnalogReceiver.
-func (l *Link) SetAnalog(in plcio.Analog) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.ai = in
 }
 
 // Reset implements plcio.Controller.
@@ -280,7 +272,7 @@ type exchange struct {
 func (x *exchange) Inputs() []float64 {
 	l := x.l
 	l.mu.Lock()
-	in, ai := l.in, l.ai
+	in := l.in
 	l.last = time.Now()
 	l.mu.Unlock()
 	x.began = time.Now()
@@ -290,8 +282,8 @@ func (x *exchange) Inputs() []float64 {
 		if !a.Input {
 			continue
 		}
-		if ch, ok := a.AnalogInput(); ok {
-			values[i] = ai[ch]
+		if s := b.Signal.Scaling; s != nil {
+			values[i] = s.Read(in, a)
 		} else if bit, ok := a.InImage(); ok && in.Get(bit) {
 			values[i] = 1
 		}
@@ -305,7 +297,9 @@ func (x *exchange) SetOutputs(values []float64) {
 		if b.Signal.Address.Input || i >= len(values) {
 			continue
 		}
-		if bit, ok := b.Signal.Address.InImage(); ok {
+		if s := b.Signal.Scaling; s != nil {
+			s.Write(&out, b.Signal.Address, values[i])
+		} else if bit, ok := b.Signal.Address.InImage(); ok {
 			out.Set(bit, values[i] != 0)
 		}
 	}

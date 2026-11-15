@@ -508,7 +508,7 @@ func (s *session) read(ctx context.Context, req *ua.ReadRequest, outputs []int, 
 		if r.Status != ua.StatusOK {
 			return fmt.Errorf("the server refused reading %s from %s: %v", s.bindings[i].Signal.Label(), s.nodes[i].id, r.Status)
 		}
-		values[i] = s.bindings[i].Inward(number(r.Value))
+		values[i] = s.bindings[i].Inward(number(r.Value), s.nodes[i].kind)
 	}
 	return nil
 }

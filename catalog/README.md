@@ -169,7 +169,7 @@ Every module declares its connectors, and every pin is fixed. Pins named `I<n>` 
 - A connector's `type` names an entry of `connectors.json`, which gives its pins. The `wires` type has freely named pins, for parts with loose wires.
 - `bridges` connect two connectors inside a module: digital pin n of `a` joins pin n + `offset` of `b`. With `pins` a bridge joins only the named pins, such as an analogue signal.
 - A connector type can list `analog` pins. They travel through cables and bridges like digital ones.
-- `byte` marks a PLC connector: its pins are the bits of that byte of the image. With `analogIn`, its `UE` pins are the PLC's analogue inputs.
+- `byte` marks a PLC connector: its pins are the bits of that byte of the image. With `analog` (formerly `analogIn`), its `UE` pins are the PLC's analogue inputs and its `UA` pins its analogue outputs, `UE1` and `UA1` channel 0; the PLC module places them in the image (see [PLCs](#plcs)).
 - `internal` leaves a connector out of the pin tables, where it only repeats another's signals.
 - `switched` feeds the outputs through it from the safety circuit, as the actuator supply of an I/O block.
 - `prefer` names the connector the builder cables it to first.
@@ -197,9 +197,36 @@ A module with the role `plc` and a `plc` device is a PLC. Its connectors with a 
 "addresses": { "inputs": "IB{byte}Bit{bit:2}", "outputs": "QB{byte}Bit{bit:2}", "analog": "AI{channel}", "list": "Bits" }
 ```
 
-The soft PLC declares them in its `Bits.st`, and the app's connection to CODESYS expects them in the variable list `list` (see [Connections](#connections)). The image has 8 bytes of inputs and 8 of outputs.
+The soft PLC declares them in its `Bits.st`, and the app's connection to CODESYS expects them in the variable list `list` (see [Connections](#connections)).
 
-Stations give addresses as IEC 61131-3 direct addresses: `%IX0.3` is bit 3 of input byte 0, `%QX0.3` the same output bit, and `%IW8`, `%IW10`, `%IW12` and `%IW14` are the analogue inputs `UE1` to `UE4`, after the bytes of bits. Older station files give the names of `addresses` instead, such as `IB0Bit03`, which still works.
+Stations give addresses as IEC 61131-3 direct addresses: `%IX0.3` is bit 3 of input byte 0, `%QX0.3` the same output bit, `%IB2` a byte, `%IW8` a word and `%ID8` a double word, each at its first byte. Words and double words are stored with their low byte first, as CODESYS on a PC stores them. Older station files give the names of `addresses` instead, such as `IB0Bit03` and `AI0`, which still works.
+
+`plc.image` says how many bytes of inputs and of outputs the PLC has, up to 64 each; without it, 16 each. A connector's `byte` must be inside it.
+
+`plc.analog` places the analogue channels in the image and says how their values appear there. Inside the simulation an analogue value is what it is on the wire, such as 7.3 V; the PLC reads and writes it as the INT its range stands for, the way analogue modules give them, or as a REAL holding the value itself:
+
+```json
+"plc": {
+  "image": { "inputs": 24, "outputs": 16 },
+  "analog": {
+    "inputs": [
+      { "pin": "UE1", "address": "%IW8", "range": [0, 10], "unit": "V", "raw": [0, 27648] },
+      { "pin": "UE2", "address": "%ID12", "type": "REAL", "range": [0, 100], "unit": "mm" }
+    ],
+    "outputs": [ { "pin": "UA1", "address": "%QW8" } ]
+  }
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `pin` | The PLC's pin, `UE<n>` for an input and `UA<n>` for an output |
+| `address` | Its place: a word, as `%IW8`, for an `INT`; a double word, as `%ID12`, for a `REAL` |
+| `type` | `INT` (the raw value, without it) or `REAL` (the value itself) |
+| `range`, `unit` | The value on the wire, `[0, 10]` V without them |
+| `raw` | The INT that stands for `range`, `[0, 27648]` without it, held to the range of an INT |
+
+Without `plc.analog`, channel n is the INT at the word at byte 8 + 2n, after 8 bytes of bits: `UE1` to `UE4` at `%IW8` to `%IW14`, `UA1` to `UA4` at `%QW8` to `%QW14`, with 0 to 27648 for 0 to 10 V. A module that places some channels must place all its connectors have. A channel may not share a byte with a connector's bits or another channel.
 
 How a PLC shows its addresses on screen is up to its module. `plc.addressFormat` has a template for input and output bits, with `{byte}` and `{bit}` (or `{bit:2}`), and for input and output words, with `{byte}` and, for analogue inputs, `{channel}`:
 
@@ -249,7 +276,7 @@ A connection says how a PLC of a station is coupled to a controller outside the 
 | `settings` | The driver's. Texts may use `{var}` |
 | `namespaces` | Names for texts, such as a namespace URI, used as `{name}` like a var |
 | `bindings` | One signal each, by its symbol (`signal`) or its `address`, and the driver's `item` for it. `invert` exchanges a bit the other way round; `scale` (`from` and `to`, two numbers each) converts an analogue value. An input may go to more than one item; an output may come from only one |
-| `generate` | Makes a binding for each signal of a kind, `inputs`, `outputs`, `analog` or `all`, from an item whose texts may also use `{address}`, `{shown}`, `{symbol}`, `{byte}`, `{bit}`, `{bit:2}` and `{channel}` |
+| `generate` | Makes a binding for each signal of a kind, `inputs` or `outputs` (bits), `analogInputs`, `analogOutputs`, `analog` (both) or `all`, from an item whose texts may also use `{address}`, `{shown}`, `{symbol}`, `{byte}`, `{bit}`, `{bit:2}` and `{channel}` |
 
 Direction comes from the signal: the app writes a PLC input to its item and reads a PLC output from its item. An explicit binding takes the place of a generated one that writes the same: for an input, the same item; for an output, the same signal. In the example, every output comes from the node named like its symbol, except `%QX0.0`, which comes from `MB3`. A signal without a binding is not exchanged, which the panel lists.
 
@@ -271,7 +298,7 @@ An item is a node, by `nodeId` or by browse `path`:
 - `nodeId` as the server writes it, `ns=<index>;s=<name>`, or with the namespace's URI, `nsu=<URI>;s=<name>`, which holds even if the server puts the namespace at another index. `i=`, `g=` and `b=` identifiers work too.
 - `path`, such as `/2:Projects/2:Task 2/2:B1`: browse names with the index of their namespace, followed from the Objects folder, or from the node `from`.
 
-When it connects, the driver checks every node once: that it exists, can be written for an input and read for an output, and holds a Boolean or a number. A node that fails is left out and listed, and the others are exchanged. Values are written as the node's own type: a bit as `true` and `false` or `1` and `0`; an analogue input in volts into a float, and in millivolts into an integer, unless the binding scales it. Inputs are written when they change, outputs read on every interval. When the connection is lost, the PLC's outputs go off, and the driver connects again.
+When it connects, the driver checks every node once: that it exists, can be written for an input and read for an output, and holds a Boolean or a number. A node that fails is left out and listed, and the others are exchanged. Values are written and read as the node's own type: a bit as `true` and `false` or `1` and `0`; an analogue value as the PLC has it in its image into an integer, such as 0 to 27648, and as it is on the wire into a float, such as volts, unless the binding scales it. Inputs are written when they change, outputs read on every interval. When the connection is lost, the PLC's outputs go off, and the driver connects again.
 
 ## Roles
 
