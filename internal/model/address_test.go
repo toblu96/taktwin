@@ -11,8 +11,8 @@ import (
 	"github.com/toblu96/taktwin/catalog"
 )
 
-// referenceFile reads a file of the reference collection.
-func referenceFile(t *testing.T, path string) []byte {
+// referenceData reads a file of the reference collection.
+func referenceData(t *testing.T, path string) []byte {
 	t.Helper()
 	data, err := fs.ReadFile(catalog.Reference, path)
 	if err != nil {
@@ -21,11 +21,11 @@ func referenceFile(t *testing.T, path string) []byte {
 	return data
 }
 
-// changeJSON decodes a file of the reference collection, lets change edit it, and encodes it.
-func changeJSON(t *testing.T, path string, change func(map[string]any)) []byte {
+// changedReference decodes a file of the reference collection, lets change edit it, and encodes it.
+func changedReference(t *testing.T, path string, change func(map[string]any)) []byte {
 	t.Helper()
 	var v map[string]any
-	if err := json.Unmarshal(referenceFile(t, path), &v); err != nil {
+	if err := json.Unmarshal(referenceData(t, path), &v); err != nil {
 		t.Fatal(err)
 	}
 	change(v)
@@ -36,8 +36,8 @@ func changeJSON(t *testing.T, path string, change func(map[string]any)) []byte {
 	return data
 }
 
-// planOf resolves the reference station with files of the reference collection replaced.
-func planOf(t *testing.T, files fstest.MapFS) *Plan {
+// referencePlan resolves the reference station with files of the reference collection replaced.
+func referencePlan(t *testing.T, files fstest.MapFS) *Plan {
 	t.Helper()
 	b, err := NewLibrary(files, catalog.Reference, catalog.Base).Load("pallet-loading")
 	if err != nil {
@@ -50,18 +50,18 @@ func planOf(t *testing.T, files fstest.MapFS) *Plan {
 	return plan
 }
 
-const stationFile = "stations/pallet-loading/station.json"
+const referenceStation = "stations/pallet-loading/station.json"
 
 // Older station files name signals as the PLC module names its variables, IB0Bit03 for
 // %IX0.3. They give the same I/O table as the addresses do.
 func TestStationsWithOlderAddressesGiveTheSameTable(t *testing.T) {
-	now := planOf(t, nil)
+	now := referencePlan(t, nil)
 	bit := regexp.MustCompile(`"%([IQ])X(\d+)\.(\d)"`)
-	older := bit.ReplaceAll(referenceFile(t, stationFile), []byte(`"${1}B${2}Bit0${3}"`))
-	if slices.Equal(older, referenceFile(t, stationFile)) {
+	older := bit.ReplaceAll(referenceData(t, referenceStation), []byte(`"${1}B${2}Bit0${3}"`))
+	if slices.Equal(older, referenceData(t, referenceStation)) {
 		t.Fatal("the reference station names no signal by address")
 	}
-	then := planOf(t, fstest.MapFS{stationFile: {Data: older}})
+	then := referencePlan(t, fstest.MapFS{referenceStation: {Data: older}})
 	for _, p := range []*Plan{now, then} {
 		in := p.Scene.PLC.Inputs
 		if len(in) == 0 || in[0].Address != "%IX0.0" || in[0].Shown != "IB0Bit00" || in[0].Name != "B1" {
@@ -86,7 +86,7 @@ func TestStationsWithOlderAddressesGiveTheSameTable(t *testing.T) {
 // the variables.
 func TestThePLCModuleShowsItsAddresses(t *testing.T) {
 	const cabinet = "accessories/control-cabinet/module.json"
-	plan := planOf(t, fstest.MapFS{cabinet: {Data: changeJSON(t, cabinet, func(m map[string]any) {
+	plan := referencePlan(t, fstest.MapFS{cabinet: {Data: changedReference(t, cabinet, func(m map[string]any) {
 		m["plc"] = map[string]any{"addressFormat": map[string]any{"input": "E{byte}.{bit}", "output": "A{byte}.{bit}"}}
 	})}})
 	if got := plan.Scene.PLC.Inputs[0]; got.Address != "%IX0.0" || got.Shown != "E0.0" {
@@ -101,11 +101,11 @@ func TestThePLCModuleShowsItsAddresses(t *testing.T) {
 // none. A symbol is not taken twice.
 func TestModulesGiveTheirPinsSymbols(t *testing.T) {
 	const sensor = "accessories/photo-sensor/module.json"
-	plan := planOf(t, fstest.MapFS{
-		stationFile: {Data: changeJSON(t, stationFile, func(st map[string]any) {
+	plan := referencePlan(t, fstest.MapFS{
+		referenceStation: {Data: changedReference(t, referenceStation, func(st map[string]any) {
 			delete(st["plc"].(map[string]any), "signals")
 		})},
-		sensor: {Data: changeJSON(t, sensor, func(m map[string]any) {
+		sensor: {Data: changedReference(t, sensor, func(m map[string]any) {
 			pins := m["terminal"].(map[string]any)["connectors"].([]any)[0].(map[string]any)["pins"].([]any)
 			pins[0].(map[string]any)["symbol"] = "B_Beam"
 		})},
@@ -128,8 +128,8 @@ func TestModulesGiveTheirPinsSymbols(t *testing.T) {
 // then named by address.
 func TestSignalsWithOlderAddressesFollowSwappedPins(t *testing.T) {
 	bit := regexp.MustCompile(`"%([IQ])X(\d+)\.(\d)"`)
-	older := bit.ReplaceAll(referenceFile(t, stationFile), []byte(`"${1}B${2}Bit0${3}"`))
-	b, err := NewLibrary(fstest.MapFS{stationFile: {Data: older}}, catalog.Reference, catalog.Base).Load("pallet-loading")
+	older := bit.ReplaceAll(referenceData(t, referenceStation), []byte(`"${1}B${2}Bit0${3}"`))
+	b, err := NewLibrary(fstest.MapFS{referenceStation: {Data: older}}, catalog.Reference, catalog.Base).Load("pallet-loading")
 	if err != nil {
 		t.Fatal(err)
 	}
