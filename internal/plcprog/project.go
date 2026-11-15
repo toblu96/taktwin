@@ -31,6 +31,8 @@ const metaFile = "project.json"
 type Signal struct {
 	Name        string // such as B1
 	Address     string // such as IB0Bit00, as the PLC module names it
+	At          string // where it is in the image, such as %IX0.0
+	Type        string // BOOL, or INT or REAL for an analogue channel
 	Variable    string // the name a program uses, such as band, if the station gives one
 	Description string
 	Input       bool
@@ -275,7 +277,8 @@ func bitsList(signals []Signal) string {
 		if s.Input {
 			dir = "I"
 		}
-		fmt.Fprintf(&b, "\t%s AT %%%sX%d.%d : BOOL; (* %s: %s *)\n", s.Address, dir, s.Byte, s.Bit, comment(s.Name), comment(s.Description))
+		at := cmpOr(s.At, fmt.Sprintf("%%%sX%d.%d", dir, s.Byte, s.Bit))
+		fmt.Fprintf(&b, "\t%s AT %s : %s; (* %s: %s *)\n", s.Address, at, cmpOr(s.Type, "BOOL"), comment(s.Name), comment(s.Description))
 	}
 	b.WriteString("END_VAR\n")
 	return b.String()
@@ -302,7 +305,7 @@ func create(dir string, signals []Signal) error {
 	gvl.WriteString("VAR_GLOBAL\n\t(* The step chain *)\n\tcurrentStep : INT;  (* the step it is in *)\n\tnextStep : INT;     (* the step it goes to next *)\n\tstepDelay : TIME;   (* how long it waits before it goes there *)\n\n\t(* The station's signals by name, as IO_Mapping sets them from the Bits list *)\n")
 	for _, s := range signals {
 		if n, ok := named[s.Address]; ok {
-			fmt.Fprintf(&gvl, "\t%s : BOOL; (* %s *)\n", n, comment(s.Description))
+			fmt.Fprintf(&gvl, "\t%s : %s; (* %s *)\n", n, cmpOr(s.Type, "BOOL"), comment(s.Description))
 		}
 	}
 	gvl.WriteString("END_VAR\n")
@@ -391,14 +394,34 @@ func cmpOr(a, b string) string {
 }
 
 // Signals is the I/O table of one of a station's PLCs, as the Bits list declares it: each
-// signal by the name the PLC module gives the variable at its address.
+// signal by the name the PLC module gives the variable at its address, and the analogue
+// channels by the name it gives analogue inputs (AI0 without one), and outputs as AQ0.
 func Signals(p model.ScenePLC) []Signal {
 	var out []Signal
 	for _, s := range p.Inputs {
-		out = append(out, Signal{Name: s.Name, Address: p.Naming.Input(plcio.Addr{Byte: s.Byte, Bit: s.Bit}), Variable: s.Variable, Description: s.Description, Input: true, Byte: int(s.Byte), Bit: int(s.Bit)})
+		out = append(out, Signal{Name: s.Name, Address: p.Naming.Input(plcio.Addr{Byte: s.Byte, Bit: s.Bit}), At: s.Address, Type: "BOOL", Variable: s.Variable, Description: s.Description, Input: true, Byte: int(s.Byte), Bit: int(s.Bit)})
+	}
+	for _, a := range p.Analog {
+		name := cmpOr(p.Naming.AnalogInput(a.Channel), fmt.Sprintf("AI%d", a.Channel))
+		out = append(out, Signal{Name: a.Name, Address: name, At: a.Address, Type: a.Type, Description: analogDescription(a), Input: true})
 	}
 	for _, s := range p.Outputs {
-		out = append(out, Signal{Name: s.Name, Address: p.Naming.Output(plcio.Addr{Byte: s.Byte, Bit: s.Bit}), Variable: s.Variable, Description: s.Description, Byte: int(s.Byte), Bit: int(s.Bit)})
+		out = append(out, Signal{Name: s.Name, Address: p.Naming.Output(plcio.Addr{Byte: s.Byte, Bit: s.Bit}), At: s.Address, Type: "BOOL", Variable: s.Variable, Description: s.Description, Byte: int(s.Byte), Bit: int(s.Bit)})
+	}
+	for _, a := range p.AnalogOutputs {
+		out = append(out, Signal{Name: a.Name, Address: fmt.Sprintf("AQ%d", a.Channel), At: a.Address, Type: a.Type, Description: analogDescription(a)})
 	}
 	return out
+}
+
+// analogDescription says what an analogue channel holds.
+func analogDescription(a model.SceneAnalog) string {
+	what := fmt.Sprintf("%g to %g %s", a.Range[0], a.Range[1], a.Unit)
+	if a.Type == "INT" {
+		what += ", raw"
+	}
+	if a.Description == "" {
+		return what
+	}
+	return a.Description + " (" + what + ")"
 }

@@ -75,7 +75,7 @@ func TestTheSoftPLCExchangesItsImage(t *testing.T) {
 	t.Cleanup(s.Close)
 	l := start(t, SoftPLC(s.Endpoint(), "cabinet"), link.Image(), nil)
 	until(t, "the connection", func() bool { return l.Link().State == plcio.LinkConnected })
-	if got := l.Link(); got.Variables != 2*plcio.ImageBytes*8+plcio.AnalogInputs || len(got.Problems) > 0 {
+	if got := l.Link(); got.Variables != 2*(8*8+4) || len(got.Problems) > 0 {
 		t.Errorf("every signal is exchanged: %+v", got)
 	}
 	var in plcio.Image
@@ -86,8 +86,16 @@ func TestTheSoftPLCExchangesItsImage(t *testing.T) {
 	in = plcio.Image{}
 	until(t, "the echo to clear", func() bool { return l.Scan(in) == in })
 
-	l.SetAnalog(plcio.Analog{0, 7.5})
-	until(t, "the analogue input", func() bool { return s.Analog()[1] == 7.5 })
+	// An analogue input reaches the PLC as its raw INT, and the echo's output comes back.
+	volts := plcio.Scaling{Range: [2]float64{0, 10}, Raw: [2]float64{0, 27648}}
+	volts.Write(&in, plcio.WordAddress(true, 10), 7.5)
+	until(t, "the analogue input", func() bool {
+		l.Scan(in)
+		return s.Inputs().Raw(plcio.WordAddress(true, 10)) == 20736
+	})
+	until(t, "the analogue output", func() bool {
+		return volts.Read(l.Scan(in), plcio.WordAddress(false, 10)) == 7.5
+	})
 }
 
 // A lost controller must not leave the station's outputs on, and the link comes back.
@@ -101,9 +109,7 @@ func TestALinkDropsOutputsAndReconnects(t *testing.T) {
 
 	s.Close()
 	until(t, "the outputs to drop", func() bool { return l.Scan(in) == plcio.Image{} })
-	if l.Link().State != plcio.LinkFailed {
-		t.Errorf("state: %s", l.Link().State)
-	}
+	until(t, "the link to fail", func() bool { return l.Link().State == plcio.LinkFailed })
 	s = softServer(t, port)
 	t.Cleanup(s.Close)
 	until(t, "the echo after reconnecting", func() bool { return l.Scan(in) == in })

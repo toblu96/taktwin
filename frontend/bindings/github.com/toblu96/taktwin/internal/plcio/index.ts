@@ -6,7 +6,6 @@ export {
 } from "./models.js";
 
 export type {
-    Analog,
     Image,
     LinkInfo,
     Naming,

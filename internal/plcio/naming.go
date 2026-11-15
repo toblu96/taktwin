@@ -68,14 +68,22 @@ func (n Naming) AnalogInput(channel int) string {
 	return strings.ReplaceAll(n.Analog, "{channel}", strconv.Itoa(channel))
 }
 
-// ParseAnalog reads the name of an analogue input.
+// ParseAnalog reads the name of an analogue input: its channel, 0 for the first.
 func (n Naming) ParseAnalog(name string) (int, bool) {
-	for channel := range AnalogInputs {
-		if name != "" && name == n.AnalogInput(channel) {
-			return channel, true
-		}
+	if n.Analog == "" || name == "" {
+		return 0, false
 	}
-	return 0, false
+	p := regexp.QuoteMeta(n.Analog)
+	p = strings.ReplaceAll(p, regexp.QuoteMeta("{channel}"), `(\d+)`)
+	m := regexp.MustCompile("^" + p + "$").FindStringSubmatch(name)
+	if m == nil {
+		return 0, false
+	}
+	channel, err := strconv.Atoi(m[1])
+	if err != nil || n.AnalogInput(channel) != name {
+		return 0, false
+	}
+	return channel, true
 }
 
 // pattern turns a template into a pattern that matches its names, with the byte and bit.

@@ -14,7 +14,7 @@ func TestNaming(t *testing.T) {
 	if got, in, err := english.Parse("QB7Bit07"); err != nil || in || got != (Addr{7, 7}) {
 		t.Errorf("parse an output: %v %v %v", got, in, err)
 	}
-	for _, bad := range []string{"QB8Bit00", "IB0Bit8", "IB0Bit5", "EB0Bit00", "IB0Bit00x"} {
+	for _, bad := range []string{"QB64Bit00", "IB0Bit8", "IB0Bit5", "EB0Bit00", "IB0Bit00x"} {
 		if _, _, err := english.Parse(bad); err == nil {
 			t.Errorf("%s is no variable", bad)
 		}

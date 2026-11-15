@@ -33,7 +33,7 @@ Each message from `Compile` has a file, line and column. While any error is left
   - bit shifts: `SHL`, `SHR`, `ROL` and `ROR`
   - strings: `LEN`, `LEFT`, `RIGHT`, `MID`, `CONCAT`, `INSERT`, `DELETE`, `REPLACE` and `FIND`
 - **Standard function blocks:** `TON`, `TOF`, `TP`, `R_TRIG`, `F_TRIG`, `CTU`, `CTD`, `CTUD`, `SR` and `RS`.
-- **Direct addresses:** `AT %IXn.m` and `AT %QXn.m`, bits only, on a process image of 64 bytes each way.
+- **Direct addresses:** on a process image of 64 bytes each way, `AT %IXn.m` and `AT %QXn.m` for a `BOOL`, `%IBn` and `%QBn` for a `BYTE`, `SINT` or `USINT`, `%IWn` and `%QWn` for a `WORD`, `INT` or `UINT`, and `%IDn` and `%QDn` for a `DWORD`, `DINT`, `UDINT` or `REAL`, with the low byte first. Used directly in code, `%IBn`, `%IWn` and `%IDn` are a `BYTE`, `WORD` and `DWORD`, and an output can be written by its address, as `%QW8 := INT_TO_WORD(speed);`.
 - **Online access:** `Variables`, `Read`, `Write`, `Force` and `Release` on paths such as `PLC_PRG.t.Q`, `GVL.x` or `arr[1, 2]`.
 
 ## Where it differs from the standard or CODESYS

@@ -6,7 +6,7 @@ import (
 )
 
 // Signals are the signals of PLC k of a station: every bit its wiring reaches and every
-// analogue input, with the symbols the station gives them, ordered by address.
+// analogue channel, with the symbols the station gives them.
 func Signals(plan *model.Plan, k int) []Signal {
 	symbols := map[string]string{}
 	if k >= 0 && k < len(plan.Scene.PLCs) {
@@ -14,54 +14,63 @@ func Signals(plan *model.Plan, k int) []Signal {
 		for _, s := range append(append([]model.SceneSignal{}, p.Inputs...), p.Outputs...) {
 			symbols[s.Address] = s.Name
 		}
-		for _, a := range p.Analog {
+		for _, a := range append(append([]model.SceneAnalog{}, p.Analog...), p.AnalogOutputs...) {
 			symbols[a.Address] = a.Name
 		}
 	}
-	signal := func(a plcio.Address) Signal {
-		return Signal{Address: a, Symbol: symbols[a.String()], Shown: plan.Show(k, a)}
-	}
 	var out []Signal
 	seen := map[plcio.Address]bool{}
-	add := func(a plcio.Address) {
-		if !seen[a] {
-			seen[a] = true
-			out = append(out, signal(a))
+	add := func(a plcio.Address, analog *model.PLCAnalogPlan) {
+		if seen[a] {
+			return
 		}
+		seen[a] = true
+		s := Signal{Address: a, Symbol: symbols[a.String()], Shown: plan.Show(k, a)}
+		if analog != nil {
+			s.Scaling, s.Channel = &analog.Scaling, analog.Channel
+		}
+		out = append(out, s)
 	}
 	for _, b := range plan.PLCIn {
 		if b.PLC == k {
-			add(plcio.BitAddress(true, b.Addr))
+			add(plcio.BitAddress(true, b.Addr), nil)
 		}
 	}
-	for _, a := range plan.PLCAnalog {
+	for i, a := range plan.PLCAnalog {
 		if a.PLC == k {
-			add(plcio.AnalogInputAddress(a.Channel))
+			add(a.Address, &plan.PLCAnalog[i])
 		}
 	}
 	for _, b := range plan.PLCOut {
 		if b.PLC == k {
-			add(plcio.BitAddress(false, b.Addr))
+			add(plcio.BitAddress(false, b.Addr), nil)
+		}
+	}
+	for i, a := range plan.PLCAnalogOut {
+		if a.PLC == k {
+			add(a.Address, &plan.PLCAnalogOut[i])
 		}
 	}
 	return out
 }
 
-// Image is every signal a PLC's image can hold, without symbols: each bit of its inputs and
-// outputs and each analogue input.
+// Image is every signal of a PLC with an image as a PLC module has it without saying: each
+// bit of 8 bytes of inputs and of outputs, and 4 analogue inputs and outputs as INTs of 0 to
+// 27648 for 0 to 10 V in the words from byte 8 on. It has no symbols.
 func Image() []Signal {
 	var out []Signal
+	scaling := &plcio.Scaling{Range: [2]float64{0, 10}, Raw: [2]float64{0, 27648}, Unit: "V"}
 	for _, input := range []bool{true, false} {
-		for b := range uint8(plcio.ImageBytes) {
+		for b := range uint8(8) {
 			for bit := range uint8(8) {
 				a := plcio.BitAddress(input, plcio.Addr{Byte: b, Bit: bit})
 				out = append(out, Signal{Address: a, Shown: a.String()})
 			}
 		}
-	}
-	for ch := range plcio.AnalogInputs {
-		a := plcio.AnalogInputAddress(ch)
-		out = append(out, Signal{Address: a, Shown: a.String()})
+		for ch := range 4 {
+			a := plcio.WordAddress(input, 8+2*ch)
+			out = append(out, Signal{Address: a, Shown: a.String(), Scaling: scaling, Channel: ch})
+		}
 	}
 	return out
 }

@@ -64,8 +64,8 @@ type BindingDef struct {
 	Scale *Scale `json:"scale,omitempty"`
 }
 
-// Scale maps From, a range in the station's unit such as [0, 10] volts, to To, the same
-// range in the item's, such as [0, 27648].
+// Scale maps From, a range of the value on the wire such as [0, 10] volts, to To, the same
+// range in the item's unit, such as [0, 100] percent.
 type Scale struct {
 	From [2]float64 `json:"from"`
 	To   [2]float64 `json:"to"`
@@ -73,21 +73,25 @@ type Scale struct {
 
 // GenerateDef makes a binding for each signal of a kind, from a template of its item. Its
 // texts may use {address} (%IX0.3), {shown} (as the PLC shows it), {symbol}, {byte}, {bit},
-// {bit:2} (two digits), {channel} (of an analogue input), and the vars.
+// {bit:2} (two digits), {channel} (of an analogue channel, 0 for the first), and the vars.
 type GenerateDef struct {
-	// Signals is inputs, outputs, analog (inputs) or all.
+	// Signals is inputs or outputs (bits), analogInputs, analogOutputs, analog (both) or all.
 	Signals string          `json:"signals"`
 	Item    json.RawMessage `json:"item"`
 }
 
 // Signal is one signal of a PLC as a station has it: a bit of its inputs or outputs, or an
-// analogue input.
+// analogue input or output.
 type Signal struct {
 	Address plcio.Address
 	// Symbol is its name, if it has one, such as B1.
 	Symbol string
 	// Shown is its address as the PLC shows it, such as IB0Bit03.
 	Shown string
+	// Scaling is how an analogue channel's value appears in the image; nil for a bit.
+	Scaling *plcio.Scaling
+	// Channel is that of an analogue channel, 0 for UE1 or UA1.
+	Channel int
 }
 
 // Label is how a report names the signal.
@@ -109,10 +113,7 @@ type Binding struct {
 }
 
 // Analog says whether the binding carries an analogue value.
-func (b Binding) Analog() bool {
-	_, ok := b.Signal.Address.AnalogInput()
-	return ok
-}
+func (b Binding) Analog() bool { return b.Signal.Scaling != nil }
 
 // Kind is what kind of value an item holds, as far as a binding cares.
 type Kind int
@@ -123,8 +124,9 @@ const (
 	KindFloat
 )
 
-// Outward turns a value of the station into one for an item of kind k: a bit as 0 or 1, and
-// an analogue value scaled, or else in volts for a number and millivolts for an integer.
+// Outward turns a value of the station into one for an item of kind k. A bit is 0 or 1. An
+// analogue value, on the wire such as in volts, is scaled as the binding says, or else goes
+// to an integer as the PLC has it in its image, such as 0 to 27648, and to a number as it is.
 func (b Binding) Outward(v float64, k Kind) float64 {
 	if !b.Analog() {
 		if (v != 0) != b.Invert {
@@ -136,17 +138,27 @@ func (b Binding) Outward(v float64, k Kind) float64 {
 	case b.Scale != nil:
 		return b.Scale.apply(v)
 	case k == KindInt:
-		return v * 1000
+		return b.Signal.Scaling.ToRaw(v)
 	}
 	return v
 }
 
-// Inward turns the value of an item into the station's: a bit is on for anything but 0.
-func (b Binding) Inward(v float64) float64 {
-	if (v != 0) != b.Invert {
-		return 1
+// Inward turns the value of an item of kind k into the station's, the other way round from
+// Outward: a bit is on for anything but 0.
+func (b Binding) Inward(v float64, k Kind) float64 {
+	if !b.Analog() {
+		if (v != 0) != b.Invert {
+			return 1
+		}
+		return 0
 	}
-	return 0
+	switch {
+	case b.Scale != nil:
+		return b.Scale.invert(v)
+	case k == KindInt:
+		return b.Signal.Scaling.FromRaw(v)
+	}
+	return v
 }
 
 func (s *Scale) apply(v float64) float64 {
@@ -155,6 +167,10 @@ func (s *Scale) apply(v float64) float64 {
 		return s.To[0]
 	}
 	return s.To[0] + (v-s.From[0])*(s.To[1]-s.To[0])/span
+}
+
+func (s *Scale) invert(v float64) float64 {
+	return (&Scale{From: s.To, To: s.From}).apply(v)
 }
 
 // Parse reads a connection file.
@@ -455,12 +471,16 @@ func canonical(raw json.RawMessage) []byte {
 }
 
 func (g GenerateDef) matches(s Signal) bool {
-	_, analog := s.Address.AnalogInput()
+	analog := s.Scaling != nil
 	switch g.Signals {
 	case "inputs":
 		return s.Address.Input && !analog
 	case "outputs":
-		return !s.Address.Input
+		return !s.Address.Input && !analog
+	case "analogInputs":
+		return s.Address.Input && analog
+	case "analogOutputs":
+		return !s.Address.Input && analog
 	case "analog":
 		return analog
 	case "all":
@@ -479,8 +499,8 @@ func signalValues(s Signal, vars map[string]string) map[string]string {
 	out["byte"] = strconv.Itoa(s.Address.Byte)
 	out["bit"] = strconv.Itoa(int(s.Address.Bit))
 	out["bit:2"] = fmt.Sprintf("%02d", s.Address.Bit)
-	if ch, ok := s.Address.AnalogInput(); ok {
-		out["channel"] = strconv.Itoa(ch)
+	if s.Scaling != nil {
+		out["channel"] = strconv.Itoa(s.Channel)
 	}
 	return out
 }

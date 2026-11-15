@@ -224,12 +224,23 @@ export interface SceneAnalog {
     "name": string;
 
     /**
-     * Address is the input's word, as %IW8, and Shown how the PLC shows it.
+     * Address is the channel's place in the image, as %IW8, and Shown how the PLC shows it.
      */
     "address": string;
     "shown": string;
     "description"?: string;
     "channel": number;
+
+    /**
+     * Range and Unit are those of the value on the wire, such as 0 to 10 V.
+     */
+    "range": number[];
+    "unit": string;
+
+    /**
+     * Type is how the image holds it: INT, the raw value, or REAL, the value itself.
+     */
+    "type": string;
 }
 
 /**
@@ -395,6 +406,11 @@ export interface ScenePLC {
     "inputs": SceneSignal[] | null;
     "outputs": SceneSignal[] | null;
     "analog": SceneAnalog[] | null;
+
+    /**
+     * AnalogOutputs are the analogue outputs, as Analog the inputs.
+     */
+    "analogOutputs": SceneAnalog[] | null;
 }
 
 /**

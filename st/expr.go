@@ -314,21 +314,24 @@ func (c *compiler) varExpr(v *Var, name string) cexpr {
 	return x
 }
 
-// address reads or writes a bit of the process image directly, as %IX0.0 or %QX1.2.
+// address reads or writes the process image directly: a bit as %IX0.0 or %QX1.2, a BYTE
+// as %IB0, a WORD as %IW8, a DWORD as %ID8.
 func (c *compiler) address(e *Ident) cexpr {
-	input, b, bit, ok := parseAddress(e.Name)
+	input, size, b, bit, ok := parseAddress(e.Name)
 	if !ok {
-		c.errAt(e.Pos, "%s is no address of a bit: write %%IX0.0 for an input or %%QX0.0 for an output", e.Name)
+		c.errAt(e.Pos, "%s is no address of the image: write %%IX0.0 or %%QX0.0 for a bit, %%IB0, %%IW8 or %%ID8 for a byte, word or double word", e.Name)
 		return bad()
 	}
+	t := map[byte]*Type{'X': tBool, 'B': tByte, 'W': tWord, 'D': tDWord}[size]
+	at := ioVar{Byte: b, Bit: bit, Size: size, typ: t}
 	if input {
-		return cexpr{t: tBool, what: e.Name, readonly: true, lval: func(fr *frame) *Value {
-			v := Value{I: b2i(fr.rt.in.get(b, bit))}
+		return cexpr{t: t, what: e.Name, readonly: true, lval: func(fr *frame) *Value {
+			v := fr.rt.in.load(at)
 			return &v
-		}, eval: func(fr *frame) Value { return Value{I: b2i(fr.rt.in.get(b, bit))} }}
+		}, eval: func(fr *frame) Value { return fr.rt.in.load(at) }}
 	}
-	return cexpr{t: tBool, what: e.Name, lval: func(fr *frame) *Value { return fr.rt.direct(b, bit) },
-		eval: func(fr *frame) Value { return *fr.rt.direct(b, bit) }}
+	return cexpr{t: t, what: e.Name, lval: func(fr *frame) *Value { return fr.rt.direct(at) },
+		eval: func(fr *frame) Value { return *fr.rt.direct(at) }}
 }
 
 // member resolves x.name: a field, a variable of an instance or program, a global of a

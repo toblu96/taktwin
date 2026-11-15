@@ -134,18 +134,18 @@ A PLC module describes its process image and how addresses are shown. It names n
 ```json
 "role": "plc",
 "plc": {
-  "image": { "inputBytes": 16, "outputBytes": 16 },
+  "image": { "inputs": 16, "outputs": 16 },
   "addressFormat": { "input": "IB{byte}Bit{bit:2}", "output": "QB{byte}Bit{bit:2}", "inputWord": "IW{byte}", "outputWord": "QW{byte}" },
   "analog": {
-    "inputs":  [ { "connector": "UE1", "address": "%IW8",  "type": "INT", "range": [0, 10], "unit": "V", "raw": [0, 27648] } ],
-    "outputs": [ { "connector": "UA1", "address": "%QW8",  "type": "INT", "range": [0, 10], "unit": "V", "raw": [0, 27648] } ]
+    "inputs":  [ { "pin": "UE1", "address": "%IW8",  "type": "INT", "range": [0, 10], "unit": "V", "raw": [0, 27648] } ],
+    "outputs": [ { "pin": "UA1", "address": "%QW8",  "type": "INT", "range": [0, 10], "unit": "V", "raw": [0, 27648] } ]
   }
 }
 ```
 
 - `addressFormat` is display only (see the open question on address display). Everything is stored as `%IX0.3`, `%IW8`.
-- The image size is per module, not a constant in code. Digital bytes and analogue words share one image, as on a real PLC. A module that places analogue words outside its declared size is an error at load time.
-- Connectors keep `byte` and `analogIn`; `analogOut` is added the same way.
+- The image size is per module, up to 64 bytes each way (the ST runtime's image), and 16 without saying. Digital bytes and analogue words share one image, as on a real PLC, low byte first as CODESYS on a PC. A module that places analogue words outside its declared size, over a connector's bits, or over each other is an error at load time.
+- Connectors keep `byte`; `analog` (formerly `analogIn`) makes `UE` pins analogue inputs and `UA` pins analogue outputs. Without `plc.analog`, channel n is the INT at the word at byte 8 + 2n.
 
 ### 4. Data types: how much freedom
 

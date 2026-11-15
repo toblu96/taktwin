@@ -259,11 +259,19 @@ type CopyPlan struct {
 	To       int
 }
 
-// PLCAnalogPlan connects an analogue input of the PLC to a net.
+// PLCAnalogPlan connects an analogue channel of a PLC to a net: an input, which the PLC
+// reads, or an output, which drives the net.
 type PLCAnalogPlan struct {
-	Channel int
+	Channel int // 0 for UE1 or UA1
 	State   int
 	PLC     int // index in Plan.PLCs
+	Address plcio.Address
+	Scaling plcio.Scaling
+}
+
+// ImagePlan is the size of a PLC's image, in bytes.
+type ImagePlan struct {
+	Inputs, Outputs int
 }
 
 // PLCBitPlan connects one bit of a PLC's image to a net.
@@ -317,6 +325,10 @@ type Plan struct {
 	PLCIn     []PLCBitPlan
 	PLCOut    []PLCBitPlan
 	PLCAnalog []PLCAnalogPlan
+	// PLCAnalogOut are the analogue outputs of the PLCs.
+	PLCAnalogOut []PLCAnalogPlan
+	// Images is the size of the image of each PLC, in the order of PLCs.
+	Images []ImagePlan
 	// PLCs are the instances of the station's PLCs, the first one first: each has an image
 	// of its own, and a program of its own runs it.
 	PLCs    []string
@@ -388,7 +400,7 @@ func findSignal(list []SceneSignal, name string) (plcio.Addr, bool) {
 }
 
 // Address reads an address of PLC k as a station file gives it: as %IX0.3, or as older
-// files do, by the name the PLC module gives the variable, such as IB0Bit03.
+// files do, by the name the PLC module gives the variable, such as IB0Bit03 or AI0.
 func (p *Plan) Address(k int, s string) (plcio.Address, error) {
 	if plcio.IsAddress(s) {
 		return plcio.ParseAddress(s)
@@ -396,13 +408,48 @@ func (p *Plan) Address(k int, s string) (plcio.Address, error) {
 	if k < 0 || k >= len(p.Naming) {
 		return plcio.Address{}, fmt.Errorf("address %q is of no PLC", s)
 	}
+	if channel, ok := p.Naming[k].ParseAnalog(s); ok {
+		if a, ok := p.Analog(k, true, channel); ok {
+			return a.Address, nil
+		}
+		return plcio.Address{}, fmt.Errorf("the PLC has no analogue input %s", s)
+	}
 	return p.Naming[k].Address(s)
+}
+
+// Analog finds an analogue channel of PLC k, an input or an output.
+func (p *Plan) Analog(k int, input bool, channel int) (PLCAnalogPlan, bool) {
+	list := p.PLCAnalogOut
+	if input {
+		list = p.PLCAnalog
+	}
+	for _, a := range list {
+		if a.PLC == k && a.Channel == channel {
+			return a, true
+		}
+	}
+	return PLCAnalogPlan{}, false
+}
+
+// AnalogAt finds the analogue channel of PLC k at an address.
+func (p *Plan) AnalogAt(k int, a plcio.Address) (PLCAnalogPlan, bool) {
+	for _, list := range [][]PLCAnalogPlan{p.PLCAnalog, p.PLCAnalogOut} {
+		for _, x := range list {
+			if x.PLC == k && x.Address == a {
+				return x, true
+			}
+		}
+	}
+	return PLCAnalogPlan{}, false
 }
 
 // Show writes an address of PLC k as its module shows them.
 func (p *Plan) Show(k int, a plcio.Address) string {
 	if k < 0 || k >= len(p.Formats) {
 		return a.String()
+	}
+	if x, ok := p.AnalogAt(k, a); ok {
+		return p.Formats[k].ShowChannel(a, x.Channel)
 	}
 	return p.Formats[k].Show(a)
 }
@@ -2485,7 +2532,7 @@ func (r *resolver) plcBits() {
 		if in.parent != nil || slices.Contains(plcs, in.def.ID) {
 			continue
 		}
-		if slices.ContainsFunc(in.mod.Terminal.Connectors, func(c ConnectorDef) bool { return c.Byte != nil || c.AnalogIn }) {
+		if slices.ContainsFunc(in.mod.Terminal.Connectors, func(c ConnectorDef) bool { return c.Byte != nil || c.Analog || c.AnalogIn }) {
 			plcs = append(plcs, in.def.ID)
 		}
 	}
@@ -2509,6 +2556,21 @@ func (r *resolver) plcBits() {
 		r.plan.Naming = append(r.plan.Naming, naming)
 		r.plan.Formats = append(r.plan.Formats, format)
 	}
+	r.plan.Images = nil
+	layouts := make([]*AnalogLayoutDef, len(plcs))
+	for k, id := range plcs {
+		size := ImagePlan{Inputs: defaultImageBytes, Outputs: defaultImageBytes}
+		if in := r.instances[id]; in != nil && in.mod.PLC != nil {
+			if d := in.mod.PLC.Image; d != nil {
+				size = ImagePlan{Inputs: d.Inputs, Outputs: d.Outputs}
+				if d.Inputs < 0 || d.Outputs < 0 || d.Inputs > plcio.ImageBytes || d.Outputs > plcio.ImageBytes {
+					r.fail("the image of PLC %s has %d bytes of inputs and %d of outputs, but at most %d each", id, d.Inputs, d.Outputs, plcio.ImageBytes)
+				}
+			}
+			layouts[k] = in.mod.PLC.Analog
+		}
+		r.plan.Images = append(r.plan.Images, size)
+	}
 	plcOf := func(in *instance) int { return max(0, slices.Index(plcs, rootOf(in))) }
 	// The nets that pass through a switched connector, which a safety relay cuts.
 	switched := map[string]bool{}
@@ -2522,16 +2584,40 @@ func (r *resolver) plcBits() {
 	for _, in := range r.order {
 		k := plcOf(in)
 		for _, p := range in.pins {
-			if p.conn.AnalogIn {
-				if number, ok := strings.CutPrefix(p.name, "UE"); ok {
-					n, err := strconv.Atoi(number)
-					if err != nil || n < 1 || n > plcio.AnalogInputs {
-						r.fail("PLC pin %s is not an analogue input", p.key)
-						continue
-					}
-					r.plan.PLCAnalog = append(r.plan.PLCAnalog, PLCAnalogPlan{Channel: n - 1, State: r.state(p.key), PLC: k})
-					r.netPLC[r.find(p.key)] = plcio.AnalogInputAddress(n - 1).String()
-					r.netPLCOf[r.find(p.key)] = k
+			if p.conn.Analog || p.conn.AnalogIn {
+				input := strings.HasPrefix(p.name, "UE")
+				if !input && !strings.HasPrefix(p.name, "UA") {
+					continue
+				}
+				n, err := strconv.Atoi(p.name[2:])
+				if err != nil || n < 1 {
+					r.fail("PLC pin %s is not an analogue channel", p.key)
+					continue
+				}
+				var layout *AnalogLayoutDef
+				if k < len(layouts) {
+					layout = layouts[k]
+				}
+				a, ok := r.analogChannel(layout, input, n-1, p.key)
+				if !ok {
+					continue
+				}
+				a.State, a.PLC = r.state(p.key), k
+				size := r.plan.Images[k].Outputs
+				if input {
+					size = r.plan.Images[k].Inputs
+				}
+				if a.Address.Byte+a.Address.Bytes() > size {
+					r.fail("analogue channel %s at %s is outside the image of %d bytes", p.key, a.Address, size)
+					continue
+				}
+				root := r.find(p.key)
+				r.netPLC[root], r.netPLCOf[root] = a.Address.String(), k
+				if input {
+					r.plan.PLCAnalog = append(r.plan.PLCAnalog, a)
+				} else {
+					r.plan.PLCAnalogOut = append(r.plan.PLCAnalogOut, a)
+					r.netPLCOut[root] = true
 				}
 				continue
 			}
@@ -2543,8 +2629,12 @@ func (r *resolver) plcBits() {
 				r.fail("PLC pin %s has no bit number", p.key)
 				continue
 			}
-			if *p.conn.Byte < 0 || *p.conn.Byte >= plcio.ImageBytes {
-				r.fail("connector %s.%s uses byte %d outside the image", in.def.ID, p.conn.ID, *p.conn.Byte)
+			size := r.plan.Images[k].Outputs
+			if p.name[0] == 'I' {
+				size = r.plan.Images[k].Inputs
+			}
+			if *p.conn.Byte < 0 || *p.conn.Byte >= size {
+				r.fail("connector %s.%s uses byte %d outside the image of %d bytes", in.def.ID, p.conn.ID, *p.conn.Byte, size)
 				continue
 			}
 			a := plcio.Addr{Byte: uint8(*p.conn.Byte), Bit: uint8(n)}
@@ -2560,6 +2650,97 @@ func (r *resolver) plcBits() {
 			}
 		}
 	}
+	// An analogue channel takes bytes of its own.
+	bits := map[[3]int]bool{} // PLC, input, byte
+	for _, list := range []struct {
+		bits  []PLCBitPlan
+		input int
+	}{{r.plan.PLCIn, 1}, {r.plan.PLCOut, 0}} {
+		for _, b := range list.bits {
+			bits[[3]int{b.PLC, list.input, int(b.Addr.Byte)}] = true
+		}
+	}
+	analog := append(slices.Clone(r.plan.PLCAnalog), r.plan.PLCAnalogOut...)
+	for i, x := range analog {
+		input := 0
+		if x.Address.Input {
+			input = 1
+		}
+		for b := x.Address.Byte; b < x.Address.Byte+x.Address.Bytes(); b++ {
+			if bits[[3]int{x.PLC, input, b}] {
+				r.fail("analogue channel %s of PLC %s takes byte %d, which a connector uses for bits", x.Address, plcs[x.PLC], b)
+				break
+			}
+		}
+		for _, y := range analog[:i] {
+			if y.PLC == x.PLC && y.Address.Overlaps(x.Address) {
+				r.fail("analogue channels %s and %s of PLC %s overlap", y.Address, x.Address, plcs[x.PLC])
+			}
+		}
+	}
+}
+
+// defaultImageBytes is the size of each direction of a PLC's image whose module does not
+// say: 8 bytes of bits and 4 analogue words after them.
+const defaultImageBytes = 16
+
+// analogChannel places an analogue channel of a PLC as its module's layout says, or else at
+// the word at byte 8 + 2 × channel, an INT of 0 to 27648 for 0 to 10 V.
+func (r *resolver) analogChannel(layout *AnalogLayoutDef, input bool, channel int, key string) (PLCAnalogPlan, bool) {
+	pin := fmt.Sprintf("UA%d", channel+1)
+	if input {
+		pin = fmt.Sprintf("UE%d", channel+1)
+	}
+	out := PLCAnalogPlan{Channel: channel, Address: plcio.WordAddress(input, 8+2*channel), Scaling: plcio.Scaling{Range: [2]float64{0, 10}, Raw: [2]float64{0, 27648}, Unit: "V"}}
+	if layout == nil {
+		return out, true
+	}
+	list := layout.Outputs
+	if input {
+		list = layout.Inputs
+	}
+	i := slices.IndexFunc(list, func(d AnalogDef) bool { return d.Pin == pin })
+	if i < 0 {
+		r.fail("the PLC module does not place its analogue channel %s in the image (plc.analog)", key)
+		return out, false
+	}
+	d := list[i]
+	a, err := plcio.ParseAddress(d.Address)
+	switch {
+	case err != nil:
+		r.fail("analogue channel %s: %v", key, err)
+		return out, false
+	case a.Input != input:
+		r.fail("analogue channel %s is an %s, not at %s", key, map[bool]string{true: "input", false: "output"}[input], d.Address)
+		return out, false
+	}
+	out.Address = a
+	switch d.Type {
+	case "", "INT":
+		if a.Size != plcio.SizeWord {
+			r.fail("analogue channel %s is an INT, which takes a word such as %%IW8, not %s", key, d.Address)
+			return out, false
+		}
+	case "REAL":
+		if a.Size != plcio.SizeDouble {
+			r.fail("analogue channel %s is a REAL, which takes a double word such as %%ID8, not %s", key, d.Address)
+			return out, false
+		}
+		out.Scaling.Real = true
+	default:
+		r.fail("analogue channel %s has type %q: INT or REAL", key, d.Type)
+		return out, false
+	}
+	if d.Range != nil {
+		out.Scaling.Range = *d.Range
+	}
+	if d.Raw != nil {
+		out.Scaling.Raw = *d.Raw
+	}
+	if d.Unit != "" {
+		out.Scaling.Unit = d.Unit
+	}
+	return out, true
 }
 
 // pinDrivers checks every net has at most one source, and adds the copies that
@@ -2576,7 +2757,7 @@ func (r *resolver) pinDrivers() {
 		r.enter(in)
 		for _, p := range in.pins {
 			root := r.find(p.key)
-			if p.conn.Byte != nil && p.name[0] == 'Q' {
+			if p.conn.Byte != nil && p.name[0] == 'Q' || (p.conn.Analog || p.conn.AnalogIn) && strings.HasPrefix(p.name, "UA") {
 				source(root, "PLC output "+p.key)
 			}
 			switch {

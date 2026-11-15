@@ -28,6 +28,19 @@ function changeSetting(address: string, event: Event) {
   if (setting && value >= setting.min && value <= setting.max) void sim.setParameter(setting.id, value)
 }
 
+// An analogue output set by hand during the I/O test, within its range.
+function setAnalog(address: string, range: number[], event: Event) {
+  const value = Number((event.target as HTMLInputElement).value)
+  if (Number.isFinite(value)) void Service.SetTestAnalogFor(plcId.value, address, Math.min(range[1], Math.max(range[0], value)))
+}
+
+const analogGroups = computed(() =>
+  [
+    { title: 'Analogue inputs', list: plcScene.value?.analog ?? [], outputs: false },
+    { title: 'Analogue outputs', list: plcScene.value?.analogOutputs ?? [], outputs: true },
+  ].filter((g) => g.list.length > 0),
+)
+
 const groups = computed(() => [
   { title: 'Inputs', list: plcScene.value?.inputs ?? [], image: plcView.value?.inputs, outputs: false },
   { title: 'Outputs', list: plcScene.value?.outputs ?? [], image: plcView.value?.outputs, outputs: true },
@@ -99,14 +112,28 @@ const groups = computed(() => [
       </tbody>
     </table>
   </section>
-  <section v-if="plcScene?.analog?.length" class="section">
-    <h3 class="section-title">Analogue inputs</h3>
+  <section v-for="group in analogGroups" :key="group.title" class="section">
+    <h3 class="section-title">{{ group.title }}</h3>
     <table>
       <tbody>
-        <tr v-for="signal in plcScene.analog" :key="signal.address" :title="signal.description">
-          <td class="dot-cell volts mono">{{ (plcView?.analog?.[signal.channel] ?? 0).toFixed(2) }} V</td>
+        <tr v-for="signal in group.list" :key="signal.address" :title="signal.description">
+          <td class="dot-cell volts mono">
+            <input
+              v-if="group.outputs && testing"
+              class="analog-set mono"
+              type="number"
+              :min="signal.range[0]"
+              :max="signal.range[1]"
+              :step="(signal.range[1] - signal.range[0]) / 100"
+              :value="(plcView?.analog?.[signal.address] ?? 0).toFixed(2)"
+              :aria-label="`Set ${signal.name}`"
+              @change="setAnalog(signal.address, signal.range, $event)"
+            />
+            <template v-else>{{ (plcView?.analog?.[signal.address] ?? 0).toFixed(2) }}</template>
+            {{ signal.unit }}
+          </td>
           <td class="name">{{ signal.name }}</td>
-          <td class="mono address" :title="signal.address">{{ signal.shown || signal.address }}</td>
+          <td class="mono address" :title="`${signal.address}, ${signal.type}`">{{ signal.shown || signal.address }}</td>
         </tr>
       </tbody>
     </table>
@@ -114,6 +141,14 @@ const groups = computed(() => [
 </template>
 
 <style scoped>
+.analog-set {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 1px 3px;
+  width: 58px;
+}
+
 .help {
   color: var(--text-dim);
   margin: 0 0 8px;

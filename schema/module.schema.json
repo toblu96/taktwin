@@ -55,6 +55,66 @@
       },
       "type": "object"
     },
+    "AnalogDef": {
+      "additionalProperties": false,
+      "description": "AnalogDef is one analogue channel of a PLC: where it is in the image and how its value appears there.",
+      "properties": {
+        "address": {
+          "description": "Address is where it is in the image: a word as %IW8 for an INT, or a double word as %ID8 for a REAL.",
+          "type": "string"
+        },
+        "pin": {
+          "description": "Pin is the PLC's pin of the channel, such as UE1 for an input or UA1 for an output.",
+          "type": "string"
+        },
+        "range": {
+          "description": "Range is that of the value on the wire, [0, 10] without it.",
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "raw": {
+          "description": "Raw is the range of the INT that stands for Range, [0, 27648] without it.",
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "type": {
+          "description": "Type is INT, the raw value in a word, or REAL, the value itself in a double word.",
+          "type": "string"
+        },
+        "unit": {
+          "description": "Unit is that of Range, V without it.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "AnalogLayoutDef": {
+      "additionalProperties": false,
+      "description": "AnalogLayoutDef places a PLC's analogue inputs and outputs in its image.",
+      "properties": {
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/AnalogDef"
+          },
+          "type": "array"
+        },
+        "outputs": {
+          "items": {
+            "$ref": "#/$defs/AnalogDef"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "BoxDef": {
       "additionalProperties": false,
       "description": "BoxDef is a box between two corners.",
@@ -130,8 +190,12 @@
       "additionalProperties": false,
       "description": "ConnectorDef is a physical connector. Type names an entry of connectors.json, which gives its standard pins. Byte marks a PLC connector: its pins are the bits of that image byte. Internal hides a connector that only repeats the signals of another one from the module's pin tables.",
       "properties": {
+        "analog": {
+          "description": "Analog makes the connector's UE pins the PLC's analogue inputs and its UA pins its analogue outputs: UE1 and UA1 are channel 0. The PLC module's plc.analog places them in the image.",
+          "type": "boolean"
+        },
         "analogIn": {
-          "description": "AnalogIn makes the connector's UE pins the PLC's analogue inputs: UE1 is channel 0.",
+          "description": "AnalogIn is the older name of Analog.",
           "type": "boolean"
         },
         "byte": {
@@ -416,7 +480,7 @@
     },
     "Format": {
       "additionalProperties": false,
-      "description": "Format is how a PLC module shows the addresses of its image: a template for bits of the inputs and of the outputs, with {byte}, {bit} (or {bit:2} for two digits), and for words, with {byte} and, for an analogue input, {channel}. Without a template, an address is shown as it is, such as %IX0.3.",
+      "description": "Format is how a PLC module shows the addresses of its image: a template for bits of the inputs and of the outputs, with {byte}, {bit} (or {bit:2} for two digits), and for words, with {byte} and, for an analogue channel, {channel}. Without a template, an address is shown as it is, such as %IX0.3.",
       "properties": {
         "input": {
           "description": "Input shows an input bit, such as \"I{byte}.{bit}\" for I0.3.",
@@ -522,6 +586,19 @@
         },
         "width": {
           "$ref": "#/$defs/Num"
+        }
+      },
+      "type": "object"
+    },
+    "ImageDef": {
+      "additionalProperties": false,
+      "description": "ImageDef is the size of a PLC's image, in bytes.",
+      "properties": {
+        "inputs": {
+          "type": "integer"
+        },
+        "outputs": {
+          "type": "integer"
         }
       },
       "type": "object"
@@ -1022,6 +1099,14 @@
         "addressFormat": {
           "$ref": "#/$defs/Format",
           "description": "AddressFormat is how the PLC shows the addresses of its image, such as I0.3 or E0.3 for %IX0.3. Without it, the templates of Addresses show them, or else they are shown as they are."
+        },
+        "analog": {
+          "$ref": "#/$defs/AnalogLayoutDef",
+          "description": "Analog places the analogue channels in the image. Without it, channel n is the word at byte 8 + 2n of its direction, an INT of 0 to 27648 for 0 to 10 V."
+        },
+        "image": {
+          "$ref": "#/$defs/ImageDef",
+          "description": "Image is how many bytes of inputs and of outputs the PLC has, up to 64 each; 16 each without it, for 8 bytes of bits and 4 analogue words."
         }
       },
       "type": "object"

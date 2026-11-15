@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -136,7 +137,7 @@ func (s *Soft) Download(prog *st.Program, step string) error {
 // again with new names.
 func (s *Soft) SetSpace(sp opcsim.Space) {
 	s.mu.Lock()
-	changed := sp.PLC != s.space.PLC || !maps.Equal(sp.Labels, s.space.Labels)
+	changed := sp.PLC != s.space.PLC || !maps.Equal(sp.Labels, s.space.Labels) || !slices.Equal(sp.Addresses, s.space.Addresses)
 	s.space = sp
 	srv, ctx := s.server, s.ctx
 	if changed {

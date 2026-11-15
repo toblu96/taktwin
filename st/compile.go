@@ -2,6 +2,8 @@ package st
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -95,7 +97,7 @@ type compiler struct {
 
 func newCompiler() *compiler {
 	c := &compiler{
-		prog: &Program{pous: map[string]*POU{}, types: map[string]*Type{}, global: map[string]*Var{}, lists: map[string]map[string]*Var{}},
+		prog:      &Program{pous: map[string]*POU{}, types: map[string]*Type{}, global: map[string]*Var{}, lists: map[string]map[string]*Var{}},
 		dataTypes: map[string]*DataType{}, resolving: map[string]bool{},
 	}
 	for _, fb := range standardFBs() {
@@ -299,16 +301,16 @@ func (c *compiler) bindAddress(v *Var, d *VarDecl, p *POU) {
 	if d.At == "" || v.Type == nil {
 		return
 	}
-	input, byteN, bit, ok := parseAddress(d.At)
+	input, size, byteN, bit, ok := parseAddress(d.At)
 	if !ok {
-		c.errAt(v.Pos, "%s is no address of a bit: write %%IX0.0 for an input or %%QX0.0 for an output", d.At)
+		c.errAt(v.Pos, "%s is no address of the image: write %%IX0.0 or %%QX0.0 for a bit, %%IB0, %%IW8 or %%ID8 for a byte, word or double word", d.At)
 		return
 	}
-	if v.Type.Kind != KBool {
-		c.errAt(v.Pos, "%s at %s is %s, but a bit of the image is a BOOL", v.Name, d.At, v.Type)
+	if !fitsAddress(v.Type, size) {
+		c.errAt(v.Pos, "%s at %s is %s, but %s", v.Name, d.At, v.Type, sizeTypes[size])
 		return
 	}
-	b := ioBit{Byte: byteN, Bit: bit, global: v, slot: v.Slot}
+	b := ioVar{Byte: byteN, Bit: bit, Size: size, typ: v.Type, global: v, slot: v.Slot}
 	if p != nil {
 		b.global, b.pou = nil, p
 	}
@@ -319,20 +321,62 @@ func (c *compiler) bindAddress(v *Var, d *VarDecl, p *POU) {
 	}
 }
 
-// parseAddress reads %IXn.m or %QXn.m.
-func parseAddress(a string) (input bool, byteN, bit int, ok bool) {
-	a = strings.ToUpper(a)
-	switch {
-	case strings.HasPrefix(a, "%IX"):
-		input = true
-	case strings.HasPrefix(a, "%QX"):
-	default:
-		return false, 0, 0, false
+// directAddress is %IX0.3 or %QX0.3 for a bit, and %IB0, %IW8 or %ID8 (and %Q…) for a
+// byte, word or double word.
+var directAddress = regexp.MustCompile(`^%([IQ])(?:X(\d+)\.([0-7])|([BWD])(\d+))$`)
+
+// parseAddress reads a direct address of the image: whether it is an input, its size (X,
+// B, W or D), its byte and, for a bit, its bit.
+func parseAddress(a string) (input bool, size byte, byteN, bit int, ok bool) {
+	m := directAddress.FindStringSubmatch(strings.ToUpper(a))
+	if m == nil {
+		return false, 0, 0, 0, false
 	}
-	if _, err := fmt.Sscanf(a[3:], "%d.%d", &byteN, &bit); err != nil || bit < 0 || bit > 7 || byteN < 0 {
-		return false, 0, 0, false
+	input = m[1] == "I"
+	if m[2] != "" {
+		byteN, _ = strconv.Atoi(m[2])
+		bit, _ = strconv.Atoi(m[3])
+		size = 'X'
+	} else {
+		byteN, _ = strconv.Atoi(m[5])
+		size = m[4][0]
 	}
-	return input, byteN, bit, true
+	if byteN+sizeBytes(size) > ImageBytes {
+		return false, 0, 0, 0, false
+	}
+	return input, size, byteN, bit, true
+}
+
+// sizeBytes is how many bytes an address of a size takes.
+func sizeBytes(size byte) int {
+	switch size {
+	case 'W':
+		return 2
+	case 'D':
+		return 4
+	}
+	return 1
+}
+
+// sizeTypes says which types an address of a size holds.
+var sizeTypes = map[byte]string{
+	'X': "a bit of the image is a BOOL",
+	'B': "a byte of the image is a BYTE, SINT or USINT",
+	'W': "a word of the image is a WORD, INT or UINT",
+	'D': "a double word of the image is a DWORD, DINT, UDINT or REAL",
+}
+
+// fitsAddress says whether a variable of a type can be at an address of a size.
+func fitsAddress(t *Type, size byte) bool {
+	switch size {
+	case 'X':
+		return t.Kind == KBool
+	case 'D':
+		if t.Kind == KReal {
+			return true
+		}
+	}
+	return (t.isInt() || t.isBits()) && t.bits() == 8*sizeBytes(size)
 }
 
 // typeOf resolves a type as written. It gives nil after reporting why it cannot.

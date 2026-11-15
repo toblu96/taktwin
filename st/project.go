@@ -45,13 +45,16 @@ type Program struct {
 	lists    map[string]map[string]*Var // global variable lists by file name, then variable
 	programs []*POU                     // the task's programs, in order
 	cycle    time.Duration
-	inputs   []ioBit
-	outputs  []ioBit
+	inputs   []ioVar
+	outputs  []ioVar
 }
 
-// ioBit is a variable at a direct address: a bit of the input or output image.
-type ioBit struct {
+// ioVar is a variable at a direct address: a bit, byte, word or double word of the input or
+// output image.
+type ioVar struct {
 	Byte, Bit int
+	Size      byte // X, B, W or D
+	typ       *Type
 	global    *Var // a global, or
 	pou       *POU // a variable of a program instance
 	slot      int
