@@ -8,7 +8,7 @@
 
 Taktwin couples a simulated station to a controller. Today there is one way out: an OPC UA server that offers a CODESYS-style variable list called `Bits`, with variables named by a template such as `IB0Bit00`. The built-in soft PLC takes the same path, through its own small OPC UA server.
 
-Connecting FluidSIM 6 showed where this stops. FluidSIM generates its own OPC UA address space, such as `ns=2;s=Aufgabe 2 Vorlage.B1.state_man` (Boolean) and `ns=2;s=Aufgabe 2 Vorlage.MB3.state` (Int32). Taktwin connects and then reports *connected, but the server has no "Bits" variables*, because it only accepts variables whose names fit its template and that sit under a node named like the list. No setting changes that, because the station files themselves store the template's names as addresses.
+Connecting FluidSIM 6 showed where this stops. FluidSIM generates its own OPC UA address space, such as `ns=2;s=Task 2 Template.B1.state_man` (Boolean) and `ns=2;s=Task 2 Template.MB3.state` (Int32). Taktwin connects and then reports *connected, but the server has no "Bits" variables*, because it only accepts variables whose names fit its template and that sit under a node named like the list. No setting changes that, because the station files themselves store the template's names as addresses.
 
 The same will happen with every other server, and with Modbus or MQTT. This ADR decides how signals, addresses, names, connections, exercises and projects are modelled, so that:
 
@@ -34,7 +34,7 @@ The same will happen with every other server, and with Modbus or MQTT. This ADR 
 
 | Persona | Goal | Edits | Shares |
 |---|---|---|---|
-| **Collection author**, such as whoever builds the MPS models | Build modules and stations other people reuse | Modules (3D, devices, pins), stations, default signal names and descriptions | A collection (`.taktwin`), updated rarely |
+| **Collection author**, such as whoever builds the models of a course's training stations | Build modules and stations other people reuse | Modules (3D, devices, pins), stations, default signal names and descriptions | A collection (`.taktwin`), updated rarely |
 | **Exercise author**, usually a teacher | Turn a station into a task, week after week | Starts from installed collections: picks or combines a station, swaps sensors, moves signals to other pins, renames signals, writes the task and its check, optionally adds connection presets and a starting program | An exercise file (`.taktwin-exercise`), sent to the class. A few examples may also ship inside a collection |
 | **Learner or tinkerer**, such as an apprentice | Solve an exercise, or play with a station | In an exercise: only the connection to their controller and their program. On a plain station: everything | A project, saved on their own computer, exported to hand in |
 
@@ -100,7 +100,7 @@ In the reference collection, the I/O block on a module (role `terminal`) is what
 | **Signal** | One I/O point of a PLC as the station sees it: direction (input or output, from the PLC's view), type, address, symbol, description | Created by the wiring | The sensor at the start of the conveyor |
 | **Address** | Where the signal is in the PLC's process image. Stored in the canonical IEC 61131-3 form; how it is *shown* is up to the PLC module | Derived from the wiring (PLC connector + pin) | `%IX0.3`, shown as `I0.3`, `E0.3` or `IB0Bit03` |
 | **Symbol** | The name people, programs and exercise checks use | Module default, overridden by station and exercise | `B1`, `M1`, `palletIn` |
-| **Binding** | Which item of the outside world a signal is exchanged with, and how it is converted | A connection | `B1 ↔ nsu=…;s=Aufgabe 2 Vorlage.B1.state_man` |
+| **Binding** | Which item of the outside world a signal is exchanged with, and how it is converted | A connection | `B1 ↔ nsu=…;s=Task 2 Template.B1.state_man` |
 
 Rule: **physical things belong to modules, stations and exercises; the coupling to the outside belongs to connections.** A connection never changes the station, and a station never knows a protocol.
 
@@ -201,7 +201,7 @@ An exercise and a project both describe "this station, set up like this, with th
 | Extra content | Task, check, connection presets, starting program, its own station if needed | The connection in use, the learner's program, notes |
 | Contains credentials | Never | Never; references a stored secret |
 
-So an exercise does **not** belong to a collection. The MPS models are installed once, as a collection. Each week the teacher writes an exercise that uses them, exports it, and sends the file to the class. The learner opens it, which installs it and creates a project. The collection is not touched.
+So an exercise does **not** belong to a collection. The models of the training stations are installed once, as a collection. Each week the teacher writes an exercise that uses them, exports it, and sends the file to the class. The learner opens it, which installs it and creates a project. The collection is not touched.
 
 Exercise file:
 
@@ -217,10 +217,10 @@ sorting-03.taktwin-exercise   (zip, data only)
 ```json
 {
   "format": 2,
-  "id": "ch.swissskills.mps-sorting-03",
+  "id": "ch.swissskills.sorting-03",
   "version": "1.1.0",
   "name": "Sorting by colour",
-  "requires": { "festo-mps": "^1.2.0" },
+  "requires": { "training-stations": "^1.2.0" },
   "station": "sorting",
   "changes": { "pins": [ { "instance": "conveyor", "pin": "T.I0", "with": "T.I3" } ] },
   "signals": { "%IX0.3": { "symbol": "B_Start", "description": "Workpiece at the start of the conveyor" } },
@@ -248,7 +248,7 @@ Project:
 ```json
 {
   "format": 1,
-  "base": { "exercise": "ch.swissskills.mps-sorting-03", "opened": "1.1.0" },
+  "base": { "exercise": "ch.swissskills.sorting-03", "opened": "1.1.0" },
   "connections": {
     "cabinet": { "preset": "fluidsim", "values": { "project": "Sortieren Lernender 07" } }
   }
@@ -272,7 +272,7 @@ Project:
     "required": ["host", "project"],
     "properties": {
       "host":    { "type": "string", "title": "Computer running FluidSIM", "default": "127.0.0.1", "minLength": 1 },
-      "project": { "type": "string", "title": "FluidSIM project name", "default": "Aufgabe 2 Vorlage", "minLength": 1 }
+      "project": { "type": "string", "title": "FluidSIM project name", "default": "Task 2 Template", "minLength": 1 }
     }
   },
   "settings": {
@@ -281,7 +281,7 @@ Project:
     "auth": { "type": "anonymous" },
     "outputs": { "exchange": "subscribe", "interval": 10 }
   },
-  "namespaces": { "fs": "http://festo.fluidsim.com/UA/DataAccessServer" },
+  "namespaces": { "fs": "<namespace URI that FluidSIM reports for ns=2>" },
   "bindings": [
     { "signal": "B1",  "item": { "nodeId": "nsu={fs};s={project}.B1.state_man" } },
     { "signal": "B2",  "item": { "nodeId": "nsu={fs};s={project}.B2.state_man" } },
@@ -404,7 +404,7 @@ How a client normally reaches a value, and what Taktwin does:
    - The namespace index is only a position in the server's namespace table (`Server.NamespaceArray`, `i=2255`), and the server may change it.
    - The stable form is the ExpandedNodeId with the namespace URI: `nsu=<uri>;s=…`.
    - On every connection, Taktwin reads the namespace table and resolves URIs to indexes. A NodeId typed with `ns=` is accepted. When one is picked in the browser, it is saved with its URI.
-3. **Browse path, as an alternative.** For servers whose NodeIds are not stable, an item can be a path from a start node: a RelativePath such as `/2:Projects/2:Aufgabe 2 Vorlage/2:B1/2:state`. It is resolved once per session with TranslateBrowsePathsToNodeIds.
+3. **Browse path, as an alternative.** For servers whose NodeIds are not stable, an item can be a path from a start node: a RelativePath such as `/2:Projects/2:Task 2 Template/2:B1/2:state`. It is resolved once per session with TranslateBrowsePathsToNodeIds.
 4. **Resolve.** For every bound node, Taktwin reads `DataType`, `ValueRank` and `AccessLevel`/`UserAccessLevel` (CurrentRead, CurrentWrite) once per session. Then it reports per binding:
    - not found (`BadNodeIdUnknown`)
    - not writable, for an input
@@ -421,7 +421,7 @@ What FluidSIM 6.3 shows (from UaExpert):
 - Nodes are `ns=2;s=<FluidSIM project>.<designation>.<variable>`, such as `….B1.state` (Int32), `….B1.state_man` (Boolean) and `….MB3.state` (Int32).
 - Only `state_man` can be written, so inputs (sensors simulated by Taktwin) bind to `<designation>.state_man`, and outputs (valve coils driven by FluidSIM) are read from `<designation>.state`.
 - NodeIds stay the same across restarts, so NodeId items are enough. The project name inside them is a var.
-- The namespace URI behind `ns=2` is `http://festo.fluidsim.com/UA/DataAccessServer`. Presets store NodeIds with this URI (`nsu=…`) rather than `ns=2`, so they keep working if a FluidSIM version or setup ever puts the namespace at another index.
+- The namespace URI behind `ns=2` is known (Server › NamespaceArray). It names the vendor, so it lives in the presets of the collection that ships them, not in this repository. Presets store NodeIds with this URI (`nsu=…`) rather than `ns=2`, so they keep working if a FluidSIM version or setup ever puts the namespace at another index.
 
 ### 10. Safety
 
@@ -500,7 +500,7 @@ What FluidSIM 6.3 shows (from UaExpert):
 | Soft PLC | Keeps its own OPC UA server, reached through the normal `opcua` driver, observable with UaExpert |
 | Analogue | Inputs and outputs from the start |
 | Secrets | OS keychain, at user level, without admin rights |
-| FluidSIM | Only `state_man` is writable; this is part of the bindings. NodeIds are stable. Namespace `http://festo.fluidsim.com/UA/DataAccessServer` |
+| FluidSIM | Only `state_man` is writable; this is part of the bindings. NodeIds are stable. The namespace URI is known and goes into the presets |
 | Exercises in collections | No: standalone files; collections may hold examples |
 | Vars | JSON Schema, draft 2020-12 |
 | Address display | Decided by the PLC module only |
