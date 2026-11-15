@@ -296,6 +296,21 @@ func (l *Library) DefaultWorkpieces() string {
 	return ""
 }
 
+// StationName is the name of a station, or "" for one the library does not have.
+func (l *Library) StationName(id string) string {
+	var st struct {
+		Name string `json:"name"`
+	}
+	if !safeID.MatchString(id) {
+		return ""
+	}
+	data, err := l.ReadFile(path.Join("stations", id, "station.json"))
+	if err != nil || json.Unmarshal(data, &st) != nil {
+		return ""
+	}
+	return st.Name
+}
+
 // Stations lists the ids of all stations in the library.
 func (l *Library) Stations() []string {
 	seen := map[string]bool{}

@@ -62,6 +62,13 @@ export function ClearTestOutputsFor(plc: string): $CancellablePromise<void> {
 }
 
 /**
+ * CloseProject leaves a named project for the unsaved work on its station or exercise.
+ */
+export function CloseProject(): $CancellablePromise<model$0.Scene> {
+    return $Call.ByID(1783334027);
+}
+
+/**
  * ConnectionFor gives a connection one of the station's PLCs can use, by id, to edit.
  */
 export function ConnectionFor(plc: string, id: string): $CancellablePromise<$models.ConnectionDoc> {
@@ -93,10 +100,25 @@ export function DeleteConnection(id: string): $CancellablePromise<void> {
 }
 
 /**
+ * DeleteProject removes a project by name. The one the simulation works in cannot be.
+ */
+export function DeleteProject(name: string): $CancellablePromise<void> {
+    return $Call.ByID(3876729138, name);
+}
+
+/**
  * Exercises lists the exercises of the station in the simulation.
  */
 export function Exercises(): $CancellablePromise<$models.ExerciseInfo[] | null> {
     return $Call.ByID(2470516493);
+}
+
+/**
+ * ExportProject writes the project the simulation works in into a .taktwin-project file the
+ * user picks in the system's dialog. Cancelling gives an empty path.
+ */
+export function ExportProject(): $CancellablePromise<string> {
+    return $Call.ByID(1242405113);
 }
 
 /**
@@ -108,10 +130,29 @@ export function FindCODESYSList(plc: string, values: { [_ in string]?: any } | n
 }
 
 /**
+ * ImportProject lets the user pick a .taktwin-project file in the system's dialog, unpacks it
+ * into a project of its own and opens it. Cancelling gives no name.
+ */
+export function ImportProject(): $CancellablePromise<$models.ProjectInfo> {
+    return $Call.ByID(2579285824);
+}
+
+/**
  * with no PLC until one is connected. The scene it returns is the new station.
+ * 
+ * The simulation then works in the unsaved work on that station.
  */
 export function LoadStation(id: string): $CancellablePromise<model$0.Scene> {
     return $Call.ByID(1820313458, id);
+}
+
+/**
+ * NewProject makes a project of a station under a name and opens it, as a programming tool
+ * makes a new project from a device: its settings as the station has them, no PLC
+ * connected, and the template program once a PLC's program is opened.
+ */
+export function NewProject(name: string, station: string): $CancellablePromise<model$0.Scene> {
+    return $Call.ByID(3061417101, name, station);
 }
 
 /**
@@ -120,6 +161,14 @@ export function LoadStation(id: string): $CancellablePromise<model$0.Scene> {
  */
 export function OpenExercise(id: string): $CancellablePromise<model$0.Scene> {
     return $Call.ByID(2475968076, id);
+}
+
+/**
+ * OpenProject opens a project by name: its station, its settings, and its PLCs' connections,
+ * ready to connect.
+ */
+export function OpenProject(name: string): $CancellablePromise<model$0.Scene> {
+    return $Call.ByID(3471766991, name);
 }
 
 /**
@@ -138,11 +187,33 @@ export function PLCFor(plc: string): $CancellablePromise<$models.PLCConfig> {
 }
 
 /**
+ * PlannedPLC is how the project means one of the station's PLCs, by its module, to be
+ * connected, which the PLC panel offers to connect.
+ */
+export function PlannedPLC(plc: string): $CancellablePromise<$models.PLCConfig> {
+    return $Call.ByID(889672013, plc);
+}
+
+/**
  * PreviewConnection resolves a connection being edited, given as its file, against one of
  * the station's PLCs, with the values of its form.
  */
 export function PreviewConnection(plc: string, doc: string, values: { [_ in string]?: any } | null): $CancellablePromise<$models.Preview> {
     return $Call.ByID(1333851814, plc, doc, values);
+}
+
+/**
+ * Project says which project the simulation works in.
+ */
+export function Project(): $CancellablePromise<$models.ProjectInfo> {
+    return $Call.ByID(3934706095);
+}
+
+/**
+ * Projects lists the projects of the user folder, the latest first.
+ */
+export function Projects(): $CancellablePromise<$models.ProjectInfo[] | null> {
+    return $Call.ByID(239662420);
 }
 
 /**
@@ -165,6 +236,14 @@ export function RunAction(name: string, args: { [_ in string]?: string } | null)
  */
 export function SaveConnection(plc: string, doc: string, values: { [_ in string]?: any } | null): $CancellablePromise<$models.ConnectionInfo> {
     return $Call.ByID(606904059, plc, doc, values);
+}
+
+/**
+ * SaveProjectAs keeps the project the simulation works in under a name, which it then works
+ * in: its programs, connections and settings.
+ */
+export function SaveProjectAs(name: string): $CancellablePromise<$models.ProjectInfo> {
+    return $Call.ByID(4219157912, name);
 }
 
 /**
@@ -217,7 +296,8 @@ export function SetPLCFor(plc: string, c: $models.PLCConfig): $CancellablePromis
 }
 
 /**
- * SetParameter changes a station parameter while the station runs.
+ * SetParameter changes a station parameter while the station runs, and keeps it in the
+ * project.
  */
 export function SetParameter(id: string, value: number): $CancellablePromise<void> {
     return $Call.ByID(2033752465, id, value);

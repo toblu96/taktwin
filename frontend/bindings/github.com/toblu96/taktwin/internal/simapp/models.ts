@@ -338,6 +338,10 @@ export interface PreviewBinding {
  * ProgramProject is a PLC's project as the editor opens it.
  */
 export interface ProgramProject {
+    /**
+     * Project is the key of the project the program is in, which SaveFile takes.
+     */
+    "project": string;
     "station": string;
     "plc": string;
     "title": string;
@@ -355,7 +359,7 @@ export interface ProgramProject {
 
 /**
  * ProgramStatus is the soft PLC's state, whether the simulation is connected to it, and the
- * station the simulation shows: an editor open on another station's project reloads.
+ * project the simulation works in: an editor open on another project's program reloads.
  */
 export interface ProgramStatus {
     "loaded": boolean;
@@ -368,6 +372,32 @@ export interface ProgramStatus {
     "loadedAt": string;
     "connected": boolean;
     "station": string;
+    "project": string;
+}
+
+/**
+ * ProjectInfo is a project as the app lists it.
+ */
+export interface ProjectInfo {
+    "name": string;
+
+    /**
+     * Saved is set for a project with a name; unsaved work has none.
+     */
+    "saved": boolean;
+    "station": string;
+    "stationName": string;
+    "exercise"?: string;
+
+    /**
+     * Folder is where it is kept.
+     */
+    "folder": string;
+
+    /**
+     * Modified is when its file was last written, as RFC 3339.
+     */
+    "modified"?: string;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { Events } from '@wailsio/runtime'
 import { computed, inject, ref, shallowRef, watch, type InjectionKey } from 'vue'
 import { Service } from '../bindings/github.com/toblu96/taktwin/internal/simapp'
+import type { ProjectInfo } from '../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import type { Snapshot } from '../bindings/github.com/toblu96/taktwin/internal/engine'
 import type { Scene, SceneInstance } from '../bindings/github.com/toblu96/taktwin/internal/model'
 
@@ -158,11 +159,39 @@ export async function reloadCollections() {
   }
 }
 
-// Puts another station from the catalog into the simulation.
-export async function loadStation(id: string) {
+// The project the simulation works in: a named one, or the unsaved work on its station.
+export const project = ref<ProjectInfo | null>(null)
+
+export async function refreshProject() {
+  project.value = await Service.Project()
+}
+
+// Shows the station the simulation has after opening something, and its project.
+async function show(next: Promise<Scene>) {
   simulation.selection.value = null
   simulation.snapshot.value = null
-  simulation.scene.value = await Service.LoadStation(id)
+  simulation.scene.value = await next
+  await refreshProject()
+}
+
+// Puts another station from the catalog into the simulation, in the unsaved work on it.
+export const loadStation = (id: string) => show(Service.LoadStation(id))
+
+// Opens a project by name, makes one of a station, or leaves a named one for the unsaved
+// work on its station.
+export const openProject = (name: string) => show(Service.OpenProject(name))
+export const newProject = (name: string, station: string) => show(Service.NewProject(name, station))
+export const closeProject = () => show(Service.CloseProject())
+
+// Keeps the work under a name, which it then is.
+export async function saveProjectAs(name: string) {
+  project.value = await Service.SaveProjectAs(name)
+}
+
+// Imports a project file the user picks, and opens it; cancelling changes nothing.
+export async function importProject() {
+  const info = await Service.ImportProject()
+  if (info.name) await show(Service.Scene())
 }
 
 // The PLC whose programming tool is open over the 3D view, "" for the station's first, or
@@ -175,11 +204,7 @@ export const editingConnection = ref<{ plc: string; id: string; values: Record<s
 export const savedConnection = ref<{ plc: string; id: string; values?: Record<string, unknown> } | null>(null)
 
 // Puts the station of an exercise into the simulation, set up as the exercise changes it.
-export async function openExercise(id: string) {
-  simulation.selection.value = null
-  simulation.snapshot.value = null
-  simulation.scene.value = await Service.OpenExercise(id)
-}
+export const openExercise = (id: string) => show(Service.OpenExercise(id))
 
 export function connect() {
   Events.On('sim:snapshot', (event) => {
@@ -188,6 +213,7 @@ export function connect() {
   Service.Scene()
     .then((value) => {
       simulation.scene.value = value
+      return refreshProject()
     })
     .catch((error: Error) => {
       loadError.value = error.message

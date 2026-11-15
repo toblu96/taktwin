@@ -22,6 +22,22 @@ The **Builder** page puts a station together without editing files. Start from a
 - **Wiring** shows the PLCs, consoles, interfaces and I/O terminals with the cables between them. Click a connector, then another of its kind, to move its cable; click a pin to move what it carries. Each pin shows the PLC address it reaches, as the PLC module shows them, and the name the PLC knows it by, which can be changed.
 - **Save** writes it to your folder, and **Try in Simulation** opens it there.
 
+## Projects
+
+A project keeps your work on a station: the soft PLC's programs, how each PLC is connected, and the station's settings. Its menu is in the top bar, and the app's **File** menu has the same commands with the system's shortcuts, as a programming tool has them:
+
+| Command | Shortcut | Does |
+|---|---|---|
+| New Project… | ⌘N / Ctrl+N | Makes a project of a station under a name and opens it |
+| Open Project… | ⌘O / Ctrl+O | Lists your projects, the latest first, to open or delete one |
+| Save Project | ⌘S / Ctrl+S | Gives untitled work a name; a named project is saved already |
+| Save Project As… | ⌘⇧S / Ctrl+Shift+S | Keeps the project under another name, and goes on in that one |
+| Close Project | | Leaves a named project for the untitled work on its station |
+| Export Project File… | | Writes the project into a `.taktwin-project` file, to hand it in or move it to another computer |
+| Import Project File… | | Opens such a file as a project of its own |
+
+Work on a station that is in no project yet is **Untitled**: it is kept all the same, one for each station, and choosing another station in the top bar goes on with that station's. A named project is saved as it changes. Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. Projects are kept in the `projects` folder of your folder, one folder each, with `project.json` and the programs in `programs/<plc>/`. A project file holds only these, and an import refuses anything else.
+
 ## Running a station
 
 ### Testing I/O by hand
@@ -58,4 +74,4 @@ Each PLC can also run a Structured Text program written in the app. In the PLC's
 - **Online**, the code shows each variable's value in a box after its name. Click a value to prepare a new one, then F7 forces it, Ctrl+F7 writes it once, and Alt+F7 releases all forces.
 - **Watch** lists every variable live, and can prepare, write and force values in the same way.
 
-A project lives in your folder under `programs/<station>/<plc>/`, one `.st` file for each POU, with `project.json` for the task. `Bits.st` is written from the station's I/O table each time the project opens. A new project starts from a template with a step chain; a collection can bring an example program for its station.
+A PLC's program lives in the project you work in, under `programs/<plc>/`, one `.st` file for each POU, with `project.json` for the task. Programs that were kept under `programs/<station>/` in your folder before projects are taken over into the untitled work on that station the first time it opens. `Bits.st` is written from the station's I/O table each time the project opens. A new project starts from a template with a step chain; a collection can bring an example program for its station.

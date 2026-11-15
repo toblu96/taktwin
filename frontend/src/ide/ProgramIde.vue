@@ -114,7 +114,7 @@ function closeTab(name: string) {
 async function save(t: Tab) {
   if (t.readOnly || !dirty(t)) return
   // Into the project the tab comes from, also if the simulation has changed station since.
-  await ProgramService.SaveFile(project.value!.station, project.value!.plc, t.name, t.text)
+  await ProgramService.SaveFile(project.value!.project, project.value!.plc, t.name, t.text)
   t.saved = t.text
 }
 
@@ -340,7 +340,7 @@ let timer = 0
 async function poll() {
   try {
     status.value = await ProgramService.Status(props.plc)
-    if (project.value && status.value.station !== project.value.station) return await follow()
+    if (project.value && status.value.project !== project.value.project) return await follow()
     if (status.value.loaded && (bottom.value === 'watch' || tab.value)) vars.value = (await ProgramService.Variables(props.plc)) ?? []
   } catch {
     // The station may be changing; the next round tries again.
@@ -468,7 +468,7 @@ const stateLabel = computed(() => {
         <button v-if="project?.example?.length" class="new example" title="The program the station's collection comes with, to try it out or to start from" @click="loadExample">
           Load the example program
         </button>
-        <p class="folder" :title="project?.folder">Saved in your folder, under programs/{{ project?.station }}/{{ project?.plc }}</p>
+        <p class="folder" :title="project?.folder">Saved in the project, in {{ project?.folder }}</p>
       </aside>
       <section class="main">
         <nav class="tabs">

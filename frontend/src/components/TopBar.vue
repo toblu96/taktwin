@@ -4,6 +4,7 @@ import { LibraryService, Service as service } from '../../bindings/github.com/to
 import { grouped } from '../collections'
 import { filesRead, loadStation, page, simulation } from '../sim'
 import { updateAvailable } from '../update'
+import ProjectMenu from './ProjectMenu.vue'
 
 const { scene, snapshot } = simulation
 
@@ -37,6 +38,7 @@ const paused = computed(() => snapshot.value?.paused ?? false)
       <button :class="{ active: page === 'builder' }" @click="page = 'builder'">Builder</button>
       <button :class="{ active: page === 'settings' }" @click="page = 'settings'">Settings<span v-if="updateAvailable" class="dot" title="An update is available"></span></button>
     </nav>
+    <ProjectMenu v-if="page === 'simulation'" />
     <select v-if="page === 'simulation'" class="station" :value="scene?.id" aria-label="Station" @change="choose" @focus="refresh">
       <optgroup v-for="g in grouped(stations)" :key="g.id" :label="g.name">
         <option v-for="s in g.items" :key="s.id" :value="s.id">{{ s.name }}</option>

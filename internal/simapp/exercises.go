@@ -66,11 +66,14 @@ func (s *Service) OpenExercise(id string) (model.Scene, error) {
 	if err != nil {
 		return model.Scene{}, err
 	}
-	bundle, e, err := start(bundle)
-	if err != nil {
+	base := Base{Station: bundle.Station.ID, Exercise: id}
+	if _, err := s.openWork(base); err != nil {
 		return model.Scene{}, err
 	}
-	return s.replace(bundle, e, id), nil
+	if err := s.enterUnsaved(base); err != nil {
+		return model.Scene{}, err
+	}
+	return s.Scene(), nil
 }
 
 // describeChanges says what an exercise changes on its station, one line each.

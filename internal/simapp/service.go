@@ -39,6 +39,9 @@ type Service struct {
 	// exercise is the exercise whose station is in the simulation, set up as it changes it,
 	// or empty for the station as it is.
 	exercise string
+	// proj is the project the simulation works in, which keeps the PLCs' connections, the
+	// station's settings and the soft PLCs' programs.
+	proj project
 
 	check checking
 }
@@ -75,7 +78,11 @@ func New() (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Service{engine: e, bundle: bundle, ctx: context.Background(), plcs: map[string]PLCConfig{}}, nil
+	s := &Service{engine: e, bundle: bundle, ctx: context.Background(), plcs: map[string]PLCConfig{}}
+	if err := s.enterUnsaved(Base{Station: station}); err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
 func load(station string) (*model.Bundle, *engine.Engine, error) {
@@ -104,12 +111,16 @@ func start(bundle *model.Bundle) (*model.Bundle, *engine.Engine, error) {
 func (s *Service) DefaultStation() string { return defaultStation(Library()) }
 
 // with no PLC until one is connected. The scene it returns is the new station.
+//
+// The simulation then works in the unsaved work on that station.
 func (s *Service) LoadStation(id string) (model.Scene, error) {
-	bundle, e, err := load(id)
-	if err != nil {
+	if _, err := s.openWork(Base{Station: id}); err != nil {
 		return model.Scene{}, err
 	}
-	return s.replace(bundle, e, ""), nil
+	if err := s.enterUnsaved(Base{Station: id}); err != nil {
+		return model.Scene{}, err
+	}
+	return s.Scene(), nil
 }
 
 // replace puts another station into the simulation, with no PLC.
@@ -197,7 +208,7 @@ func (s *Service) SetPLCFor(plc string, c PLCConfig) error {
 		return err
 	}
 	s.plcs[s.plcKey(plc)] = c
-	return nil
+	return s.remember(plc, c)
 }
 
 // plcOf names a PLC of the station in the simulation by the station and its module, the
@@ -228,11 +239,11 @@ func (s *Service) controller(plc string, c PLCConfig) (plcio.Controller, error) 
 	case PLCNone, "":
 		return softplc.Idle{}, nil
 	case PLCSoft:
-		station, id, err := s.plcOf(plc)
+		_, id, err := s.plcOf(plc)
 		if err != nil {
 			return nil, err
 		}
-		soft := softPLCs.Get(station, id)
+		soft := softPLCs.Get(s.proj.key, id)
 		soft.SetSpace(s.space(plc, id))
 		if err := soft.Serve(s.ctx); err != nil {
 			return nil, err
@@ -319,9 +330,19 @@ func (s *Service) SetControl(name string, on bool) error { return s.current().Se
 // SetFault enables or clears a fault.
 func (s *Service) SetFault(name string, on bool) error { return s.current().SetFault(name, on) }
 
-// SetParameter changes a station parameter while the station runs.
+// SetParameter changes a station parameter while the station runs, and keeps it in the
+// project.
 func (s *Service) SetParameter(id string, value float64) error {
-	return s.current().SetParameter(id, value)
+	if err := s.current().SetParameter(id, value); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.proj.def.Parameters == nil {
+		s.proj.def.Parameters = map[string]float64{}
+	}
+	s.proj.def.Parameters[id] = value
+	return s.saveProject()
 }
 
 // SetPaused pauses or resumes the simulation.

@@ -39,6 +39,7 @@ export type {
     PreviewBinding,
     ProgramProject,
     ProgramStatus,
+    ProjectInfo,
     SignalInfo,
     UpdateRelease,
     UpdateStatus,
