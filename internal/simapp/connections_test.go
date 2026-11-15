@@ -84,8 +84,10 @@ func TestThePLCOffersItsConnections(t *testing.T) {
 	if !slices.Equal(ids, []string{"codesys@Taktwin", "mine@Your folder"}) {
 		t.Errorf("connections: %v", ids)
 	}
-	if !strings.Contains(list[0].Vars, `"default": "|var|CODESYS Control Win V3 x64.Application.Bits"`) {
-		t.Errorf("the CODESYS connection asks for the list: %s", list[0].Vars)
+	for _, want := range []string{`"default": "CODESYS Control Win V3 x64"`, `"default": "Application"`, `"default": "Bits"`} {
+		if !strings.Contains(list[0].Vars, want) {
+			t.Errorf("the CODESYS connection asks for the parts of its NodeIds: %s", list[0].Vars)
+		}
 	}
 	if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal, Connection: "nope"}); err == nil {
 		t.Error("a connection that does not exist")

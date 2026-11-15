@@ -1,6 +1,6 @@
 // Package opcsim is a small OPC UA server inside the app: the soft PLC's. It runs a PLC
 // program and offers its image the way a PLC's OPC UA server does, so the simulation reaches
-// it as it reaches any other controller, and tools such as UaExpert can watch it. Each bit
+// it as it reaches any other controller, and any OPC UA client can watch it. Each bit
 // of the image is a node named by its address, as nsu=urn:taktwin:softplc;s=cabinet.%IX0.3,
 // and each analogue input a node of volts, as …;s=cabinet.%IW8.
 package opcsim

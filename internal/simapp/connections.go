@@ -103,17 +103,19 @@ func codesys(naming plcio.Naming, m *model.PLCMapDef) link.Connection {
 		Driver:      "opcua",
 		Vars: json.RawMessage(`{
   "type": "object",
-  "required": ["endpoint", "namespace", "list"],
+  "required": ["endpoint", "runtime", "application", "list", "namespace"],
   "properties": {
-    "endpoint": { "type": "string", "title": "Server address", "default": "opc.tcp://127.0.0.1:4840", "pattern": "^opc\\.tcp://" },
-    "namespace": { "type": "string", "title": "Namespace", "description": "The namespace of the variables, as ns=<index> or nsu=<URI>, as UaExpert shows it", "default": "ns=4", "pattern": "^nsu?=" },
-    "list": { "type": "string", "title": "Variable list", "description": "The NodeId of the list without its namespace, as UaExpert shows it", "default": "|var|CODESYS Control Win V3 x64.Application.` + naming.List + `", "minLength": 1 }
+    "endpoint": { "type": "string", "title": "Server address", "description": "opc.tcp:// and the computer the PLC runs on, with port 4840 unless its OPC UA server is set to another", "default": "opc.tcp://127.0.0.1:4840", "pattern": "^opc\\.tcp://" },
+    "runtime": { "type": "string", "title": "PLC name", "description": "How the PLC names itself in its variables, the part after |var|: the name of its runtime, such as CODESYS Control Win V3 x64, unless its configuration sets another", "default": "CODESYS Control Win V3 x64", "minLength": 1 },
+    "application": { "type": "string", "title": "Application", "description": "The application in the device tree of the CODESYS project", "default": "Application", "minLength": 1 },
+    "list": { "type": "string", "title": "Variable list", "description": "The global variable list with the image, as named in the CODESYS project", "default": "` + naming.List + `", "minLength": 1 },
+    "namespace": { "type": "string", "title": "Namespace", "description": "The namespace of the PLC's variables on its server, as ns=<index> or nsu=<URI>: ns=4 for CODESYS", "default": "ns=4", "pattern": "^nsu?=" }
   }
 }`),
 		Settings: json.RawMessage(`{"endpoint": "{endpoint}"}`),
 	}
 	item := func(name string) json.RawMessage {
-		data, _ := json.Marshal(map[string]string{"nodeId": "{namespace};s={list}." + name})
+		data, _ := json.Marshal(map[string]string{"nodeId": "{namespace};s=|var|{runtime}.{application}.{list}." + name})
 		return data
 	}
 	c.Generate = []link.GenerateDef{{Signals: "inputs", Item: item(naming.Inputs)}, {Signals: "outputs", Item: item(naming.Outputs)}}
