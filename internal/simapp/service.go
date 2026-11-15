@@ -3,20 +3,19 @@
 package simapp
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"path/filepath"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/toblu96/taktwin/internal/engine"
+	"github.com/toblu96/taktwin/internal/link"
+	"github.com/toblu96/taktwin/internal/link/opcua"
 	"github.com/toblu96/taktwin/internal/model"
-	"github.com/toblu96/taktwin/internal/opclink"
 	"github.com/toblu96/taktwin/internal/plcio"
 	"github.com/toblu96/taktwin/internal/softplc"
 )
@@ -48,7 +47,8 @@ type Service struct {
 const (
 	// PLCNone is no PLC: every output stays off, unless the I/O test switches it.
 	PLCNone = "none"
-	// PLCExternal connects to an OPC UA server such as a CODESYS soft PLC.
+	// PLCExternal connects to a controller outside the app, such as a CODESYS PLC or
+	// FluidSIM, through one of the connections the PLC can use.
 	PLCExternal = "external"
 	// PLCSoft connects over OPC UA to the app's own soft PLC for that PLC of the station,
 	// which runs the Structured Text program written in its editor.
@@ -58,10 +58,10 @@ const (
 // PLCConfig says which PLC the station uses.
 type PLCConfig struct {
 	Mode string `json:"mode"`
-	// Endpoint is the server to connect to, for PLCExternal.
-	Endpoint string `json:"endpoint"`
-	// Map names an address map of the station, for a program with other addresses.
-	Map string `json:"map"`
+	// Connection names the connection, for PLCExternal (see ConnectionsFor).
+	Connection string `json:"connection"`
+	// Values are what its vars are set to; the others keep their defaults.
+	Values map[string]any `json:"values"`
 }
 
 // New loads the library's default station: the one the first collection names, such as the
@@ -179,7 +179,10 @@ func (s *Service) SetPLC(c PLCConfig) error { return s.SetPLCFor("", c) }
 func (s *Service) PLCFor(plc string) PLCConfig {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return cmp.Or(s.plcs[s.plcKey(plc)], PLCConfig{Mode: PLCNone})
+	if c, ok := s.plcs[s.plcKey(plc)]; ok {
+		return c
+	}
+	return PLCConfig{Mode: PLCNone}
 }
 
 // SetPLCFor connects one of the station's PLCs, by its module, and restarts the station.
@@ -230,41 +233,27 @@ func (s *Service) controller(plc string, c PLCConfig) (plcio.Controller, error) 
 			return nil, err
 		}
 		soft := softPLCs.Get(station, id)
-		naming := s.naming(plc)
-		soft.SetNaming(naming)
+		soft.SetSpace(s.space(plc, id))
 		if err := soft.Serve(s.ctx); err != nil {
 			return nil, err
 		}
-		return opclink.Start(s.ctx, opclink.Options{Endpoint: soft.Endpoint(), Name: soft.Name(), Naming: naming, Analog: s.analogNames(plc), Bytes: s.imageBytes(plc), Program: soft.LinkProgram()}), nil
+		resolved, err := opcua.SoftPLC(soft.Endpoint(), id).Resolve(s.signals(plc), nil)
+		if err != nil {
+			return nil, err
+		}
+		return link.Start(s.ctx, link.Options{Name: soft.Name(), Connection: resolved, Program: soft.LinkProgram()})
 	case PLCExternal:
-		if !strings.HasPrefix(c.Endpoint, "opc.tcp://") {
-			return nil, fmt.Errorf("%q is not an OPC UA address: it starts with opc.tcp://", c.Endpoint)
+		conn, err := s.connection(plc, c.Connection)
+		if err != nil {
+			return nil, err
 		}
-		var addresses plcio.AddressMap
-		if s.plcKey(plc) == "" {
-			var err error
-			if addresses, err = s.engine.Plan().AddressMap(c.Map); err != nil {
-				return nil, err
-			}
+		resolved, err := conn.Resolve(s.signals(plc), c.Values)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", conn.Name, err)
 		}
-		return opclink.Start(s.ctx, opclink.Options{Endpoint: c.Endpoint, Name: "OPC UA server", Naming: s.naming(plc), Map: addresses, Analog: s.analogNames(plc), Bytes: s.imageBytes(plc)}), nil
+		return link.Start(s.ctx, link.Options{Name: conn.Name, Connection: resolved})
 	}
 	return nil, fmt.Errorf("unknown PLC mode %q", c.Mode)
-}
-
-// analogNames lists the analogue inputs a PLC of the station uses, by the names its
-// program gives them.
-func (s *Service) analogNames(plc string) []string {
-	scene := s.engine.Plan().Scene
-	var names []string
-	for _, p := range scene.PLCs {
-		if p.Module == plc || plc == "" && p.Module == scene.PLC.Module {
-			for _, a := range p.Analog {
-				names = append(names, p.Naming.AnalogInput(a.Channel))
-			}
-		}
-	}
-	return names
 }
 
 // naming is how a PLC of the station names the variables of its image, as its module says.
@@ -278,25 +267,6 @@ func (s *Service) naming(plc string) plcio.Naming {
 		return plcio.Naming{}
 	}
 	return plan.Naming[k]
-}
-
-// imageBytes is how many bytes of the image a PLC of the station uses: up to the highest
-// byte of its signals.
-func (s *Service) imageBytes(plc string) int {
-	plan := s.engine.Plan()
-	k := slices.Index(plan.PLCs, plc)
-	if plc == "" {
-		k = 0
-	}
-	bytes := 0
-	for _, list := range [][]model.PLCBitPlan{plan.PLCIn, plan.PLCOut} {
-		for _, b := range list {
-			if b.PLC == k {
-				bytes = max(bytes, int(b.Addr.Byte)+1)
-			}
-		}
-	}
-	return bytes
 }
 
 // AcknowledgeFellOff clears the warning about workpieces lost off the station.

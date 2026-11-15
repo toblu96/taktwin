@@ -51,6 +51,15 @@ export function ClearTestOutputsFor(plc: string): $CancellablePromise<void> {
 }
 
 /**
+ * ConnectionsFor lists the connections one of the station's PLCs can use, by its module,
+ * the first one for "": the app's own for CODESYS, one for each address map of the station,
+ * then the files of the user's folder and of the collections.
+ */
+export function ConnectionsFor(plc: string): $CancellablePromise<$models.ConnectionInfo[] | null> {
+    return $Call.ByID(3931994334, plc);
+}
+
+/**
  * LoadStation replaces the station in the simulation with another one from the catalog,
  * DefaultStation is the station the library opens first, "" when it has none.
  */

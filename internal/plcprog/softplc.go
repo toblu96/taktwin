@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 
@@ -26,8 +27,8 @@ type Soft struct {
 	cycle  time.Duration
 	server *opcsim.Server
 	ctx    context.Context
-	// naming is how the station's PLC module names the variables the server offers.
-	naming plcio.Naming
+	// space is how the server names the nodes of the image.
+	space opcsim.Space
 	// clock gives the time for the timers; nil is the wall clock since the start.
 	clock func() time.Duration
 	// loaded is when the program was downloaded.
@@ -131,12 +132,12 @@ func (s *Soft) Download(prog *st.Program, step string) error {
 	return nil
 }
 
-// SetNaming says how the PLC module names the variables of its image, which the OPC UA
-// server offers by those names. A running server starts again with new names.
-func (s *Soft) SetNaming(n plcio.Naming) {
+// SetSpace says how the OPC UA server names the nodes of the image. A running server starts
+// again with new names.
+func (s *Soft) SetSpace(sp opcsim.Space) {
 	s.mu.Lock()
-	changed := s.naming != n
-	s.naming = n
+	changed := sp.PLC != s.space.PLC || !maps.Equal(sp.Labels, s.space.Labels)
+	s.space = sp
 	srv, ctx := s.server, s.ctx
 	if changed {
 		s.server = nil
@@ -156,9 +157,9 @@ func (s *Soft) Serve(ctx context.Context) error {
 		return nil
 	}
 	s.ctx = ctx
-	naming := s.naming
+	space := s.space
 	s.mu.Unlock()
-	srv, err := opcsim.StartOnFreePort(ctx, s, naming)
+	srv, err := opcsim.StartOnFreePort(ctx, s, space)
 	if err != nil {
 		return err
 	}

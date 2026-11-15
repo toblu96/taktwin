@@ -30,6 +30,7 @@ export type {
     BuilderStation,
     CheckState,
     CollectionInfo,
+    ConnectionInfo,
     ExerciseInfo,
     FolderInfo,
     PLCConfig,

@@ -224,9 +224,9 @@ func (p *ProgramService) Download(plc string) (BuildResult, error) {
 	}
 	soft := softPLCs.Get(station, id)
 	p.sim.mu.Lock()
-	naming := p.sim.naming(plc)
+	space := p.sim.space(plc, id)
 	p.sim.mu.Unlock()
-	soft.SetNaming(naming)
+	soft.SetSpace(space)
 	if err := soft.Serve(p.sim.ctx); err != nil {
 		return BuildResult{}, err
 	}

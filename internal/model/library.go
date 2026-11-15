@@ -144,6 +144,38 @@ func (l *Library) Folder(dir string) (map[string][]byte, error) {
 	return nil, nil
 }
 
+// LayerFile is a file of a folder in one layer of a library.
+type LayerFile struct {
+	Name string
+	// Collection is the collection the layer is, "" for one of none such as the user's folder.
+	Collection string
+	Data       []byte
+}
+
+// Files reads the files of a folder in every layer that has it, the front layer first, such
+// as the connections that collections and the user's folder bring. A file that cannot be read
+// is left out.
+func (l *Library) Files(dir string) []LayerFile {
+	var out []LayerFile
+	for i, layer := range l.layers {
+		items, err := fs.ReadDir(layer, dir)
+		if err != nil {
+			continue
+		}
+		for _, it := range items {
+			if it.IsDir() {
+				continue
+			}
+			data, err := fs.ReadFile(layer, path.Join(dir, it.Name()))
+			if err != nil {
+				continue
+			}
+			out = append(out, LayerFile{Name: it.Name(), Collection: l.collections[i], Data: data})
+		}
+	}
+	return out
+}
+
 // With returns a library with another layer in front, such as a station being edited.
 func (l *Library) With(layer fs.FS) *Library {
 	return NewLibrary(append([]fs.FS{layer}, l.layers...)...)

@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/toblu96/taktwin/internal/opclink"
+	"github.com/toblu96/taktwin/internal/link"
+	"github.com/toblu96/taktwin/internal/link/opcua"
+	"github.com/toblu96/taktwin/internal/opcsim"
 	"github.com/toblu96/taktwin/internal/plcio"
 )
 
@@ -18,8 +20,6 @@ var signals = []Signal{
 
 // A new project has the template's structure, with the station's signals in the Bits list and
 // by name in IO_Mapping, and it builds as it is.
-// naming is how the PLC of these tests names its variables.
-var naming = plcio.Naming{Inputs: "IB{byte}Bit{bit:2}", Outputs: "QB{byte}Bit{bit:2}", Analog: "AI{channel}", List: "Bits"}
 
 func TestANewProjectBuilds(t *testing.T) {
 	p, err := Open(t.TempDir(), signals)
@@ -57,8 +57,8 @@ func TestANewProjectBuilds(t *testing.T) {
 	}
 }
 
-// The soft PLC serves its Bits list over OPC UA, so the simulation reaches it as it would
-// CODESYS: what the station sends in, the program answers.
+// The soft PLC serves its image over OPC UA, so the simulation reaches it as it would any
+// other PLC: what the station sends in, the program answers.
 func TestTheSoftPLCAnswersOverOPCUA(t *testing.T) {
 	dir := t.TempDir()
 	p, err := Open(dir, signals)
@@ -76,7 +76,7 @@ END_PROGRAM`); err != nil {
 		t.Fatal(diags)
 	}
 	s := NewSoft("Soft PLC test")
-	s.SetNaming(naming)
+	s.SetSpace(opcsim.Space{PLC: "cabinet"})
 	if err := s.Serve(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,14 @@ END_PROGRAM`); err != nil {
 	if err := s.Start(); err != nil {
 		t.Fatal(err)
 	}
-	l := opclink.Start(context.Background(), opclink.Options{Endpoint: s.Endpoint(), Name: "test", Naming: naming, Program: s.LinkProgram()})
+	resolved, err := opcua.SoftPLC(s.Endpoint(), "cabinet").Resolve(link.Image(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := link.Start(context.Background(), link.Options{Name: "test", Connection: resolved, Program: s.LinkProgram()})
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer l.Close()
 	var in plcio.Image
 	in.Set(plcio.Addr{Byte: 0, Bit: 0}, true)

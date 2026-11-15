@@ -16,6 +16,7 @@ modules/<id>/module.json        a machine
 accessories/<id>/module.json    what goes onto machines: sensors, I/O blocks, consoles, PLCs
 stations/<id>/station.json      a station: which modules, where, how they are cabled and wired
 exercises/<id>/exercise.json    a task on a station, and how a run of it is checked
+connections/<id>.json           how a station's PLC connects to a controller outside the app
 ```
 
 `modules/` and `accessories/` use the same format; the library lists them apart. A module folder can hold more than its `module.json`, such as the Structured Text source of a controller the module brings (see [Programs](#programs)).
@@ -196,7 +197,7 @@ A module with the role `plc` and a `plc` device is a PLC. Its connectors with a 
 "addresses": { "inputs": "IB{byte}Bit{bit:2}", "outputs": "QB{byte}Bit{bit:2}", "analog": "AI{channel}", "list": "Bits" }
 ```
 
-The soft PLC declares them in its `Bits.st`, and over OPC UA the station finds them in the variable list `list`. The image has 8 bytes of inputs and 8 of outputs.
+The soft PLC declares them in its `Bits.st`, and the app's connection to CODESYS expects them in the variable list `list` (see [Connections](#connections)). The image has 8 bytes of inputs and 8 of outputs.
 
 Stations give addresses as IEC 61131-3 direct addresses: `%IX0.3` is bit 3 of input byte 0, `%QX0.3` the same output bit, and `%IW8`, `%IW10`, `%IW12` and `%IW14` are the analogue inputs `UE1` to `UE4`, after the bytes of bits. Older station files give the names of `addresses` instead, such as `IB0Bit03`, which still works.
 
@@ -207,6 +208,70 @@ How a PLC shows its addresses on screen is up to its module. `plc.addressFormat`
 ```
 
 Without it, the templates of `addresses` show them, as `IB0Bit03` and `AI0`. An address without a template is shown as it is.
+
+## Connections
+
+A connection says how a PLC of a station is coupled to a controller outside the app, such as a CODESYS PLC or a FluidSIM project: which driver talks to it, how it is reached, and which item of it each signal of the station is exchanged with. The station itself never changes for it. The PLC panel offers the app's own connections, one to CODESYS and one for each `plc.maps` entry of the station, and the files in `connections/` of the user's folder and of the collections.
+
+```json
+{
+  "id": "fluidsim",
+  "name": "FluidSIM project",
+  "station": "pallet-loading",
+  "driver": "opcua",
+  "vars": {
+    "type": "object",
+    "required": ["host", "port", "project"],
+    "properties": {
+      "host": { "type": "string", "title": "Computer running FluidSIM", "default": "127.0.0.1" },
+      "port": { "type": "integer", "title": "Port of its OPC UA server", "minimum": 1, "maximum": 65535, "default": 4840 },
+      "project": { "type": "string", "title": "FluidSIM project name", "default": "Task 2", "minLength": 1 }
+    }
+  },
+  "settings": { "endpoint": "opc.tcp://{host}:{port}" },
+  "namespaces": { "fs": "<the namespace URI the server gives for its components>" },
+  "bindings": [
+    { "signal": "B1", "item": { "nodeId": "nsu={fs};s={project}.B1.state_man" } },
+    { "address": "%QX0.0", "item": { "nodeId": "nsu={fs};s={project}.MB3.state" } }
+  ],
+  "generate": [
+    { "signals": "outputs", "item": { "nodeId": "nsu={fs};s={project}.{symbol}.state" } }
+  ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `id`, `name`, `description` | How the panel lists it. An id already taken by a connection listed earlier is left out |
+| `station`, `plc` | The station and PLC module instance it fits. Without `station` it fits every station; without `plc`, the first PLC |
+| `driver` | `opcua` |
+| `vars` | A [JSON Schema](https://json-schema.org/) (draft 2020-12) of an object: one property per value someone fills in, from which the panel makes its form. `title`, `description`, `default`, `examples`, `required`, `minimum`, `maximum`, `multipleOf`, `pattern`, `enum` and `oneOf` with `const` and `title` shape the form; `writeOnly` marks a secret, which the app does not keep. A schema may not refer to another file |
+| `settings` | The driver's. Texts may use `{var}` |
+| `namespaces` | Names for texts, such as a namespace URI, used as `{name}` like a var |
+| `bindings` | One signal each, by its symbol (`signal`) or its `address`, and the driver's `item` for it. `invert` exchanges a bit the other way round; `scale` (`from` and `to`, two numbers each) converts an analogue value. An input may go to more than one item; an output may come from only one |
+| `generate` | Makes a binding for each signal of a kind, `inputs`, `outputs`, `analog` or `all`, from an item whose texts may also use `{address}`, `{shown}`, `{symbol}`, `{byte}`, `{bit}`, `{bit:2}` and `{channel}` |
+
+Direction comes from the signal: the app writes a PLC input to its item and reads a PLC output from its item. An explicit binding takes the place of a generated one that writes the same: for an input, the same item; for an output, the same signal. In the example, every output comes from the node named like its symbol, except `%QX0.0`, which comes from `MB3`. A signal without a binding is not exchanged, which the panel lists.
+
+A symbol binding (`"signal": "B1"`) follows the signal when an exercise moves it to another pin, as a component of a co-simulation should. An address binding (`"address": "%IX0.3"`) stays with the address, whatever is wired there, as a real PLC's input would.
+
+### opcua
+
+The OPC UA driver is a client of any server. Its settings:
+
+| Setting | Meaning |
+|---|---|
+| `endpoint` | The server, as `opc.tcp://host:port` |
+| `security` | `policy` and `mode`, both `None` so far |
+| `auth` | `type`: `anonymous` so far |
+| `outputs` | `exchange`: `poll`; `interval` in milliseconds, 5 to 1000, 10 without it |
+
+An item is a node, by `nodeId` or by browse `path`:
+
+- `nodeId` as the server writes it, `ns=<index>;s=<name>`, or with the namespace's URI, `nsu=<URI>;s=<name>`, which holds even if the server puts the namespace at another index. `i=`, `g=` and `b=` identifiers work too.
+- `path`, such as `/2:Projects/2:Task 2/2:B1`: browse names with the index of their namespace, followed from the Objects folder, or from the node `from`.
+
+When it connects, the driver checks every node once: that it exists, can be written for an input and read for an output, and holds a Boolean or a number. A node that fails is left out and listed, and the others are exchanged. Values are written as the node's own type: a bit as `true` and `false` or `1` and `0`; an analogue input in volts into a float, and in millivolts into an integer, unless the binding scales it. Inputs are written when they change, outputs read on every interval. When the connection is lost, the PLC's outputs go off, and the driver connects again.
 
 ## Roles
 
@@ -265,7 +330,7 @@ A station file says its `format`, which is 5; the app reads no other. Modules an
 | `actions` | Station-wide functions, in the same form as a module's |
 | `docks` | Station-wide widgets, at `bottom` or `side` |
 | `plc.signals` | Names for the signals of the PLC image, by address, such as `%IX0.0`. A signal the station does not name takes the `symbol` of a pin on its way, or else the name `instance.pin` |
-| `plc.maps` | Other addresses for a PLC program written for another wiring: each entry connects a `signal` to a `variable` of the list, optionally inverted |
+| `plc.maps` | Other addresses for a PLC program written for another wiring: each entry connects a `signal` to a `variable` of the list, optionally inverted. The PLC panel offers each as a CODESYS connection |
 | `plcs` | The PLCs besides the first one, of stations side by side, each with its `module` and `signals`. Every PLC has an image of its own, its own program or OPC UA connection, and its own I/O test |
 
 Signals are referenced as `instance.device.state` or `instance.connector.pin`. Everything joined by cables, wires and bridges is one electrical net with one value, so a signal travels from a device through its terminals to the PLC as on a real station.

@@ -297,8 +297,8 @@ Project:
 
 ```json
 "generate": [
-  { "signals": "inputs",  "by": "address", "item": { "nodeId": "nsu={app};s={prefix}.IB{byte}Bit{bit:2}" } },
-  { "signals": "outputs", "by": "address", "item": { "nodeId": "nsu={app};s={prefix}.QB{byte}Bit{bit:2}" } }
+  { "signals": "inputs",  "item": { "nodeId": "nsu={app};s={prefix}.IB{byte}Bit{bit:2}" } },
+  { "signals": "outputs", "item": { "nodeId": "nsu={app};s={prefix}.QB{byte}Bit{bit:2}" } }
 ]
 ```
 

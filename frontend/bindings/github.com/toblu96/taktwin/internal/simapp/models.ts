@@ -224,6 +224,26 @@ export interface CollectionInfo {
 }
 
 /**
+ * ConnectionInfo is a connection a PLC of the station can use, for the PLC panel.
+ */
+export interface ConnectionInfo {
+    "id": string;
+    "name": string;
+    "description"?: string;
+
+    /**
+     * Source is where it comes from: the app, a collection by name, or the user's folder.
+     */
+    "source": string;
+    "driver": string;
+
+    /**
+     * Vars is the JSON Schema of the values someone fills in, as JSON; "" for none.
+     */
+    "vars": string;
+}
+
+/**
  * ExerciseInfo is an exercise on the station in the simulation.
  */
 export interface ExerciseInfo {
@@ -256,14 +276,14 @@ export interface PLCConfig {
     "mode": string;
 
     /**
-     * Endpoint is the server to connect to, for PLCExternal.
+     * Connection names the connection, for PLCExternal (see ConnectionsFor).
      */
-    "endpoint": string;
+    "connection": string;
 
     /**
-     * Map names an address map of the station, for a program with other addresses.
+     * Values are what its vars are set to; the others keep their defaults.
      */
-    "map": string;
+    "values": { [_ in string]?: any } | null;
 }
 
 /**
