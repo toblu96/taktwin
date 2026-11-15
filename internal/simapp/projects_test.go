@@ -111,7 +111,7 @@ func TestAProjectIsSavedUnderAName(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "programs", "cabinet", "Extra.st")); err != nil {
 		t.Error(err)
 	}
-	for _, key := range []string{"../x", ".unsaved/../../x", "a/b", ""} {
+	for _, key := range []string{"../x", ".unsaved/../../x", "a/b", "", "pallet-loading", ".unsaved/nope"} {
 		if err := prog.SaveFile(key, "cabinet", "X.st", ""); err == nil {
 			t.Errorf("no project %q", key)
 		}

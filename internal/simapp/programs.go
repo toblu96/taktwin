@@ -149,7 +149,11 @@ func (p *ProgramService) SaveFile(projectKey, plc, name, src string) error {
 	case isUnsaved && (unsaved != unsavedFolder || !folderName(rest)), !isUnsaved && !projectName(projectKey), !folderName(plc):
 		return fmt.Errorf("there is no program for %q in %q", plc, projectKey)
 	}
-	proj := &plcprog.Project{Dir: filepath.Join(project{key: projectKey}.dir(), "programs", plc)}
+	dir := project{key: projectKey}.dir()
+	if _, ok, _ := readProject(dir); !ok {
+		return fmt.Errorf("there is no project %q: it was closed or deleted", projectKey)
+	}
+	proj := &plcprog.Project{Dir: filepath.Join(dir, "programs", plc)}
 	return proj.Write(name, src)
 }
 
