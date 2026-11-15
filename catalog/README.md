@@ -47,7 +47,8 @@ A module is a physical unit you could unscrew from where it stands. Its coordina
 | `modules`, `wires`, `cables`, `links` | Modules it contains, and how they join up inside it. A link with `if` is left out when that is false, for optional parts |
 | `sites`, `mounts` | Where other modules can be screwed to it, and where it is screwed down itself. See [Mounting](#mounting) |
 | `role` | What the module is to the builder beyond something to screw on. See [Roles](#roles) |
-| `addresses` | For a PLC: how it names the variables of its image. See [PLCs](#plcs) |
+| `addresses` | For a PLC: how its program names the variables of its image. See [PLCs](#plcs) |
+| `plc` | For a PLC: how it shows its addresses. See [PLCs](#plcs) |
 | `group` | Where the library lists an accessory: Sensors, Actuators, PLC and I/O, or Mechanical |
 
 A `description` on a module is what people read in the library, so say what it is and what it does. The library previews every entry on its own, without a PLC.
@@ -162,6 +163,7 @@ Every module declares its connectors, and every pin is fixed. Pins named `I<n>` 
 | `reads` | The state this pin reports. `invert` flips it, as for a normally closed button |
 | `constant` | A fixed level |
 | `spare` | Deliberately unused |
+| `symbol` | The name the PLC gives the signal of this pin, such as `B1`, where the station names none |
 
 - A connector's `type` names an entry of `connectors.json`, which gives its pins. The `wires` type has freely named pins, for parts with loose wires.
 - `bridges` connect two connectors inside a module: digital pin n of `a` joins pin n + `offset` of `b`. With `pins` a bridge joins only the named pins, such as an analogue signal.
@@ -194,7 +196,17 @@ A module with the role `plc` and a `plc` device is a PLC. Its connectors with a 
 "addresses": { "inputs": "IB{byte}Bit{bit:2}", "outputs": "QB{byte}Bit{bit:2}", "analog": "AI{channel}", "list": "Bits" }
 ```
 
-A station names the bits in `plc.signals` by these names, the soft PLC declares them in its `Bits.st`, and over OPC UA the station finds them in the variable list `list`. The image has 8 bytes of inputs and 8 of outputs.
+The soft PLC declares them in its `Bits.st`, and over OPC UA the station finds them in the variable list `list`. The image has 8 bytes of inputs and 8 of outputs.
+
+Stations give addresses as IEC 61131-3 direct addresses: `%IX0.3` is bit 3 of input byte 0, `%QX0.3` the same output bit, and `%IW8`, `%IW10`, `%IW12` and `%IW14` are the analogue inputs `UE1` to `UE4`, after the bytes of bits. Older station files give the names of `addresses` instead, such as `IB0Bit03`, which still works.
+
+How a PLC shows its addresses on screen is up to its module. `plc.addressFormat` has a template for input and output bits, with `{byte}` and `{bit}` (or `{bit:2}`), and for input and output words, with `{byte}` and, for analogue inputs, `{channel}`:
+
+```json
+"plc": { "addressFormat": { "input": "E{byte}.{bit}", "output": "A{byte}.{bit}", "inputWord": "EW{byte}" } }
+```
+
+Without it, the templates of `addresses` show them, as `IB0Bit03` and `AI0`. An address without a template is shown as it is.
 
 ## Roles
 
@@ -252,7 +264,7 @@ A station file says its `format`, which is 5; the app reads no other. Modules an
 | `wires` | Join two pins |
 | `actions` | Station-wide functions, in the same form as a module's |
 | `docks` | Station-wide widgets, at `bottom` or `side` |
-| `plc.signals` | Names for the bits of the PLC image, by the PLC's `addresses`, such as `IB0Bit00` |
+| `plc.signals` | Names for the signals of the PLC image, by address, such as `%IX0.0`. A signal the station does not name takes the `symbol` of a pin on its way, or else the name `instance.pin` |
 | `plc.maps` | Other addresses for a PLC program written for another wiring: each entry connects a `signal` to a `variable` of the list, optionally inverted |
 | `plcs` | The PLCs besides the first one, of stations side by side, each with its `module` and `signals`. Every PLC has an image of its own, its own program or OPC UA connection, and its own I/O test |
 

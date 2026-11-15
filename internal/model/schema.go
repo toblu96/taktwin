@@ -379,8 +379,19 @@ type PinDef struct {
 	Invert   bool   `json:"invert,omitempty"`
 	Constant *bool  `json:"constant,omitempty"`
 	Spare    bool   `json:"spare,omitempty"`
+	// Symbol is the name the PLC program gives the signal of this pin by default, such as B1,
+	// where the station names none.
+	Symbol string `json:"symbol,omitempty"`
 	// When leaves the pin out where it is false, as of a part a module may come without.
 	When Num `json:"when"`
+}
+
+// PLCModuleDef is what a PLC module says about its image, apart from any protocol.
+type PLCModuleDef struct {
+	// AddressFormat is how the PLC shows the addresses of its image, such as I0.3 or E0.3
+	// for %IX0.3. Without it, the templates of Addresses show them, or else they are shown
+	// as they are.
+	AddressFormat *plcio.Format `json:"addressFormat,omitempty"`
 }
 
 // ConnectorDef is a physical connector. Type names an entry of connectors.json,
@@ -499,8 +510,10 @@ type ModuleDef struct {
 	// Addresses is how the program of a module of the plc role names the variables of its
 	// image, which it needs: inputs, outputs and analogue inputs, with {byte}, {bit} (or
 	// {bit:2} for two digits) and {channel}, and the variable list they are in, as a PLC
-	// offers them over OPC UA. Station files name the PLC's signals by these names.
+	// offers them over OPC UA. Older station files name the PLC's signals by these names.
 	Addresses *plcio.Naming `json:"addresses,omitempty"`
+	// PLC describes the image of a module of the plc role apart from any protocol.
+	PLC *PLCModuleDef `json:"plc,omitempty"`
 	// Floor is the size of a module of the station role on the floor.
 	Floor *FloorDef `json:"floor,omitempty"`
 

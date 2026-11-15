@@ -203,223 +203,223 @@
     "module": "cabinet",
     "signals": [
       {
-        "address": "IB0Bit00",
+        "address": "%IX0.0",
         "name": "B1",
         "variable": "palletIn",
         "description": "Pallet at the start of the conveyor"
       },
       {
-        "address": "IB0Bit01",
+        "address": "%IX0.1",
         "name": "B2",
         "variable": "palletAtStop",
         "description": "Pallet at the stop"
       },
       {
-        "address": "IB0Bit02",
+        "address": "%IX0.2",
         "name": "B3",
         "variable": "palletAtEnd",
         "description": "Pallet at the end of the conveyor"
       },
       {
-        "address": "IB0Bit03",
+        "address": "%IX0.3",
         "name": "S5",
         "variable": "stopDown",
         "description": "Pallet stop lowered"
       },
       {
-        "address": "QB0Bit00",
+        "address": "%QX0.0",
         "name": "M1",
         "variable": "conveyorRun",
         "description": "Run the pallet conveyor"
       },
       {
-        "address": "QB0Bit01",
+        "address": "%QX0.1",
         "name": "Y1",
         "variable": "stopRelease",
         "description": "Lower the pallet stop"
       },
       {
-        "address": "IB1Bit00",
+        "address": "%IX1.0",
         "name": "B4",
         "variable": "pusherBack",
         "description": "Magazine pusher back"
       },
       {
-        "address": "IB1Bit01",
+        "address": "%IX1.1",
         "name": "B5",
         "variable": "pusherOut",
         "description": "Magazine pusher out"
       },
       {
-        "address": "IB1Bit02",
+        "address": "%IX1.2",
         "name": "B6",
         "variable": "magEmpty",
         "description": "Pallet magazine empty"
       },
       {
-        "address": "QB1Bit00",
+        "address": "%QX1.0",
         "name": "Y2",
         "variable": "pushOut",
         "description": "Push a pallet out of the magazine"
       },
       {
-        "address": "IB2Bit00",
+        "address": "%IX2.0",
         "name": "A1_DONE",
         "variable": "xDone",
         "description": "Bridge in position"
       },
       {
-        "address": "IB2Bit01",
+        "address": "%IX2.1",
         "name": "A2_DONE",
         "variable": "yDone",
         "description": "Carriage in position"
       },
       {
-        "address": "IB2Bit02",
+        "address": "%IX2.2",
         "name": "B7",
         "variable": "vacuumOk",
         "description": "Vacuum switch: a carton is held"
       },
       {
-        "address": "QB2Bit00",
+        "address": "%QX2.0",
         "name": "A1_R0",
         "variable": "xPos0",
         "description": "Bridge position, bit 0"
       },
       {
-        "address": "QB2Bit01",
+        "address": "%QX2.1",
         "name": "A1_R1",
         "variable": "xPos1",
         "description": "Bridge position, bit 1"
       },
       {
-        "address": "QB2Bit02",
+        "address": "%QX2.2",
         "name": "A1_GO",
         "variable": "xGo",
         "description": "Bridge go"
       },
       {
-        "address": "QB2Bit03",
+        "address": "%QX2.3",
         "name": "A2_R0",
         "variable": "yPos0",
         "description": "Carriage position, bit 0"
       },
       {
-        "address": "QB2Bit04",
+        "address": "%QX2.4",
         "name": "A2_R1",
         "variable": "yPos1",
         "description": "Carriage position, bit 1"
       },
       {
-        "address": "QB2Bit05",
+        "address": "%QX2.5",
         "name": "A2_GO",
         "variable": "yGo",
         "description": "Carriage go"
       },
       {
-        "address": "QB2Bit06",
+        "address": "%QX2.6",
         "name": "Y3",
         "variable": "vacuum",
         "description": "Vacuum on"
       },
       {
-        "address": "IB3Bit00",
+        "address": "%IX3.0",
         "name": "A3_DONE",
         "variable": "zDone",
         "description": "Mast in position"
       },
       {
-        "address": "QB3Bit00",
+        "address": "%QX3.0",
         "name": "A3_R0",
         "variable": "zPos0",
         "description": "Mast position, bit 0"
       },
       {
-        "address": "QB3Bit01",
+        "address": "%QX3.1",
         "name": "A3_R1",
         "variable": "zPos1",
         "description": "Mast position, bit 1"
       },
       {
-        "address": "QB3Bit02",
+        "address": "%QX3.2",
         "name": "A3_GO",
         "variable": "zGo",
         "description": "Mast go"
       },
       {
-        "address": "IB4Bit00",
+        "address": "%IX4.0",
         "name": "B8",
         "variable": "cartonIn",
         "description": "Carton at the start of the belt"
       },
       {
-        "address": "IB4Bit01",
+        "address": "%IX4.1",
         "name": "B9",
         "variable": "cartonAtPick",
         "description": "Carton at the pick place"
       },
       {
-        "address": "QB4Bit00",
+        "address": "%QX4.0",
         "name": "M2",
         "variable": "cartonRun",
         "description": "Run the carton conveyor"
       },
       {
-        "address": "IB5Bit00",
+        "address": "%IX5.0",
         "name": "S1",
         "variable": "start",
         "description": "Start button"
       },
       {
-        "address": "IB5Bit01",
+        "address": "%IX5.1",
         "name": "S2",
         "variable": "stop",
         "description": "Stop button (normally closed)"
       },
       {
-        "address": "IB5Bit02",
+        "address": "%IX5.2",
         "name": "S3",
         "variable": "man",
         "description": "Key switch, 1 = manual"
       },
       {
-        "address": "IB5Bit03",
+        "address": "%IX5.3",
         "name": "S4",
         "variable": "reset",
         "description": "Reset button"
       },
       {
-        "address": "IB5Bit04",
+        "address": "%IX5.4",
         "name": "S0",
         "variable": "eStopOk",
         "description": "Emergency stop released (normally closed)"
       },
       {
-        "address": "IB5Bit05",
+        "address": "%IX5.5",
         "name": "K1",
         "variable": "powerOk",
         "description": "Actuator power on: the safety relay is closed"
       },
       {
-        "address": "QB5Bit00",
+        "address": "%QX5.0",
         "name": "P1",
         "variable": "lStart",
         "description": "Start lamp"
       },
       {
-        "address": "QB5Bit01",
+        "address": "%QX5.1",
         "name": "P2",
         "variable": "lReset",
         "description": "Reset lamp"
       },
       {
-        "address": "QB5Bit02",
+        "address": "%QX5.2",
         "name": "P3",
         "variable": "lGreen",
         "description": "Stack light green"
       },
       {
-        "address": "QB5Bit03",
+        "address": "%QX5.3",
         "name": "P4",
         "variable": "lAmber",
         "description": "Stack light amber"

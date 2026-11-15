@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/toblu96/taktwin/internal/model"
+	"github.com/toblu96/taktwin/internal/plcio"
 	"github.com/toblu96/taktwin/st"
 )
 
@@ -389,14 +390,15 @@ func cmpOr(a, b string) string {
 	return b
 }
 
-// Signals is the I/O table of one of a station's PLCs, as the Bits list declares it.
+// Signals is the I/O table of one of a station's PLCs, as the Bits list declares it: each
+// signal by the name the PLC module gives the variable at its address.
 func Signals(p model.ScenePLC) []Signal {
 	var out []Signal
 	for _, s := range p.Inputs {
-		out = append(out, Signal{Name: s.Name, Address: s.Address, Variable: s.Variable, Description: s.Description, Input: true, Byte: int(s.Byte), Bit: int(s.Bit)})
+		out = append(out, Signal{Name: s.Name, Address: p.Naming.Input(plcio.Addr{Byte: s.Byte, Bit: s.Bit}), Variable: s.Variable, Description: s.Description, Input: true, Byte: int(s.Byte), Bit: int(s.Bit)})
 	}
 	for _, s := range p.Outputs {
-		out = append(out, Signal{Name: s.Name, Address: s.Address, Variable: s.Variable, Description: s.Description, Byte: int(s.Byte), Bit: int(s.Bit)})
+		out = append(out, Signal{Name: s.Name, Address: p.Naming.Output(plcio.Addr{Byte: s.Byte, Bit: s.Bit}), Variable: s.Variable, Description: s.Description, Byte: int(s.Byte), Bit: int(s.Bit)})
 	}
 	return out
 }

@@ -408,7 +408,12 @@ export interface WiringPin {
     "analog": boolean;
     "function": string;
     "source": string;
+
+    /**
+     * Address is the PLC address the pin reaches, as %IX0.3, and Shown how the PLC shows it.
+     */
     "address": string;
+    "shown": string;
     "name": string;
 
     /**

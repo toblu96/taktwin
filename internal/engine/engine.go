@@ -368,14 +368,14 @@ func (e *Engine) SetIOTestFor(plc string, on bool) error {
 	return nil
 }
 
-// SetTestOutput switches one output by hand during an I/O test. The variable is a name of
-// the PLC's image, as its module names them.
-func (e *Engine) SetTestOutput(variable string, on bool) error {
-	return e.SetTestOutputFor("", variable, on)
+// SetTestOutput switches one output by hand during an I/O test. The address is as %QX0.3,
+// or the name the PLC module gives the variable, such as QB0Bit03.
+func (e *Engine) SetTestOutput(address string, on bool) error {
+	return e.SetTestOutputFor("", address, on)
 }
 
 // SetTestOutputFor switches one output of one of the station's PLCs by hand.
-func (e *Engine) SetTestOutputFor(plc, variable string, on bool) error {
+func (e *Engine) SetTestOutputFor(plc, address string, on bool) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	run, err := e.plc(plc)
@@ -386,12 +386,16 @@ func (e *Engine) SetTestOutputFor(plc, variable string, on bool) error {
 	if k >= len(e.plan.Naming) {
 		return errors.New("the station has no PLC")
 	}
-	a, isInput, err := e.plan.Naming[k].Parse(variable)
+	at, err := e.plan.Address(k, address)
 	if err != nil {
 		return err
 	}
-	if isInput {
-		return fmt.Errorf("%s is an input, and comes from the station", variable)
+	if at.Input {
+		return fmt.Errorf("%s is an input, and comes from the station", address)
+	}
+	a, ok := at.InImage()
+	if !ok {
+		return fmt.Errorf("%s is no output bit of the PLC", address)
 	}
 	if !run.ioTest {
 		return errors.New("outputs can only be switched by hand during an I/O test")

@@ -242,7 +242,7 @@ const hint = computed(() => {
                       </template>
                       <span v-else class="spare">spare</span>
                     </td>
-                    <td class="addr mono">{{ pin.address }}</td>
+                    <td class="addr mono" :title="pin.address">{{ pin.shown || pin.address }}</td>
                     <td>
                       <input class="name mono" :value="pin.name" :disabled="!pin.address || busy" placeholder="—" title="What the PLC calls it" @change="rename(pin, $event)" />
                     </td>

@@ -252,14 +252,15 @@ func (s *Service) controller(plc string, c PLCConfig) (plcio.Controller, error) 
 	return nil, fmt.Errorf("unknown PLC mode %q", c.Mode)
 }
 
-// analogNames lists the analogue inputs a PLC of the station uses.
+// analogNames lists the analogue inputs a PLC of the station uses, by the names its
+// program gives them.
 func (s *Service) analogNames(plc string) []string {
 	scene := s.engine.Plan().Scene
 	var names []string
 	for _, p := range scene.PLCs {
 		if p.Module == plc || plc == "" && p.Module == scene.PLC.Module {
 			for _, a := range p.Analog {
-				names = append(names, a.Address)
+				names = append(names, p.Naming.AnalogInput(a.Channel))
 			}
 		}
 	}

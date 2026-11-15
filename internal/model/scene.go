@@ -3,6 +3,7 @@ package model
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -116,7 +117,9 @@ type ScenePin struct {
 	Invert   bool   `json:"invert,omitempty"`
 	State    int    `json:"state"`
 	PLCName  string `json:"plcName,omitempty"`
-	Address  string `json:"address,omitempty"`
+	// Address is the PLC address the pin reaches, as %IX0.3, and Shown how its PLC shows it.
+	Address string `json:"address,omitempty"`
+	Shown   string `json:"shown,omitempty"`
 	// PLC is the PLC module that Address is of, where the station has more than one.
 	PLC      string `json:"plc,omitempty"`
 	Forcible bool   `json:"forcible,omitempty"` // no device sets it, so a test can
@@ -190,8 +193,10 @@ type SceneParameter struct {
 
 // SceneSignal is one named bit of the PLC image.
 type SceneSignal struct {
-	Name        string `json:"name"`
+	Name string `json:"name"`
+	// Address is where the bit is, as %IX0.3, and Shown how the PLC shows it, as I0.3.
 	Address     string `json:"address"`
+	Shown       string `json:"shown"`
 	Variable    string `json:"variable,omitempty"`
 	Description string `json:"description,omitempty"`
 	Byte        uint8  `json:"byte"`
@@ -211,8 +216,10 @@ type ScenePLC struct {
 
 // SceneAnalog is a named analogue input of the PLC.
 type SceneAnalog struct {
-	Name        string `json:"name"`
+	Name string `json:"name"`
+	// Address is the input's word, as %IW8, and Shown how the PLC shows it.
 	Address     string `json:"address"`
+	Shown       string `json:"shown"`
 	Description string `json:"description,omitempty"`
 	Channel     int    `json:"channel"`
 }
@@ -328,7 +335,9 @@ func (r *resolver) sceneConnectors(in *instance) []SceneConnector {
 			}
 		}
 		for _, s := range def.Signals {
-			byAddress[fmt.Sprint(k, s.Address)] = s.Name
+			if a, err := r.plan.Address(k, s.Address); err == nil {
+				byAddress[fmt.Sprint(k, a)] = s.Name
+			}
 		}
 	}
 	plcOf := func(root string) string {
@@ -358,6 +367,9 @@ func (r *resolver) sceneConnectors(in *instance) []SceneConnector {
 			}
 			if sp.Address != "" {
 				// A pin on a PLC's net is an output where the PLC drives the net.
+				if a, err := plcio.ParseAddress(sp.Address); err == nil {
+					sp.Shown = r.plan.Show(r.netPLCOf[root], a)
+				}
 				sp.PLC = plcOf(root)
 				sp.Output = r.netPLCOut[root]
 			}
@@ -666,12 +678,12 @@ func (r *resolver) scenePLC(st *StationDef, def StationPLCDef, k int) ScenePLC {
 	bits := map[string]bool{}
 	for _, b := range r.plan.PLCIn {
 		if b.PLC == k {
-			bits[naming.Input(b.Addr)] = true
+			bits[plcio.BitAddress(true, b.Addr).String()] = true
 		}
 	}
 	for _, b := range r.plan.PLCOut {
 		if b.PLC == k {
-			bits[naming.Output(b.Addr)] = true
+			bits[plcio.BitAddress(false, b.Addr).String()] = true
 		}
 	}
 	list := "plc"
@@ -681,30 +693,32 @@ func (r *resolver) scenePLC(st *StationDef, def StationPLCDef, k int) ScenePLC {
 	for i := range def.Signals {
 		s := &def.Signals[i]
 		r.where = fmt.Sprintf("station %s, %s.signals[%d]", st.ID, list, i)
-		if channel, ok := naming.ParseAnalog(s.Address); ok {
-			if !slices.ContainsFunc(r.plan.PLCAnalog, func(a PLCAnalogPlan) bool { return a.Channel == channel && a.PLC == k }) {
-				r.fail("address %s is not on a PLC connector", s.Address)
-				continue
-			}
-			p.Analog = append(p.Analog, SceneAnalog{Name: s.Name, Address: s.Address, Description: s.Description, Channel: channel})
-			continue
-		}
-		input, a, err := r.parseAddress(k, s.Address)
+		at, err := r.plan.Address(k, s.Address)
 		if err != nil {
 			r.fail("%v", err)
 			continue
 		}
-		if seen[s.Address] {
+		address := at.String()
+		if seen[address] {
 			r.fail("address %s is named twice", s.Address)
 			continue
 		}
-		seen[s.Address] = true
-		if !bits[s.Address] {
+		seen[address] = true
+		if channel, ok := at.AnalogInput(); ok {
+			if !slices.ContainsFunc(r.plan.PLCAnalog, func(a PLCAnalogPlan) bool { return a.Channel == channel && a.PLC == k }) {
+				r.fail("address %s is not on a PLC connector", s.Address)
+				continue
+			}
+			p.Analog = append(p.Analog, SceneAnalog{Name: s.Name, Address: address, Shown: r.plan.Show(k, at), Description: s.Description, Channel: channel})
+			continue
+		}
+		a, inImage := at.InImage()
+		if !inImage || !bits[address] {
 			r.fail("address %s is not on a PLC connector", s.Address)
 			continue
 		}
-		sig := SceneSignal{Name: s.Name, Address: s.Address, Variable: s.Variable, Description: s.Description, Byte: a.Byte, Bit: a.Bit}
-		if input {
+		sig := SceneSignal{Name: s.Name, Address: address, Shown: r.plan.Show(k, at), Variable: s.Variable, Description: s.Description, Byte: a.Byte, Bit: a.Bit}
+		if at.Input {
 			p.Inputs = append(p.Inputs, sig)
 		} else {
 			p.Outputs = append(p.Outputs, sig)
@@ -715,12 +729,15 @@ func (r *resolver) scenePLC(st *StationDef, def StationPLCDef, k int) ScenePLC {
 	return p
 }
 
-// defaultSignals names the bits a station leaves unnamed after the module pin they reach,
-// so that a station put together from modules has an I/O table without writing one. Only
-// a bit that reaches a device counts, and the pin of the outermost module on its way wins,
-// as the magazine's "Slide retracted" over its switch's.
+// defaultSignals names the bits a station leaves unnamed, so that a station put together
+// from modules has an I/O table without writing one. Only a bit that reaches a device counts.
+// Its name is the symbol a module gives a pin on its way, the outermost module's first, or
+// else the outermost pin with a function, as instance.pin; its description is that pin's,
+// as the magazine's "Slide retracted" over its switch's. A symbol already in use is not
+// taken twice.
 func (r *resolver) defaultSignals(p *ScenePLC, named map[string]bool, k int) {
 	found := map[string]*pin{}
+	symbol := map[string]*pin{}
 	depth := func(q *pin) int { return strings.Count(q.inst.def.ID, "/") }
 	// Only a net with a device on it means something, not a spare socket.
 	device := map[string]bool{}
@@ -733,27 +750,50 @@ func (r *resolver) defaultSignals(p *ScenePLC, named map[string]bool, k int) {
 	}
 	for _, in := range r.order {
 		for _, q := range in.pins {
-			if !q.declared || q.def.Function == "" || !device[r.find(q.key)] {
+			if !q.declared || !device[r.find(q.key)] {
 				continue
 			}
 			addr, ok := r.netPLC[r.find(q.key)]
 			if !ok || named[addr] || r.netPLCOf[r.find(q.key)] != k {
 				continue
 			}
-			if best := found[addr]; best == nil || depth(q) < depth(best) {
+			if best := found[addr]; q.def.Function != "" && (best == nil || depth(q) < depth(best)) {
 				found[addr] = q
+			}
+			if best := symbol[addr]; q.def.Symbol != "" && (best == nil || depth(q) < depth(best)) {
+				symbol[addr] = q
 			}
 		}
 	}
+	used := map[string]bool{}
+	for _, list := range [][]SceneSignal{p.Inputs, p.Outputs} {
+		for _, s := range list {
+			used[s.Name] = true
+		}
+	}
+	for _, s := range p.Analog {
+		used[s.Name] = true
+	}
+	addrs := slices.Sorted(maps.Keys(found))
 	var inputs, outputs []SceneSignal
-	for addr, q := range found {
-		input, a, err := r.parseAddress(k, addr)
+	for _, addr := range addrs {
+		q := found[addr]
+		at, err := plcio.ParseAddress(addr)
 		if err != nil {
+			continue
+		}
+		a, ok := at.InImage()
+		if !ok {
 			continue // an analogue input
 		}
-		name := cmp.Or(q.inst.def.Name, q.inst.mod.Name)
-		sig := SceneSignal{Name: q.inst.def.ID + "." + q.name, Address: addr, Description: name + ": " + q.def.Function, Byte: a.Byte, Bit: a.Bit}
-		if input {
+		name := q.inst.def.ID + "." + q.name
+		if s := symbol[addr]; s != nil && !used[s.def.Symbol] {
+			name = s.def.Symbol
+		}
+		used[name] = true
+		module := cmp.Or(q.inst.def.Name, q.inst.mod.Name)
+		sig := SceneSignal{Name: name, Address: addr, Shown: r.plan.Show(k, at), Description: module + ": " + q.def.Function, Byte: a.Byte, Bit: a.Bit}
+		if at.Input {
 			inputs = append(inputs, sig)
 		} else {
 			outputs = append(outputs, sig)

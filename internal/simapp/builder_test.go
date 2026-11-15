@@ -162,8 +162,11 @@ func TestBuildingOnTheReferenceStation(t *testing.T) {
 	if got := module(st, "console").Place.At; got != place.At {
 		t.Errorf("the console stands at %v, not %v", got, place.At)
 	}
-	// Signals are named by the cabinet's addresses.
+	// Signals are named by address, or by the name the cabinet gives the variable there.
 	if _, err = s.SetSignal("", "IB0Bit00", "palletIn"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.SetSignal("", "%QX0.0", "conveyorOn"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.SetSignal("", "EB0Bit00", "palletIn"); err == nil || !strings.Contains(err.Error(), "no signal EB0Bit00") {
@@ -189,8 +192,10 @@ func TestBuildingOnTheReferenceStation(t *testing.T) {
 	if got := module(st, "console").Place.At; got != place.At {
 		t.Errorf("the saved console stands at %v, not %v", got, place.At)
 	}
-	if !slices.ContainsFunc(again.draft.PLC.Signals, func(sig draftSignal) bool { return sig.Address == "IB0Bit00" && sig.Name == "palletIn" }) {
-		t.Errorf("the signal keeps its name: %+v", again.draft.PLC.Signals)
+	for address, name := range map[string]string{"%IX0.0": "palletIn", "%QX0.0": "conveyorOn"} {
+		if !slices.ContainsFunc(again.draft.PLC.Signals, func(sig draftSignal) bool { return sig.Address == address && sig.Name == name }) {
+			t.Errorf("%s keeps its name %s: %+v", address, name, again.draft.PLC.Signals)
+		}
 	}
 }
 

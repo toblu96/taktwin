@@ -306,8 +306,11 @@ type Plan struct {
 	Logic     []LogicPlan
 	Safety    []SafetyPlan
 	Programs  []ProgramPlan
-	// Naming is how the program of each PLC, in the order of PLCs, names its variables.
-	Naming    []plcio.Naming
+	// Naming is how the program of each PLC, in the order of PLCs, names its variables over
+	// OPC UA.
+	Naming []plcio.Naming
+	// Formats is how each PLC, in the order of PLCs, shows the addresses of its image.
+	Formats   []plcio.Format
 	Processes []ProcessPlan
 	Controls  map[string]int // device name to state index
 	Copies    []CopyPlan
@@ -384,13 +387,24 @@ func findSignal(list []SceneSignal, name string) (plcio.Addr, bool) {
 	return plcio.Addr{}, false
 }
 
-// parseAddress reads the name of a variable of the image of PLC k, as its module names them.
-func (r *resolver) parseAddress(k int, s string) (input bool, a plcio.Addr, err error) {
-	if k >= len(r.plan.Naming) {
-		return false, a, fmt.Errorf("address %q is of no PLC", s)
+// Address reads an address of PLC k as a station file gives it: as %IX0.3, or as older
+// files do, by the name the PLC module gives the variable, such as IB0Bit03.
+func (p *Plan) Address(k int, s string) (plcio.Address, error) {
+	if plcio.IsAddress(s) {
+		return plcio.ParseAddress(s)
 	}
-	a, input, err = r.plan.Naming[k].Parse(s)
-	return input, a, err
+	if k < 0 || k >= len(p.Naming) {
+		return plcio.Address{}, fmt.Errorf("address %q is of no PLC", s)
+	}
+	return p.Naming[k].Address(s)
+}
+
+// Show writes an address of PLC k as its module shows them.
+func (p *Plan) Show(k int, a plcio.Address) string {
+	if k < 0 || k >= len(p.Formats) {
+		return a.String()
+	}
+	return p.Formats[k].Show(a)
 }
 
 // pin is one resolved connector pin.
@@ -439,7 +453,7 @@ type resolver struct {
 	segs      map[string]int
 	alias     map[string]string
 	pins      map[string]*pin
-	netPLC    map[string]string // net root to PLC address
+	netPLC    map[string]string // net root to PLC address, as %IX0.3
 	netPLCOf  map[string]int    // net root to the PLC that address belongs to
 	netPLCOut map[string]bool   // net roots that a PLC output drives
 	// cuts holds the gaps cut into each rail, by its full id, in mm along the rail.
@@ -2479,15 +2493,21 @@ func (r *resolver) plcBits() {
 		plcs = append([]string{plcs[first]}, slices.Delete(plcs, first, first+1)...)
 	}
 	r.plan.PLCs = plcs
-	r.plan.Naming = nil
+	r.plan.Naming, r.plan.Formats = nil, nil
 	for _, id := range plcs {
 		naming := plcio.Naming{}
-		if in := r.instances[id]; in != nil && in.mod.Addresses != nil {
+		in := r.instances[id]
+		if in != nil && in.mod.Addresses != nil {
 			naming = *in.mod.Addresses
 		} else {
 			r.fail("the PLC %s does not say how its program names its variables: its module needs addresses", id)
 		}
+		format := naming.Format()
+		if in != nil && in.mod.PLC != nil && in.mod.PLC.AddressFormat != nil {
+			format = *in.mod.PLC.AddressFormat
+		}
 		r.plan.Naming = append(r.plan.Naming, naming)
+		r.plan.Formats = append(r.plan.Formats, format)
 	}
 	plcOf := func(in *instance) int { return max(0, slices.Index(plcs, rootOf(in))) }
 	// The nets that pass through a switched connector, which a safety relay cuts.
@@ -2510,7 +2530,7 @@ func (r *resolver) plcBits() {
 						continue
 					}
 					r.plan.PLCAnalog = append(r.plan.PLCAnalog, PLCAnalogPlan{Channel: n - 1, State: r.state(p.key), PLC: k})
-					r.netPLC[r.find(p.key)] = r.plan.Naming[k].AnalogInput(n - 1)
+					r.netPLC[r.find(p.key)] = plcio.AnalogInputAddress(n - 1).String()
 					r.netPLCOf[r.find(p.key)] = k
 				}
 				continue
@@ -2532,10 +2552,10 @@ func (r *resolver) plcBits() {
 			r.netPLCOf[root] = k
 			if p.name[0] == 'I' {
 				r.plan.PLCIn = append(r.plan.PLCIn, PLCBitPlan{Addr: a, State: r.state(p.key), PLC: k})
-				r.netPLC[root] = r.plan.Naming[k].Input(a)
+				r.netPLC[root] = plcio.BitAddress(true, a).String()
 			} else {
 				r.plan.PLCOut = append(r.plan.PLCOut, PLCBitPlan{Addr: a, State: r.state(p.key), PLC: k, Switched: switched[root]})
-				r.netPLC[root] = r.plan.Naming[k].Output(a)
+				r.netPLC[root] = plcio.BitAddress(false, a).String()
 				r.netPLCOut[root] = true
 			}
 		}
