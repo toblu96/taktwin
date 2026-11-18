@@ -4,10 +4,10 @@ go 1.26.0
 
 require (
 	github.com/gopcua/opcua v0.9.1
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/toblu96/taktwin/st v0.0.0
 	github.com/wailsapp/wails/v3 v3.1.0
-	golang.org/x/text v0.42.0
+	golang.org/x/text v0.44.0
 )
 
 require (
@@ -16,7 +16,7 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	golang.org/x/mod v0.41.0 // indirect
+	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/term v0.46.0 // indirect
 )
