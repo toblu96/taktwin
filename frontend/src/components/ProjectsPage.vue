@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ask } from '../ask'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { Example, ProjectInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
@@ -38,9 +39,9 @@ async function act(what: () => Promise<unknown>) {
   }
 }
 
-function remove(p: ProjectInfo) {
-  if (!confirm(`Delete the project ${p.name}, with its programs? This cannot be undone.`)) return
-  void act(() => Service.DeleteProject(p.name))
+async function remove(p: ProjectInfo) {
+  if (!(await ask(`Delete the project ${p.name}, with its programs? This cannot be undone.`, 'Delete'))) return
+  await act(() => Service.DeleteProject(p.name))
 }
 
 // The tabs show while there are projects of both kinds.

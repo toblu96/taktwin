@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ask } from '../ask'
 import { computed, ref } from 'vue'
 import { Service as service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { edits } from '../builder'
@@ -20,7 +21,10 @@ async function build() {
   if (!p || view.value === 'build') return
   problem.value = ''
   if (!p.own) {
-    const ok = confirm(`Build on a copy of ${p.stationName} that belongs to this project? The project then no longer follows updates of the station's collection.`)
+    const ok = await ask(
+      `Build on a copy of ${p.stationName} that belongs to this project? The project then no longer follows updates of the station's collection.`,
+      'Build on a copy',
+    )
     if (!ok) return
     try {
       await service.CustomizeStation()

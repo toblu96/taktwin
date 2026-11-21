@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ask } from '../ask'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { ProgramService } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { ProgramProject, ProgramStatus } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
@@ -104,9 +105,9 @@ async function openFile(name: string) {
   active.value = name
 }
 
-function closeTab(name: string) {
+async function closeTab(name: string) {
   const t = tabs.value.find((x) => x.name === name)
-  if (t && dirty(t) && !confirm(`${name} has changes that are not saved. Close it anyway?`)) return
+  if (t && dirty(t) && !(await ask(`${name} has changes that are not saved. Close it anyway?`, 'Close'))) return
   tabs.value = tabs.value.filter((x) => x.name !== name)
   if (active.value === name) active.value = tabs.value[0]?.name ?? ''
 }
@@ -274,7 +275,7 @@ async function addFile() {
 }
 
 async function removeFile(name: string) {
-  if (!confirm(`Delete ${name}?`)) return
+  if (!(await ask(`Delete ${name}?`, 'Delete'))) return
   try {
     await ProgramService.RemoveFile(props.plc, name)
     tabs.value = tabs.value.filter((t) => t.name !== name)
@@ -289,7 +290,7 @@ async function removeFile(name: string) {
 // over the files of the same names, after asking.
 async function loadExample() {
   const names = project.value?.example ?? []
-  if (!names.length || !confirm(`Load the example program of this station? It replaces ${names.join(', ')} in your project.`)) return
+  if (!names.length || !(await ask(`Load the example program of this station? It replaces ${names.join(', ')} in your project.`, 'Load the example'))) return
   try {
     const written = (await ProgramService.LoadExample(props.plc)) ?? []
     for (const t of tabs.value) {
@@ -444,8 +445,7 @@ const stateLabel = computed(() => {
             </template>
             <template v-else>
               <button class="file" :title="f.readOnly ? 'Written from the station\'s I/O table' : f.name" @click="openFile(f.name)">
-                <span class="kind">{{ kindLabel[f.kind] ?? f.kind }}</span
-                >{{ f.name.replace(/\.st$/, '') }}
+                <span class="kind">{{ kindLabel[f.kind] ?? f.kind }}</span>{{ f.name.replace(/\.st$/, '') }}
               </button>
               <span v-if="!f.readOnly" class="file-actions">
                 <button title="Rename" @click="renaming = { from: f.name, to: f.name.replace(/\.st$/, '') }">✎</button>

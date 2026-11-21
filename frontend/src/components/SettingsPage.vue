@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ask } from '../ask'
 import { computed, onMounted, ref } from 'vue'
 import { LibraryService, SettingsService } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { CollectionInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
@@ -73,8 +74,8 @@ async function importCollection() {
 }
 const toggleHidden = (c: CollectionInfo) =>
   collectionAction(() => LibraryService.SetCollectionHidden(c.id, !c.hidden), c.hidden ? `${c.name} is shown again.` : `${c.name} is hidden.`)
-function removeCollection(c: CollectionInfo) {
-  if (!confirm(`Remove the collection ${c.name} from your folder? Stations of your own that use its modules will not load without it.`)) return
+async function removeCollection(c: CollectionInfo) {
+  if (!(await ask(`Remove the collection ${c.name} from your folder? Stations of your own that use its modules will not load without it.`, 'Remove'))) return
   void collectionAction(() => LibraryService.RemoveCollection(c.id), `${c.name} is removed.`)
 }
 
