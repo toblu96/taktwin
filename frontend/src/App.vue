@@ -9,6 +9,7 @@ import StationDock from './components/StationDock.vue'
 import ProgramIde from './ide/ProgramIde.vue'
 import ConnectionEditor from './components/ConnectionEditor.vue'
 import ProjectsPage from './components/ProjectsPage.vue'
+import StatusBar from './components/StatusBar.vue'
 import { connect, editingConnection, loadError, page, programming, project, view } from './sim'
 import { connectUpdates } from './update'
 import StationViewer from './viewer/StationViewer.vue'
@@ -37,13 +38,14 @@ onMounted(() => {
     <BuilderPage v-if="page === 'simulation' && project && view === 'build'" />
     <LibraryPage v-if="page === 'library'" />
     <SettingsPage v-if="page === 'settings'" />
+    <StatusBar />
   </div>
 </template>
 
 <style scoped>
 .app {
   display: grid;
-  grid-template-rows: 46px minmax(0, 1fr);
+  grid-template-rows: 46px minmax(0, 1fr) 26px;
   height: 100%;
 }
 

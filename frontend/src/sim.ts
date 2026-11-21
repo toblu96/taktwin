@@ -138,6 +138,22 @@ const savedPage = recall('taktwin.page')
 export const page = ref<Page>(savedPage === 'library' || savedPage === 'settings' ? savedPage : 'simulation')
 watch(page, (value) => remember('taktwin.page', value))
 
+// The settings' tab that shows, and where the app goes back to when they close.
+export type SettingsTab = 'general' | 'collections' | 'updates' | 'about'
+export const settingsTab = ref<SettingsTab>('general')
+let beforeSettings: Page = 'simulation'
+
+export function openSettings(tab?: SettingsTab) {
+  if (tab) settingsTab.value = tab
+  if (page.value === 'settings') return
+  beforeSettings = page.value
+  page.value = 'settings'
+}
+
+export function closeSettings() {
+  if (page.value === 'settings') page.value = beforeSettings
+}
+
 // What the open project shows: its station running, or being built on.
 export const view = ref<'simulate' | 'build'>('simulate')
 

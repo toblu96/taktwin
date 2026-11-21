@@ -3,10 +3,10 @@ import { ask } from '../ask'
 import { computed, ref } from 'vue'
 import { Service as service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { edits } from '../builder'
-import { closeProject, page, project, refreshProject, reloadStation, simulation, view } from '../sim'
+import { closeProject, closeSettings, openSettings, page, project, refreshProject, reloadStation, simulation, view } from '../sim'
 import { updateAvailable } from '../update'
 
-const { scene, snapshot } = simulation
+const { snapshot } = simulation
 
 const speeds = [1, 2, 5]
 
@@ -51,22 +51,8 @@ async function simulate() {
 }
 
 // The gear shows the settings, and a second click goes back to where the app was.
-let before: typeof page.value = 'simulation'
-function toggleSettings() {
-  if (page.value === 'settings') {
-    page.value = before
-    return
-  }
-  before = page.value
-  page.value = 'settings'
-}
+const toggleSettings = () => (page.value === 'settings' ? closeSettings() : openSettings())
 
-const time = computed(() => {
-  const total = snapshot.value?.time ?? 0
-  const minutes = Math.floor(total / 60)
-  const seconds = (total % 60).toFixed(1).padStart(4, '0')
-  return `${String(minutes).padStart(2, '0')}:${seconds}`
-})
 const paused = computed(() => snapshot.value?.paused ?? false)
 </script>
 
@@ -99,26 +85,16 @@ const paused = computed(() => snapshot.value?.paused ?? false)
     </template>
     <span v-if="problem" class="collision">{{ problem }}</span>
 
+    <!-- What needs acknowledging; the status bar shows the rest. -->
     <div v-if="running" class="status">
-      <button class="source" title="PLC connection" @click="simulation.selection.value = scene?.plc.module ?? null">
-        <span v-if="snapshot?.link" class="lamp" :class="snapshot.link.state" />{{ snapshot?.plc ?? 'PLC' }}
-      </button>
-      <span v-if="snapshot?.ioTest" class="test">
-        I/O test: outputs by hand
-        <button @click="service.SetIOTest(false)">End</button>
-      </span>
       <span v-for="text in snapshot?.collisions ?? []" :key="text" class="collision">{{ text }}</span>
       <span v-if="snapshot?.fellOff" class="collision fell">
         {{ snapshot.fellOff === 1 ? 'A workpiece' : `${snapshot.fellOff} workpieces` }} fell off the station
         <button @click="service.AcknowledgeFellOff()">OK</button>
       </span>
-      <span v-if="snapshot?.step" class="step mono">
-        <b>S{{ snapshot.step.number }}</b> {{ snapshot.step.label }}
-      </span>
     </div>
 
     <div v-if="running" class="controls">
-      <span class="time mono" title="Simulated time">{{ time }}</span>
       <div class="segmented" role="group" aria-label="Simulation speed">
         <button
           v-for="speed in speeds"
@@ -228,29 +204,6 @@ img {
   white-space: nowrap;
 }
 
-.source {
-  align-items: center;
-  background: none;
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  color: var(--text-dim);
-  display: flex;
-  font-size: 12px;
-  gap: 6px;
-  padding: 2px 10px;
-}
-
-.test {
-  align-items: center;
-  background: var(--accent);
-  color: #1b1405;
-  display: flex;
-  font-size: 12px;
-  font-weight: 600;
-  gap: 8px;
-  padding: 2px 3px 2px 8px;
-}
-
 .collision {
   background: var(--red);
   color: #fff;
@@ -274,34 +227,6 @@ img {
   font-size: 11px;
   font-weight: 700;
   padding: 1px 7px;
-}
-
-.test button {
-  background: #1b1405;
-  border: 0;
-  color: var(--accent);
-  font-size: 11px;
-  padding: 1px 7px;
-}
-
-.lamp {
-  background: var(--accent);
-  border-radius: 50%;
-  height: 8px;
-  width: 8px;
-}
-
-.lamp.connected {
-  background: #4ee67c;
-}
-
-.lamp.failed {
-  background: var(--danger);
-}
-
-.step b {
-  color: var(--accent);
-  font-weight: 600;
 }
 
 .controls {
@@ -343,11 +268,6 @@ img {
   background: var(--accent);
   color: #1b1405;
   font-weight: 600;
-}
-
-.time {
-  color: var(--text-dim);
-  margin-right: 4px;
 }
 
 .fixed {

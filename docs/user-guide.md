@@ -1,10 +1,12 @@
 # User guide
 
-Taktwin starts on **Projects**, which lists your projects. Beside it, **Library** browses the collections and previews any module on its own, without a PLC. An open project shows its station: **Simulate** runs it with its PLC, and **Build** puts it together. The gear at the top right opens **Settings**, which manages collections, your folder and updates; a second click goes back.
+Taktwin starts on **Projects**, which lists your projects. Beside it, **Library** browses the collections and previews any module on its own, without a PLC. An open project shows its station: **Simulate** runs it with its PLC, and **Build** puts it together. The gear at the top right opens **Settings**: **General** for your folder, **Collections**, **Updates** and **About**. A second click on the gear, or Esc, goes back.
+
+The status bar along the bottom shows the app's version, with a dot when an update is ready; a click opens **Updates**. While a station runs it shows its PLC and connection, an I/O test with **End**, the PLC's step, and the simulated time and speed; a click on the PLC shows its panel. On the right, **✓ Saved** shows the project's folder, and **Feedback** opens a new issue on GitHub. What needs acknowledging, such as a collision or a workpiece that fell off, stays in the top bar.
 
 ## Collections and your own stations
 
-Stations, modules, workpieces and exercises are JSON files, described by the JSON Schemas in [`schema/`](../schema) and by [the collection format](../catalog/README.md). A collection is a folder of them, or a `.taktwin` zip of that folder, which **Settings** imports.
+Stations, modules, workpieces and exercises are JSON files, described by the JSON Schemas in [`schema/`](../schema) and by [the collection format](../catalog/README.md). A collection is a folder of them, or a `.taktwin` zip of that folder, which **Settings › Collections** imports.
 
 The app also reads stations from a `Taktwin` folder in your documents folder, wherever the system keeps that, or from the folder in `TAKTWIN_HOME`. **Settings** shows the exact path, opens it in the file manager and has **Reload**, which reads your files again. Put each station in `stations/<id>/station.json` there. They show next to the built-in ones when you make a project, and in the Library. A station that does not load is listed in red with the reason; one that loads but does not fit together shows its problems under **Station checks**.
 
@@ -26,7 +28,7 @@ The app also reads stations from a `Taktwin` folder in your documents folder, wh
 
 Everything you do in the simulation belongs to a project: the soft PLC's programs, how each PLC is connected, and the station's settings. A project is saved as it changes, so there is nothing to save.
 
-The app starts on **Projects**: a card for each of your projects, the latest first, with a picture of its station as you left it and how its last exercise check went. Below them is the station each collection comes with, as an **Example**, until its collection is hidden in **Settings**. Clicking a project opens it; clicking an example makes a project of your own on it. With projects on stations and on exercises, tabs show either kind, and the filter field (⌘F / Ctrl+F) finds a project by its name, station or exercise.
+The app starts on **Projects**: a card for each of your projects, the latest first, with a picture of its station as you left it and how its last exercise check went. Below them is the station each collection comes with, as an **Example**, until its collection is hidden in **Settings › Collections**. Clicking a project opens it; clicking an example makes a project of your own on it. With projects on stations and on exercises, tabs show either kind, and the filter field (⌘F / Ctrl+F) finds a project by its name, station or exercise.
 
 - **New project** makes one from a station or from an exercise of your collections, or with an empty station to build. It is named after the station or exercise unless you give it a name, with a number where that name is taken. A project on an exercise has the station set up as the exercise says, and its check in **Exercises**.
 - A card's **⋯** menu renames, duplicates, shows the project's folder, exports or deletes it.
