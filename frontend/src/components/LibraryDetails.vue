@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import type { EntryRef, SceneTest } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 import { collectionName } from '../collections'
 import { current, entries, preview, reset, rootInstance } from '../library'
-import { loadStation, page, simulation } from '../sim'
+import { newProject, page, project, simulation } from '../sim'
 import ConnectorsSection from './ConnectorsSection.vue'
 import PlcSection from './PlcSection.vue'
 import SettingsSection from './SettingsSection.vue'
@@ -63,8 +63,9 @@ async function tryWorkpiece(test: SceneTest, kind: string) {
   await runAction(test.place, { kind })
 }
 
+// Opens the station in a new project, unless the open project is on it already.
 async function openInSimulation() {
-  if (current.value && simulation.scene.value?.id !== current.value.id) await loadStation(current.value.id)
+  if (current.value && (!project.value || simulation.scene.value?.id !== current.value.id)) await newProject({ station: current.value.id })
   page.value = 'simulation'
 }
 </script>
@@ -83,7 +84,9 @@ async function openInSimulation() {
       </p>
       <p v-if="description" class="description">{{ description }}</p>
       <div class="actions">
-        <button v-if="current.level === 'station'" @click="openInSimulation">Open in simulation</button>
+        <button v-if="current.level === 'station'" @click="openInSimulation">
+          {{ project && simulation.scene.value?.id === current.id ? 'Show in simulation' : 'New project' }}
+        </button>
         <button v-if="shownEntry" @click="$emit('open', shownEntry)">Open on its own</button>
         <button @click="reset()">Reset</button>
       </div>

@@ -1,22 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { LibraryService, Service as service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import { grouped } from '../collections'
-import { filesRead, loadStation, page, simulation } from '../sim'
+import { computed } from 'vue'
+import { Service as service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
+import { closeProject, page, project, simulation } from '../sim'
 import { updateAvailable } from '../update'
 
 const { scene, snapshot } = simulation
 
 const speeds = [1, 2, 5]
 
-const stations = ref<{ id: string; name: string; collection?: string }[]>([])
-// Read again on each opening, so that a station saved in the user folder shows up.
-const refresh = async () => {
-  stations.value = ((await LibraryService.Entries()) ?? []).filter((e) => e.level === 'station' && !e.error)
-}
-onMounted(refresh)
-watch(filesRead, refresh)
-const choose = (event: Event) => void loadStation((event.target as HTMLSelectElement).value)
+// The simulation shows once a project is open.
+const running = computed(() => page.value === 'simulation' && !!project.value)
 
 const time = computed(() => {
   const total = snapshot.value?.time ?? 0
@@ -32,18 +25,20 @@ const paused = computed(() => snapshot.value?.paused ?? false)
     <img src="/logo.svg" alt="" width="26" height="26" />
     <strong class="name">Taktwin</strong>
     <nav class="tabs" aria-label="Pages">
-      <button :class="{ active: page === 'simulation' }" @click="page = 'simulation'">Simulation</button>
+      <button :class="{ active: page === 'simulation' }" @click="page = 'simulation'">{{ project ? 'Simulation' : 'Projects' }}</button>
       <button :class="{ active: page === 'library' }" @click="page = 'library'">Library</button>
       <button :class="{ active: page === 'builder' }" @click="page = 'builder'">Builder</button>
       <button :class="{ active: page === 'settings' }" @click="page = 'settings'">Settings<span v-if="updateAvailable" class="dot" title="An update is available"></span></button>
     </nav>
-    <select v-if="page === 'simulation'" class="station" :value="scene?.id" aria-label="Station" @change="choose" @focus="refresh">
-      <optgroup v-for="g in grouped(stations)" :key="g.id" :label="g.name">
-        <option v-for="s in g.items" :key="s.id" :value="s.id">{{ s.name }}</option>
-      </optgroup>
-    </select>
+    <template v-if="running && project">
+      <button class="back" title="Close the project and go back to your projects (⌘W / Ctrl+W)" @click="closeProject">‹ Projects</button>
+      <span class="project" :title="project.folder">
+        {{ project.name }}
+        <small>{{ project.exerciseName ? `Exercise: ${project.exerciseName}` : project.stationName }}</small>
+      </span>
+    </template>
 
-    <div v-if="page === 'simulation'" class="status">
+    <div v-if="running" class="status">
       <button class="source" title="PLC connection" @click="simulation.selection.value = scene?.plc.module ?? null">
         <span v-if="snapshot?.link" class="lamp" :class="snapshot.link.state" />{{ snapshot?.plc ?? 'PLC' }}
       </button>
@@ -61,7 +56,7 @@ const paused = computed(() => snapshot.value?.paused ?? false)
       </span>
     </div>
 
-    <div v-if="page === 'simulation'" class="controls">
+    <div v-if="running" class="controls">
       <span class="time mono" title="Simulated time">{{ time }}</span>
       <div class="segmented" role="group" aria-label="Simulation speed">
         <button
@@ -100,12 +95,24 @@ img {
   font-size: 14px;
 }
 
-.station {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  color: var(--text);
-  padding: 3px 6px;
+.back {
+  padding: 3px 8px;
+}
+
+.project {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  max-width: 260px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project small {
+  color: var(--text-dim);
+  font-size: 11px;
 }
 
 .status {

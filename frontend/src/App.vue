@@ -8,7 +8,8 @@ import TopBar from './components/TopBar.vue'
 import StationDock from './components/StationDock.vue'
 import ProgramIde from './ide/ProgramIde.vue'
 import ConnectionEditor from './components/ConnectionEditor.vue'
-import { connect, editingConnection, loadError, page, programming } from './sim'
+import ProjectsPage from './components/ProjectsPage.vue'
+import { connect, editingConnection, loadError, page, programming, project } from './sim'
 import { connectUpdates } from './update'
 import StationViewer from './viewer/StationViewer.vue'
 
@@ -23,7 +24,8 @@ onMounted(() => {
   <div v-else class="app">
     <TopBar />
     <!-- The simulation stays loaded and keeps running behind the library. -->
-    <div v-show="page === 'simulation'" class="page">
+    <ProjectsPage v-if="page === 'simulation' && !project" />
+    <div v-show="page === 'simulation' && project" class="page">
       <main class="stage">
         <StationViewer :active="page === 'simulation'" />
         <StationDock place="bottom" />

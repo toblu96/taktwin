@@ -32,6 +32,8 @@ func NewProgramService(sim *Service) *ProgramService { return &ProgramService{si
 
 // ProgramProject is a PLC's project as the editor opens it.
 type ProgramProject struct {
+	// Project is the name of the project the program is in, which SaveFile takes.
+	Project string         `json:"project"`
 	Station string         `json:"station"`
 	PLC     string         `json:"plc"`
 	Title   string         `json:"title"`
@@ -45,11 +47,12 @@ type ProgramProject struct {
 }
 
 // ProgramStatus is the soft PLC's state, whether the simulation is connected to it, and the
-// station the simulation shows: an editor open on another station's project reloads.
+// project the simulation works in: an editor open on another project's program reloads.
 type ProgramStatus struct {
 	plcprog.Status
 	Connected bool   `json:"connected"`
 	Station   string `json:"station"`
+	Project   string `json:"project"`
 }
 
 // BuildResult is what building a project says.
@@ -58,29 +61,32 @@ type BuildResult struct {
 	Diagnostics []st.Diagnostic `json:"diagnostics"`
 }
 
-// project opens the project of a PLC of the simulation's station, writing its Bits list
-// from the station's I/O table.
-func (p *ProgramService) project(plc string) (*plcprog.Project, string, string, error) {
+// program opens the program of a PLC of the simulation's station, in the project the
+// simulation works in, writing its Bits list from the station's I/O table. It gives the
+// project's key, the station and the PLC.
+func (p *ProgramService) project(plc string) (*plcprog.Project, string, string, string, error) {
 	p.sim.mu.Lock()
 	station, id, err := p.sim.plcOf(plc)
-	scene := p.sim.engine.Plan().Scene
-	p.sim.mu.Unlock()
 	if err != nil {
-		return nil, "", "", err
+		p.sim.mu.Unlock()
+		return nil, "", "", "", err
 	}
+	scene := p.sim.engine.Plan().Scene
+	key, dir := p.sim.proj.name, p.sim.proj.dir()
+	p.sim.mu.Unlock()
 	table := scene.PLC
 	for _, sp := range scene.PLCs {
 		if sp.Module == id {
 			table = sp
 		}
 	}
-	proj, err := plcprog.Open(filepath.Join(UserFolder(), "programs", station, id), plcprog.Signals(table))
-	return proj, station, id, err
+	proj, err := plcprog.Open(filepath.Join(dir, "programs", id), plcprog.Signals(table))
+	return proj, key, station, id, err
 }
 
 // Open opens the project of a PLC, making it from the template the first time.
 func (p *ProgramService) Open(plc string) (ProgramProject, error) {
-	proj, station, id, err := p.project(plc)
+	proj, key, station, id, err := p.project(plc)
 	if err != nil {
 		return ProgramProject{}, err
 	}
@@ -89,15 +95,18 @@ func (p *ProgramService) Open(plc string) (ProgramProject, error) {
 		return ProgramProject{}, err
 	}
 	p.sim.mu.Lock()
-	name := p.sim.bundle.Station.Name
+	name := station
+	if p.sim.bundle != nil {
+		name = p.sim.bundle.Station.Name
+	}
 	p.sim.mu.Unlock()
 	example, _ := Library().Folder(exampleDir(station, id))
 	names := slices.Sorted(maps.Keys(example))
 	if names == nil {
 		names = []string{}
 	}
-	return ProgramProject{Station: station, PLC: id, Title: fmt.Sprintf("%s – %s", name, id), Files: files, Meta: proj.Meta,
-		Status: p.status(station, id, plc), Folder: proj.Dir, Example: names}, nil
+	return ProgramProject{Project: key, Station: station, PLC: id, Title: fmt.Sprintf("%s – %s", name, id), Files: files, Meta: proj.Meta,
+		Status: p.status(key, station, id, plc), Folder: proj.Dir, Example: names}, nil
 }
 
 // exampleDir is where a collection keeps the example program for a PLC of a station.
@@ -106,7 +115,7 @@ func exampleDir(station, plc string) string { return path.Join("programs", stati
 // LoadExample copies the example program of the station's collection into the project of a
 // PLC, over the files of the same names. It gives the files it wrote.
 func (p *ProgramService) LoadExample(plc string) ([]string, error) {
-	proj, station, id, err := p.project(plc)
+	proj, _, station, id, err := p.project(plc)
 	if err != nil {
 		return nil, err
 	}
@@ -128,21 +137,25 @@ func (p *ProgramService) LoadExample(plc string) ([]string, error) {
 
 // ReadFile gives a source file.
 func (p *ProgramService) ReadFile(plc, name string) (string, error) {
-	proj, _, _, err := p.project(plc)
+	proj, _, _, _, err := p.project(plc)
 	if err != nil {
 		return "", err
 	}
 	return proj.Read(name)
 }
 
-// SaveFile saves a source file of the project of a station's PLC, both as the project names
-// them: the file goes back to where it was opened from, also when the simulation has
-// changed to another station since.
-func (p *ProgramService) SaveFile(station, plc, name, src string) error {
-	if !folderName(station) || !folderName(plc) {
-		return fmt.Errorf("there is no project for %q of %q", plc, station)
+// SaveFile saves a source file of the program of a PLC, by the name of its project and the
+// PLC, as ProgramProject names them: the file goes back to where it was opened from, also
+// when the simulation has changed to another project since.
+func (p *ProgramService) SaveFile(project, plc, name, src string) error {
+	if !projectName(project) || !folderName(plc) {
+		return fmt.Errorf("there is no program for %q in %q", plc, project)
 	}
-	proj := &plcprog.Project{Dir: filepath.Join(UserFolder(), "programs", station, plc)}
+	dir := projectDir(project)
+	if _, ok, _ := readProject(dir); !ok {
+		return fmt.Errorf("there is no project %q: it was renamed or deleted", project)
+	}
+	proj := &plcprog.Project{Dir: filepath.Join(dir, "programs", plc)}
 	return proj.Write(name, src)
 }
 
@@ -155,7 +168,7 @@ func folderName(s string) bool {
 // AddFile makes a new file of a kind: PROGRAM, FUNCTION_BLOCK, FUNCTION, GVL or TYPE. It
 // gives the file's name.
 func (p *ProgramService) AddFile(plc, name, kind string) (string, error) {
-	proj, _, _, err := p.project(plc)
+	proj, _, _, _, err := p.project(plc)
 	if err != nil {
 		return "", err
 	}
@@ -164,7 +177,7 @@ func (p *ProgramService) AddFile(plc, name, kind string) (string, error) {
 
 // RemoveFile deletes a file.
 func (p *ProgramService) RemoveFile(plc, name string) error {
-	proj, _, _, err := p.project(plc)
+	proj, _, _, _, err := p.project(plc)
 	if err != nil {
 		return err
 	}
@@ -173,7 +186,7 @@ func (p *ProgramService) RemoveFile(plc, name string) error {
 
 // RenameFile renames a file.
 func (p *ProgramService) RenameFile(plc, name, to string) error {
-	proj, _, _, err := p.project(plc)
+	proj, _, _, _, err := p.project(plc)
 	if err != nil {
 		return err
 	}
@@ -182,7 +195,7 @@ func (p *ProgramService) RenameFile(plc, name, to string) error {
 
 // SetTask changes the task: its programs, interval and step variable.
 func (p *ProgramService) SetTask(plc string, meta plcprog.Meta) error {
-	proj, _, _, err := p.project(plc)
+	proj, _, _, _, err := p.project(plc)
 	if err != nil {
 		return err
 	}
@@ -191,7 +204,7 @@ func (p *ProgramService) SetTask(plc string, meta plcprog.Meta) error {
 
 // Build compiles the project as saved, and says what is wrong with it.
 func (p *ProgramService) Build(plc string) (BuildResult, error) {
-	proj, _, _, err := p.project(plc)
+	proj, _, _, _, err := p.project(plc)
 	if err != nil {
 		return BuildResult{}, err
 	}
@@ -208,7 +221,7 @@ func (p *ProgramService) Build(plc string) (BuildResult, error) {
 // Download builds the project and loads it into the soft PLC, stopped with every variable
 // at its initial value, as a login with download does.
 func (p *ProgramService) Download(plc string) (BuildResult, error) {
-	proj, station, id, err := p.project(plc)
+	proj, key, _, id, err := p.project(plc)
 	if err != nil {
 		return BuildResult{}, err
 	}
@@ -222,7 +235,7 @@ func (p *ProgramService) Download(plc string) (BuildResult, error) {
 	if prog == nil {
 		return BuildResult{Diagnostics: diags}, nil
 	}
-	soft := softPLCs.Get(station, id)
+	soft := softPLCs.Get(key, id)
 	p.sim.mu.Lock()
 	space := p.sim.space(plc, id)
 	p.sim.mu.Unlock()
@@ -238,12 +251,13 @@ func (p *ProgramService) Download(plc string) (BuildResult, error) {
 
 func (p *ProgramService) soft(plc string) (*plcprog.Soft, error) {
 	p.sim.mu.Lock()
-	station, id, err := p.sim.plcOf(plc)
+	_, id, err := p.sim.plcOf(plc)
+	key := p.sim.proj.name
 	p.sim.mu.Unlock()
 	if err != nil {
 		return nil, err
 	}
-	return softPLCs.Get(station, id), nil
+	return softPLCs.Get(key, id), nil
 }
 
 // Start runs the program.
@@ -279,15 +293,16 @@ func (p *ProgramService) Reset(plc string, cold bool) error {
 func (p *ProgramService) Status(plc string) (ProgramStatus, error) {
 	p.sim.mu.Lock()
 	station, id, err := p.sim.plcOf(plc)
+	key := p.sim.proj.name
 	p.sim.mu.Unlock()
 	if err != nil {
 		return ProgramStatus{}, err
 	}
-	return p.status(station, id, plc), nil
+	return p.status(key, station, id, plc), nil
 }
 
-func (p *ProgramService) status(station, id, plc string) ProgramStatus {
-	return ProgramStatus{Status: softPLCs.Get(station, id).Status(), Connected: p.sim.PLCFor(plc).Mode == PLCSoft, Station: station}
+func (p *ProgramService) status(key, station, id, plc string) ProgramStatus {
+	return ProgramStatus{Status: softPLCs.Get(key, id).Status(), Connected: p.sim.PLCFor(plc).Mode == PLCSoft, Station: station, Project: key}
 }
 
 // Variables lists the program's variables with their values, online.

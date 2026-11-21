@@ -8,16 +8,7 @@ import (
 // The reference station comes with an example program, which the programming tool offers and
 // copies into the project, where it builds.
 func TestTheExampleProgramOfTheReferenceStation(t *testing.T) {
-	t.Setenv("TAKTWIN_HOME", t.TempDir())
-	t.Setenv("TAKTWIN_CONFIG", t.TempDir())
-	t.Setenv("TAKTWIN_COLLECTIONS", "")
-	s, err := New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s.bundle.Station.ID != "pallet-loading" {
-		t.Fatalf("the app opens on its own reference station, not %s", s.bundle.Station.ID)
-	}
+	s, _ := newService(t)
 	p := NewProgramService(s)
 	proj, err := p.Open("")
 	if err != nil {

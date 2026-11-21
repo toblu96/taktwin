@@ -245,6 +245,11 @@ func (l *Library) StationCollection(id string) string {
 	return l.collectionOf(path.Join("stations", id, "station.json"))
 }
 
+// ExerciseCollection is the collection an exercise comes from, "" for the user's own.
+func (l *Library) ExerciseCollection(id string) string {
+	return l.collectionOf(path.Join("exercises", id, "exercise.json"))
+}
+
 // ModuleCollection is the collection a module or accessory comes from, "" for the user's own.
 func (l *Library) ModuleCollection(id string) string {
 	if c := l.collectionOf(path.Join("modules", id, "module.json")); c != "" {
@@ -294,6 +299,21 @@ func (l *Library) DefaultWorkpieces() string {
 		return sets[0]
 	}
 	return ""
+}
+
+// StationName is the name of a station, or "" for one the library does not have.
+func (l *Library) StationName(id string) string {
+	var st struct {
+		Name string `json:"name"`
+	}
+	if !safeID.MatchString(id) {
+		return ""
+	}
+	data, err := l.ReadFile(path.Join("stations", id, "station.json"))
+	if err != nil || json.Unmarshal(data, &st) != nil {
+		return ""
+	}
+	return st.Name
 }
 
 // Stations lists the ids of all stations in the library.

@@ -1,6 +1,7 @@
 import { Events } from '@wailsio/runtime'
 import { computed, inject, ref, shallowRef, watch, type InjectionKey } from 'vue'
 import { Service } from '../bindings/github.com/toblu96/taktwin/internal/simapp'
+import type { Base, ProjectInfo } from '../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import type { Snapshot } from '../bindings/github.com/toblu96/taktwin/internal/engine'
 import type { Scene, SceneInstance } from '../bindings/github.com/toblu96/taktwin/internal/model'
 
@@ -139,30 +140,64 @@ watch(page, (value) => remember('taktwin.page', value))
 // Counts how often the user's files were read again, so that lists of stations refresh.
 export const filesRead = ref(0)
 
-// Reads the user's files again: the station list refreshes, and the station in the
-// simulation is loaded again from its file. It fails when that station is gone or broken.
+// Reads the user's files again: the lists of stations refresh, and the open project is opened
+// again with its station as its file now has it. It fails when that station is gone or broken.
 export async function reloadFiles() {
   filesRead.value++
-  const id = simulation.scene.value?.id
-  if (id) await loadStation(id)
+  if (project.value) await openProject(project.value.name)
 }
 
-// Reads the files again after a collection changed. When the station in the simulation went
-// with it, the library's default one takes its place.
+// Reads the files again after a collection changed. When the open project's station went
+// with it, the project is closed.
 export async function reloadCollections() {
   try {
     await reloadFiles()
   } catch {
-    const id = await Service.DefaultStation()
-    if (id) await loadStation(id)
+    await closeProject()
   }
 }
 
-// Puts another station from the catalog into the simulation.
-export async function loadStation(id: string) {
+// The project the simulation works in, or null while none is open and the app shows its
+// projects. Everything in the simulation belongs to a project.
+export const project = ref<ProjectInfo | null>(null)
+
+export async function refreshProject() {
+  const p = await Service.Project()
+  project.value = p.name ? p : null
+}
+
+// Shows the station the simulation has after opening something, and its project.
+async function show(next: Promise<Scene>) {
+  programming.value = null
+  editingConnection.value = null
   simulation.selection.value = null
   simulation.snapshot.value = null
-  simulation.scene.value = await Service.LoadStation(id)
+  simulation.scene.value = await next
+  await refreshProject()
+  page.value = 'simulation'
+}
+
+// Opens a project by name, or makes one of a station or an exercise, named after it unless
+// a name is given.
+export const openProject = (name: string) => show(Service.OpenProject(name))
+export const newProject = (base: Base, name = '') => show(Service.NewProject(name, base))
+
+// Closes the project: its PLCs are disconnected, and the app shows its projects.
+export async function closeProject() {
+  programming.value = null
+  editingConnection.value = null
+  await Service.CloseProject()
+  simulation.selection.value = null
+  simulation.snapshot.value = null
+  simulation.scene.value = null
+  project.value = null
+  page.value = 'simulation'
+}
+
+// Imports a project file the user picks, and opens it; cancelling changes nothing.
+export async function importProject() {
+  const info = await Service.ImportProject()
+  if (info.name) await show(Service.Scene())
 }
 
 // The PLC whose programming tool is open over the 3D view, "" for the station's first, or
@@ -174,22 +209,24 @@ export const programming = ref<string | null>(null)
 export const editingConnection = ref<{ plc: string; id: string; values: Record<string, unknown> } | null>(null)
 export const savedConnection = ref<{ plc: string; id: string; values?: Record<string, unknown> } | null>(null)
 
-// Puts the station of an exercise into the simulation, set up as the exercise changes it.
-export async function openExercise(id: string) {
-  simulation.selection.value = null
-  simulation.snapshot.value = null
-  simulation.scene.value = await Service.OpenExercise(id)
-}
-
 export function connect() {
   Events.On('sim:snapshot', (event) => {
     simulation.snapshot.value = event.data as Snapshot
   })
-  Service.Scene()
-    .then((value) => {
-      simulation.scene.value = value
+  // The commands of the app's File menu.
+  Events.On('project:command', (event) => {
+    const run = event.data === 'import' ? importProject : event.data === 'close' && project.value ? closeProject : null
+    run?.().catch((error: Error) => (projectError.value = error.message ?? String(error)))
+  })
+  // A project stays open when the window is reloaded.
+  refreshProject()
+    .then(async () => {
+      if (project.value) simulation.scene.value = await Service.Scene()
     })
     .catch((error: Error) => {
       loadError.value = error.message
     })
 }
+
+// What went wrong with a command of the File menu, for the projects page to show.
+export const projectError = ref('')

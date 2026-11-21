@@ -18,6 +18,14 @@ import * as sim$0 from "../sim/models.js";
 import * as st$0 from "../../st/models.js";
 
 /**
+ * Base is what a project is based on: a station, or an exercise and its station.
+ */
+export interface Base {
+    "station": string;
+    "exercise"?: string;
+}
+
+/**
  * BuildResult is what building a project says.
  */
 export interface BuildResult {
@@ -261,12 +269,29 @@ export interface ConnectionInfo {
 }
 
 /**
- * ExerciseInfo is an exercise on the station in the simulation.
+ * Example is a station a collection opens with, offered to start a project from.
+ */
+export interface Example {
+    "station": string;
+    "stationName": string;
+    "collection": string;
+    "description": string;
+}
+
+/**
+ * ExerciseInfo is an exercise and the station it is on.
  */
 export interface ExerciseInfo {
     "id": string;
     "name": string;
     "description": string;
+    "station": string;
+    "stationName": string;
+
+    /**
+     * Collection is the collection it comes from, "" for the user's own.
+     */
+    "collection"?: string;
 
     /**
      * Changes says how the exercise sets the station up, one line each, and Open whether the
@@ -338,6 +363,10 @@ export interface PreviewBinding {
  * ProgramProject is a PLC's project as the editor opens it.
  */
 export interface ProgramProject {
+    /**
+     * Project is the name of the project the program is in, which SaveFile takes.
+     */
+    "project": string;
     "station": string;
     "plc": string;
     "title": string;
@@ -355,7 +384,7 @@ export interface ProgramProject {
 
 /**
  * ProgramStatus is the soft PLC's state, whether the simulation is connected to it, and the
- * station the simulation shows: an editor open on another station's project reloads.
+ * project the simulation works in: an editor open on another project's program reloads.
  */
 export interface ProgramStatus {
     "loaded": boolean;
@@ -368,6 +397,33 @@ export interface ProgramStatus {
     "loadedAt": string;
     "connected": boolean;
     "station": string;
+    "project": string;
+}
+
+/**
+ * ProjectInfo is a project as the app lists it.
+ */
+export interface ProjectInfo {
+    "name": string;
+    "station": string;
+    "stationName": string;
+    "exercise"?: string;
+    "exerciseName"?: string;
+
+    /**
+     * Folder is where it is kept.
+     */
+    "folder": string;
+
+    /**
+     * Modified is when its file was last written, as RFC 3339.
+     */
+    "modified"?: string;
+
+    /**
+     * Problem says why it does not open, such as its station's collection being hidden or gone.
+     */
+    "problem"?: string;
 }
 
 /**

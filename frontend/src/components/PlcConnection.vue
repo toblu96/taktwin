@@ -145,9 +145,15 @@ watch(connection, (id) => {
 onMounted(async () => {
   const plc = await Service.PLCFor(plcId.value)
   applied.value = { mode: plc.mode, connection: plc.connection, values: JSON.stringify(plc.values ?? {}) }
-  mode.value = plc.mode
+  // A PLC not connected yet offers what the project has for it, ready to connect.
+  const planned = plc.mode === 'none' ? await Service.PlannedPLC(plcId.value) : plc
+  mode.value = planned.mode
   await loadConnections()
-  if (plc.connection) connection.value = plc.connection
+  if (planned.connection) {
+    connection.value = planned.connection
+    await nextTick()
+    if (planned.values) values.value = { ...values.value, ...planned.values }
+  }
 })
 
 const help = computed(() => MODES.find((m) => m.id === mode.value)?.help)

@@ -45,7 +45,7 @@ import {
   state,
 } from '../builder'
 import { grouped } from '../collections'
-import { filesRead, loadStation, page, simKey } from '../sim'
+import { filesRead, newProject, openProject, project, simKey, simulation } from '../sim'
 import StationViewer from '../viewer/StationViewer.vue'
 import WiringView from './WiringView.vue'
 
@@ -269,12 +269,14 @@ function show(check: SceneCheck) {
   built.highlight.value = same ? null : { instances, at: check.at ?? null }
 }
 
+// Tries the saved station in the open project when that is on it, with the station as it is
+// saved now, or else in a new project.
 async function tryIt() {
   const id = state.value?.station.id
   if (!id) return
   filesRead.value++
-  page.value = 'simulation'
-  await loadStation(id)
+  if (project.value && simulation.scene.value?.id === id) await openProject(project.value.name)
+  else await newProject({ station: id })
 }
 
 const hint = computed(() =>
