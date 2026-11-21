@@ -131,20 +131,33 @@ export function remember(key: string, value: string) {
   }
 }
 
-// The page that is showing.
-type Page = 'simulation' | 'library' | 'builder' | 'settings'
+// The page that is showing: the projects, or the open project; the library, which is there
+// while no project is open; or the settings.
+type Page = 'simulation' | 'library' | 'settings'
 const savedPage = recall('taktwin.page')
-export const page = ref<Page>(savedPage === 'library' || savedPage === 'builder' || savedPage === 'settings' ? savedPage : 'simulation')
+export const page = ref<Page>(savedPage === 'library' || savedPage === 'settings' ? savedPage : 'simulation')
 watch(page, (value) => remember('taktwin.page', value))
+
+// What the open project shows: its station running, or being built on.
+export const view = ref<'simulate' | 'build'>('simulate')
 
 // Counts how often the user's files were read again, so that lists of stations refresh.
 export const filesRead = ref(0)
 
-// Reads the user's files again: the lists of stations refresh, and the open project is opened
-// again with its station as its file now has it. It fails when that station is gone or broken.
+// Reads the user's files again: the lists of stations refresh, and the open project's
+// station is loaded again as its file now has it. It fails when that station is gone or broken.
 export async function reloadFiles() {
   filesRead.value++
-  if (project.value) await openProject(project.value.name)
+  if (project.value) await reloadStation()
+}
+
+// Loads the open project's station again, such as after building on it. Its PLCs are
+// disconnected, as on a restart.
+export async function reloadStation() {
+  simulation.selection.value = null
+  simulation.snapshot.value = null
+  simulation.scene.value = await Service.ReloadStation()
+  await refreshProject()
 }
 
 // Reads the files again after a collection changed. When the open project's station went
@@ -175,12 +188,20 @@ async function show(next: Promise<Scene>) {
   simulation.scene.value = await next
   await refreshProject()
   page.value = 'simulation'
+  view.value = 'simulate'
 }
 
 // Opens a project by name, or makes one of a station or an exercise, named after it unless
 // a name is given.
 export const openProject = (name: string) => show(Service.OpenProject(name))
 export const newProject = (base: Base, name = '') => show(Service.NewProject(name, base))
+
+// Makes a project with an empty station of its own, standing on what a collection has to
+// stand on, and opens it to be built on.
+export async function newEmptyProject(collection: string, name = '') {
+  await show(Service.NewEmptyProject(name, collection))
+  view.value = 'build'
+}
 
 // What takes a picture of the simulation's 3D view, while it shows.
 export const thumbnails: { take: (() => string | null) | null } = { take: null }
@@ -198,6 +219,7 @@ export async function closeProject() {
   simulation.scene.value = null
   project.value = null
   page.value = 'simulation'
+  view.value = 'simulate'
 }
 
 // Imports a project file the user picks, and opens it; cancelling changes nothing.

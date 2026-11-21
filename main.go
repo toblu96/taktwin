@@ -67,7 +67,7 @@ func main() {
 			application.NewService(service),
 			application.NewService(simapp.NewLibraryService()),
 			application.NewService(&simapp.SettingsService{}),
-			application.NewService(simapp.NewBuilderService()),
+			application.NewService(simapp.NewBuilderService(service)),
 			application.NewService(simapp.NewProgramService(service)),
 			application.NewService(simapp.NewUpdateService()),
 		},

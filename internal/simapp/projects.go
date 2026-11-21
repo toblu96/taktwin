@@ -3,6 +3,7 @@ package simapp
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -16,6 +17,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"testing/fstest"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -33,6 +35,9 @@ const (
 	ProjectExtension = ".taktwin-project"
 	// ProjectFormat is the format of project files this build writes.
 	ProjectFormat = 1
+	// StationFile is the project's own station, which it has once it is built or changed in
+	// the project. Without it, the project's station is that of a collection.
+	StationFile = "station.json"
 	// ThumbnailFile is a picture of the project's station as it was last closed.
 	ThumbnailFile = "thumbnail.jpg"
 	// maxThumbnailBytes is the largest thumbnail a project keeps.
@@ -90,6 +95,9 @@ type ProjectInfo struct {
 	StationName  string `json:"stationName"`
 	Exercise     string `json:"exercise,omitempty"`
 	ExerciseName string `json:"exerciseName,omitempty"`
+	// Own says that the project has a station of its own, which it builds on, rather than
+	// that of a collection, which follows the collection's updates.
+	Own bool `json:"own,omitempty"`
 	// Folder is where it is kept.
 	Folder string `json:"folder"`
 	// Modified is when its file was last written, as RFC 3339.
@@ -103,9 +111,17 @@ type ProjectInfo struct {
 
 func projectInfo(lib *model.Library, name string, def ProjectDef) ProjectInfo {
 	info := ProjectInfo{Name: name, Station: def.Base.Station, Exercise: def.Base.Exercise, Folder: projectDir(name)}
-	info.StationName = cmpOr(lib.StationName(def.Base.Station), def.Base.Station)
-	if !slices.Contains(lib.Stations(), def.Base.Station) {
-		info.Problem = fmt.Sprintf("Its station %s is in none of your collections.", def.Base.Station)
+	if data, ok := ownStation(projectDir(name)); ok {
+		var st struct {
+			Name string `json:"name"`
+		}
+		_ = json.Unmarshal(data, &st)
+		info.Own, info.StationName = true, cmpOr(st.Name, def.Base.Station)
+	} else {
+		info.StationName = cmpOr(lib.StationName(def.Base.Station), def.Base.Station)
+		if !slices.Contains(lib.Stations(), def.Base.Station) {
+			info.Problem = fmt.Sprintf("Its station %s is in none of your collections.", def.Base.Station)
+		}
 	}
 	if def.Base.Exercise != "" {
 		if ex, err := lib.Exercise(def.Base.Exercise); err == nil {
@@ -211,25 +227,41 @@ func (s *Service) saveProject() error {
 	return writeProject(s.proj.dir(), s.proj.def)
 }
 
+// ownStation reads a project's own station, if it has one.
+func ownStation(dir string) ([]byte, bool) {
+	data, err := os.ReadFile(filepath.Join(dir, StationFile))
+	return data, err == nil
+}
+
+// projectLibrary is the library a project's station loads from: the collections, with the
+// project's own station in front of them if it has one.
+func projectLibrary(name string, b Base) *model.Library {
+	lib := Library()
+	if data, ok := ownStation(projectDir(name)); ok {
+		lib = lib.With(fstest.MapFS{path.Join("stations", b.Station, "station.json"): {Data: data}})
+	}
+	return lib
+}
+
 // loadBase loads what a project is based on: its station, set up as its exercise changes it.
 // It gives the exercise the station is set up for.
-func loadBase(b Base) (*model.Bundle, *engine.Engine, string, error) {
+func loadBase(lib *model.Library, b Base) (*model.Bundle, *engine.Engine, string, error) {
 	if b.Exercise != "" {
-		bundle, _, err := Library().LoadExercise(b.Exercise)
+		bundle, _, err := lib.LoadExercise(b.Exercise)
 		if err != nil {
 			return nil, nil, "", err
 		}
 		bundle, e, err := start(bundle)
 		return bundle, e, b.Exercise, err
 	}
-	bundle, e, err := load(b.Station)
+	bundle, e, err := load(lib, b.Station)
 	return bundle, e, "", err
 }
 
 // open puts a project into the simulation after closing the one before: its station, its
 // settings, and its PLCs' connections, ready to connect. No PLC is connected yet.
 func (s *Service) open(name string, def ProjectDef) (model.Scene, error) {
-	bundle, e, exercise, err := loadBase(def.Base)
+	bundle, e, exercise, err := loadBase(projectLibrary(name, def.Base), def.Base)
 	if err != nil {
 		return model.Scene{}, err
 	}
@@ -246,6 +278,94 @@ func (s *Service) open(name string, def ProjectDef) (model.Scene, error) {
 	err = s.saveProject()
 	s.mu.Unlock()
 	return e.Scene(), err
+}
+
+// ReloadStation loads the open project's station again, as its files have it now, such as
+// after it was built on: every PLC is disconnected, as on a restart, while the soft PLCs go
+// on with their programs, ready to connect again.
+func (s *Service) ReloadStation() (model.Scene, error) {
+	s.mu.Lock()
+	name, def := s.proj.name, s.proj.def
+	s.mu.Unlock()
+	if name == "" {
+		return model.Scene{}, errNoProject
+	}
+	bundle, e, exercise, err := loadBase(projectLibrary(name, def.Base), def.Base)
+	if err != nil {
+		return model.Scene{}, err
+	}
+	for id, v := range def.Parameters {
+		_ = e.SetParameter(id, v)
+	}
+	s.StopCheck()
+	s.mu.Lock()
+	if s.proj.name != name {
+		s.mu.Unlock()
+		e.Close()
+		return model.Scene{}, errors.New("the project was closed")
+	}
+	old, stop := s.engine, s.stop
+	s.engine, s.bundle, s.plcs, s.exercise = e, bundle, map[string]PLCConfig{}, exercise
+	s.run()
+	s.mu.Unlock()
+	if stop != nil {
+		stop()
+	}
+	if old != nil {
+		old.Close()
+	}
+	return e.Scene(), nil
+}
+
+// CustomizeStation gives the open project a station of its own, a copy of its collection's,
+// to build on. It no longer follows the collection's updates. The station of an exercise
+// stays as the exercise has it.
+func (s *Service) CustomizeStation() (ProjectInfo, error) {
+	s.mu.Lock()
+	name, b := s.proj.name, s.proj.def.Base
+	s.mu.Unlock()
+	switch {
+	case name == "":
+		return ProjectInfo{}, errNoProject
+	case b.Exercise != "":
+		return ProjectInfo{}, errors.New("the station of an exercise stays as the exercise has it")
+	}
+	if _, ok := ownStation(projectDir(name)); !ok {
+		data, err := Library().ReadFile(path.Join("stations", b.Station, "station.json"))
+		if err != nil {
+			return ProjectInfo{}, err
+		}
+		if err := os.WriteFile(filepath.Join(projectDir(name), StationFile), data, 0o644); err != nil {
+			return ProjectInfo{}, err
+		}
+	}
+	return s.Project(), nil
+}
+
+// editedStation gives the open project's own station, to build on, with the project's name.
+func (s *Service) editedStation() (string, []byte, error) {
+	s.mu.Lock()
+	name := s.proj.name
+	s.mu.Unlock()
+	if name == "" {
+		return "", nil, errNoProject
+	}
+	data, ok := ownStation(projectDir(name))
+	if !ok {
+		return "", nil, errors.New("the project has no station of its own to build on")
+	}
+	return name, data, nil
+}
+
+// writeStation keeps a station built in a project as the project's own, while that project
+// is open.
+func (s *Service) writeStation(project string, data []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.proj.name != project {
+		return fmt.Errorf("the project %s is no longer open", project)
+	}
+	return os.WriteFile(filepath.Join(projectDir(project), StationFile), data, 0o644)
 }
 
 // close leaves the project the simulation works in: a check stops, every PLC is
@@ -316,6 +436,43 @@ func (s *Service) NewProject(name string, base Base) (model.Scene, error) {
 		return model.Scene{}, fmt.Errorf("there is a project %s already", name)
 	}
 	return s.open(name, ProjectDef{Name: name, Base: base})
+}
+
+// NewEmptyProject makes a project with an empty station of its own, standing on what a
+// collection has to stand on, and opens it to be built on. Without a name it is called New
+// station, with a number where that is taken.
+func (s *Service) NewEmptyProject(name, collection string) (model.Scene, error) {
+	name = strings.TrimSpace(name)
+	switch {
+	case name == "":
+		name = freeName("New station")
+	case !projectName(name):
+		return model.Scene{}, errName(name)
+	case exists(projectDir(name)):
+		return model.Scene{}, fmt.Errorf("there is a project %s already", name)
+	}
+	b := &BuilderService{ctx: context.Background(), emit: func(engine.Snapshot) {}, lib: Library()}
+	if _, err := b.startEmpty(collection); err != nil {
+		return model.Scene{}, err
+	}
+	d := b.draft.clone()
+	b.halt()
+	d.ID, d.Name = cmpOr(slug(name), "station"), name
+	data, err := d.bytes()
+	if err != nil {
+		return model.Scene{}, err
+	}
+	if err := os.MkdirAll(projectDir(name), 0o755); err != nil {
+		return model.Scene{}, err
+	}
+	if err := os.WriteFile(filepath.Join(projectDir(name), StationFile), data, 0o644); err != nil {
+		return model.Scene{}, err
+	}
+	scene, err := s.open(name, ProjectDef{Name: name, Base: Base{Station: d.ID}})
+	if err != nil {
+		_ = os.RemoveAll(projectDir(name))
+	}
+	return scene, err
 }
 
 var forbiddenName = regexp.MustCompile(`[/\\:*?"<>|]`)
@@ -621,7 +778,7 @@ func ImportProjectFile(from string) (string, error) {
 			continue
 		}
 		name := path.Clean(f.Name)
-		if !fs.ValidPath(name) || strings.Contains(f.Name, `\`) || (name != ProjectFile && name != ThumbnailFile && !strings.HasPrefix(name, "programs/")) {
+		if !fs.ValidPath(name) || strings.Contains(f.Name, `\`) || (name != ProjectFile && name != ThumbnailFile && name != StationFile && !strings.HasPrefix(name, "programs/")) {
 			return "", fmt.Errorf("%s holds %s, which no project has", filepath.Base(from), f.Name)
 		}
 		total += int64(f.UncompressedSize64)

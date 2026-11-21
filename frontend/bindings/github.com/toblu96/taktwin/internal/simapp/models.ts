@@ -420,6 +420,12 @@ export interface ProjectInfo {
     "exerciseName"?: string;
 
     /**
+     * Own says that the project has a station of its own, which it builds on, rather than
+     * that of a collection, which follows the collection's updates.
+     */
+    "own"?: boolean;
+
+    /**
      * Folder is where it is kept.
      */
     "folder": string;

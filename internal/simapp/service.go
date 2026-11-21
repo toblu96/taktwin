@@ -71,8 +71,8 @@ func New() (*Service, error) {
 	return &Service{ctx: context.Background(), plcs: map[string]PLCConfig{}}, nil
 }
 
-func load(station string) (*model.Bundle, *engine.Engine, error) {
-	bundle, err := Library().Load(station)
+func load(lib *model.Library, station string) (*model.Bundle, *engine.Engine, error) {
+	bundle, err := lib.Load(station)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -1,15 +1,61 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Service as service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import { closeProject, page, project, simulation } from '../sim'
+import { edits } from '../builder'
+import { closeProject, page, project, refreshProject, reloadStation, simulation, view } from '../sim'
 import { updateAvailable } from '../update'
 
 const { scene, snapshot } = simulation
 
 const speeds = [1, 2, 5]
 
-// The simulation shows once a project is open.
-const running = computed(() => page.value === 'simulation' && !!project.value)
+// The simulation's controls show while the open project's station runs.
+const running = computed(() => page.value === 'simulation' && !!project.value && view.value === 'simulate')
+const problem = ref('')
+
+// Building is on a station of the project's own: a collection's station becomes a copy that
+// the project keeps, after asking. An exercise's station stays as the exercise has it.
+async function build() {
+  const p = project.value
+  if (!p || view.value === 'build') return
+  problem.value = ''
+  if (!p.own) {
+    const ok = confirm(`Build on a copy of ${p.stationName} that belongs to this project? The project then no longer follows updates of the station's collection.`)
+    if (!ok) return
+    try {
+      await service.CustomizeStation()
+      await refreshProject()
+    } catch (e) {
+      problem.value = (e as Error).message ?? String(e)
+      return
+    }
+  }
+  view.value = 'build'
+}
+
+// Back from building, the simulation runs the station as it was built.
+async function simulate() {
+  if (view.value === 'simulate') return
+  view.value = 'simulate'
+  problem.value = ''
+  if (!edits.value) return
+  try {
+    await reloadStation()
+  } catch (e) {
+    problem.value = `The station does not load: ${(e as Error).message ?? e}`
+  }
+}
+
+// The gear shows the settings, and a second click goes back to where the app was.
+let before: typeof page.value = 'simulation'
+function toggleSettings() {
+  if (page.value === 'settings') {
+    page.value = before
+    return
+  }
+  before = page.value
+  page.value = 'settings'
+}
 
 const time = computed(() => {
   const total = snapshot.value?.time ?? 0
@@ -24,19 +70,30 @@ const paused = computed(() => snapshot.value?.paused ?? false)
   <header class="bar">
     <img src="/logo.svg" alt="" width="26" height="26" />
     <strong class="name">Taktwin</strong>
-    <nav class="tabs" aria-label="Pages">
-      <button :class="{ active: page === 'simulation' }" @click="page = 'simulation'">{{ project ? 'Simulation' : 'Projects' }}</button>
+    <nav v-if="!project" class="tabs" aria-label="Pages">
+      <button :class="{ active: page === 'simulation' }" @click="page = 'simulation'">Projects</button>
       <button :class="{ active: page === 'library' }" @click="page = 'library'">Library</button>
-      <button :class="{ active: page === 'builder' }" @click="page = 'builder'">Builder</button>
-      <button :class="{ active: page === 'settings' }" @click="page = 'settings'">Settings<span v-if="updateAvailable" class="dot" title="An update is available"></span></button>
     </nav>
-    <template v-if="running && project">
+    <template v-else>
       <button class="back" title="Close the project and go back to your projects" @click="closeProject">‹ Projects</button>
       <span class="project" :title="project.folder">
         {{ project.name }}
         <small>{{ project.exerciseName ? `Exercise: ${project.exerciseName}` : project.stationName }}</small>
       </span>
+      <div v-if="page === 'simulation'" class="segmented view" role="group" aria-label="View">
+        <button :class="{ active: view === 'simulate' }" :aria-pressed="view === 'simulate'" @click="simulate">Simulate</button>
+        <button
+          :class="{ active: view === 'build' }"
+          :aria-pressed="view === 'build'"
+          :disabled="!!project.exercise"
+          :title="project.exercise ? 'The station of an exercise stays as the exercise has it' : 'Build on the station'"
+          @click="build"
+        >
+          Build
+        </button>
+      </div>
     </template>
+    <span v-if="problem" class="collision">{{ problem }}</span>
 
     <div v-if="running" class="status">
       <button class="source" title="PLC connection" @click="simulation.selection.value = scene?.plc.module ?? null">
@@ -73,6 +130,17 @@ const paused = computed(() => snapshot.value?.paused ?? false)
       <button class="fixed" @click="service.SetPaused(!paused)">{{ paused ? 'Resume' : 'Pause' }}</button>
       <button @click="service.Reset()">Restart</button>
     </div>
+    <span v-if="!running" class="spacer" />
+    <button class="gear" :class="{ active: page === 'settings' }" :aria-pressed="page === 'settings'" title="Settings" aria-label="Settings" @click="toggleSettings">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"
+          transform="translate(-1 0)"
+        />
+      </svg>
+      <span v-if="updateAvailable" class="dot" title="An update is available"></span>
+    </button>
   </header>
 </template>
 
@@ -97,6 +165,37 @@ img {
 
 .back {
   padding: 3px 8px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.view button {
+  min-width: 76px;
+}
+
+.gear {
+  align-items: center;
+  background: none;
+  border-color: transparent;
+  color: var(--text-dim);
+  display: flex;
+  padding: 4px 6px;
+  position: relative;
+}
+
+.gear:hover,
+.gear.active {
+  background: var(--panel-raised);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.gear .dot {
+  position: absolute;
+  right: 1px;
+  top: 1px;
 }
 
 .project {
@@ -229,18 +328,11 @@ img {
   color: var(--text);
 }
 
-.tabs .dot {
+.gear .dot {
   background: var(--accent);
   border-radius: 50%;
-  display: inline-block;
   height: 7px;
-  margin-left: 6px;
-  vertical-align: 2px;
   width: 7px;
-}
-
-.tabs .active .dot {
-  background: #1b1405;
 }
 
 .tabs .active {

@@ -42,14 +42,22 @@ type BuilderService struct {
 	engine *engine.Engine
 	stop   context.CancelFunc
 	saved  string
+	// sim is the simulation, whose open project's station Edit builds on; project names that
+	// project while it is built on, and every change is kept in it.
+	sim     *Service
+	project string
 }
 
-// NewBuilderService builds stations from the catalog and the user's own files.
-func NewBuilderService() *BuilderService {
+// NewBuilderService builds stations from the catalog and the user's own files, and the
+// stations of the simulation's projects.
+func NewBuilderService(sim *Service) *BuilderService {
 	return &BuilderService{
+		sim: sim,
 		ctx: context.Background(),
 		emit: func(snap engine.Snapshot) {
-			application.Get().Event.Emit(BuilderEvent, snap)
+			if app := application.Get(); app != nil {
+				app.Event.Emit(BuilderEvent, snap)
+			}
 		},
 	}
 }
@@ -162,6 +170,7 @@ func (s *BuilderService) Start(from string) (BuilderState, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.lib = Library()
+	s.project = ""
 	if collection, ok := strings.CutPrefix(from, EmptyFrom); ok || from == "" {
 		if !ok {
 			// That of the station the app opens first.
@@ -181,6 +190,25 @@ func (s *BuilderService) Start(from string) (BuilderState, error) {
 	// A program belongs to the original, and would not fit what is built.
 	d.PLC.Program = ""
 	s.saved = ""
+	return s.commit(d)
+}
+
+// Edit builds on the station of the simulation's open project, which keeps every change.
+func (s *BuilderService) Edit() (BuilderState, error) {
+	if s.sim == nil {
+		return BuilderState{}, errNoProject
+	}
+	name, data, err := s.sim.editedStation()
+	if err != nil {
+		return BuilderState{}, err
+	}
+	d := &draft{}
+	if err := json.Unmarshal(data, d); err != nil {
+		return BuilderState{}, fmt.Errorf("%s of %s: %w", StationFile, name, err)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lib, s.project, s.saved = Library(), name, ""
 	return s.commit(d)
 }
 
@@ -654,6 +682,10 @@ func (s *BuilderService) SetStation(name, description string) (BuilderState, err
 		return BuilderState{}, errors.New("the name needs a letter or a digit")
 	}
 	d := s.draft.clone()
+	if s.project != "" {
+		// A project knows its station by its id.
+		id = d.ID
+	}
 	d.ID, d.Name, d.Description = id, strings.TrimSpace(name), strings.TrimSpace(description)
 	return s.commit(d)
 }
@@ -685,11 +717,12 @@ func (s *BuilderService) Save(overwrite bool) (string, error) {
 	return file, nil
 }
 
-// Close stops the builder's engine.
+// Close stops the builder's engine, and ends building on a project's station.
 func (s *BuilderService) Close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.halt()
+	s.draft, s.project = nil, ""
 }
 
 // RunAction triggers a function of the station being built, such as filling a magazine.
@@ -787,6 +820,17 @@ func (s *BuilderService) commit(d *draft) (BuilderState, error) {
 	e, err := engine.New(bundle, softplc.Idle{})
 	if err != nil {
 		return BuilderState{}, err
+	}
+	// A station built in a project is kept in it with every change.
+	if s.project != "" {
+		data, err := d.bytes()
+		if err == nil {
+			err = s.sim.writeStation(s.project, data)
+		}
+		if err != nil {
+			e.Close()
+			return BuilderState{}, err
+		}
 	}
 	s.halt()
 	ctx, stop := context.WithCancel(s.ctx)

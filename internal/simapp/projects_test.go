@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/toblu96/taktwin/internal/model"
 )
 
 // The app starts with no project: there is no station in the simulation, and nothing to
@@ -307,5 +309,94 @@ func TestAProjectShowsItsPictureAndLastCheck(t *testing.T) {
 	}
 	if _, err := s.OpenProjectFile(filepath.Join(t.TempDir(), "notes.txt")); err == nil {
 		t.Error("a file that is no project")
+	}
+}
+
+// A project can have a station of its own: an empty one to build, or a copy of its
+// collection's. The builder keeps every change in the project, the simulation loads it again
+// on request, and the project file takes it along. An exercise's station stays as it is.
+func TestAProjectBuildsAStationOfItsOwn(t *testing.T) {
+	s, _ := newService(t)
+	b := NewBuilderService(s)
+	t.Cleanup(b.Close)
+	if p := s.Project(); p.Own {
+		t.Fatalf("a collection's station is not the project's own: %+v", p)
+	}
+	if _, err := b.Edit(); err == nil {
+		t.Error("the builder builds on a collection's station")
+	}
+	p, err := s.CustomizeStation()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.Own || p.StationName != "Pallet loading" || !exists(filepath.Join(p.Folder, StationFile)) {
+		t.Fatalf("customized: %+v", p)
+	}
+	st, err := b.Edit()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.SetStation("My line", "Mine"); err != nil {
+		t.Fatal(err)
+	}
+	if p := s.Project(); p.StationName != "My line" || p.Station != "pallet-loading" {
+		t.Errorf("the builder keeps its changes in the project, under the station's id: %+v", p)
+	}
+	before := len(st.Modules)
+	if scene, err := s.ReloadStation(); err != nil || scene.Name != "My line" || len(scene.Instances) == 0 {
+		t.Fatalf("reloaded: %s %v", scene.Name, err)
+	}
+	b.Close()
+
+	// A new project with an empty station opens with it, to be built on.
+	if _, err := s.NewEmptyProject("", "taktwin"); err != nil {
+		t.Fatal(err)
+	}
+	empty := s.Project()
+	if empty.Name != "New station" || !empty.Own || empty.Station != "new-station" || empty.Problem != "" {
+		t.Fatalf("empty: %+v", empty)
+	}
+	st, err = b.Edit()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if module(st, "base-plate") == nil || len(st.Modules) >= before {
+		t.Errorf("an empty station stands on its base: %+v", st.Modules)
+	}
+	if _, err := b.Add("pallet-conveyor"); err != nil {
+		t.Fatal(err)
+	}
+	scene, err := s.ReloadStation()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.ContainsFunc(scene.Instances, func(i model.SceneInstance) bool { return i.Module == "pallet-conveyor" }) {
+		t.Error("the simulation has the conveyor that was built")
+	}
+
+	// The builder stops keeping changes once the project is closed.
+	s.CloseProject()
+	if _, err := b.Add("pallet-conveyor"); err == nil {
+		t.Error("a change kept in a closed project")
+	}
+
+	// The project file takes the station along.
+	file := filepath.Join(t.TempDir(), "New station"+ProjectExtension)
+	if err := ExportProjectTo(projectDir("New station"), file); err != nil {
+		t.Fatal(err)
+	}
+	opened, err := s.OpenProjectFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !opened.Own || opened.Name != "New station (2)" {
+		t.Errorf("imported: %+v", opened)
+	}
+
+	if _, err := s.NewProject("", Base{Exercise: "load-a-pallet"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CustomizeStation(); err == nil {
+		t.Error("an exercise's station is customized")
 	}
 }

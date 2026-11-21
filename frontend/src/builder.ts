@@ -28,6 +28,8 @@ export const state = shallowRef<BuilderState | null>(null)
 // Why the last change was refused, such as a screw beside its slot.
 export const problem = ref('')
 export const busy = ref(false)
+// How many changes were made since building began, which the simulation loads afterwards.
+export const edits = ref(0)
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
@@ -39,6 +41,7 @@ async function apply(change: () => PromiseLike<BuilderState>) {
     state.value = next
     built.scene.value = next.scene
     built.highlight.value = null
+    edits.value++
     return next
   } catch (error) {
     problem.value = message(error)
@@ -332,13 +335,6 @@ export const fit = (id: string) => apply(() => BuilderService.Fit(id))
 export const setParam = (id: string, param: string, value: string) => apply(() => BuilderService.SetParam(id, param, value))
 export const setStation = (name: string, description: string) => apply(() => BuilderService.SetStation(name, description))
 
-export async function start(from: string) {
-  built.selection.value = null
-  built.snapshot.value = null
-  cancelPlacing()
-  await apply(() => BuilderService.Start(from))
-}
-
 export async function remove(module: BuilderModule) {
   if (module.parent && !module.optional) {
     problem.value = `${modules.value.find((m) => m.id === module.parent)?.name ?? module.parent} needs its ${module.name}. Move it instead.`
@@ -368,38 +364,6 @@ export async function putBack(id: string) {
   if (next) built.selection.value = id
 }
 
-// Saves into the user folder. Without overwrite, an existing station of the same name is
-// reported in exists instead.
-export const exists = ref('')
-export async function save(overwrite: boolean) {
-  problem.value = ''
-  exists.value = ''
-  try {
-    const path = await BuilderService.Save(overwrite)
-    state.value = state.value ? { ...state.value, saved: path } : state.value
-    await refreshOwn()
-  } catch (error) {
-    const text = message(error)
-    if (text.includes('file already exists')) exists.value = text.split(':')[0]
-    else problem.value = text
-  }
-}
-
-// The stations saved in the user folder, which can be deleted.
-export const own = ref<string[]>([])
-export async function refreshOwn() {
-  own.value = (await BuilderService.UserStations()) ?? []
-}
-export async function deleteStation(id: string) {
-  problem.value = ''
-  try {
-    await BuilderService.DeleteStation(id)
-  } catch (error) {
-    problem.value = message(error)
-  }
-  await refreshOwn()
-}
-
 // Selecting something else ends adding a module.
 watch(
   () => built.selection.value,
@@ -410,21 +374,24 @@ watch(
 
 let unsubscribe: (() => void) | undefined
 
+// Building begins on the open project's own station, which keeps every change.
 export async function enter() {
   unsubscribe = Events.On('builder:snapshot', (event) => {
     built.snapshot.value = event.data as Snapshot
   })
-  await refreshOwn()
-  if (state.value) return
-  const next = await BuilderService.State().catch(() => null)
-  if (next) {
-    state.value = next
-    built.scene.value = next.scene
-  } else await start('')
+  built.selection.value = null
+  built.snapshot.value = null
+  cancelPlacing()
+  await apply(() => BuilderService.Edit())
+  edits.value = 0
 }
 
 export function leave() {
   unsubscribe?.()
+  cancelPlacing()
+  state.value = null
+  built.scene.value = null
+  void BuilderService.Close()
 }
 
 // --- Wiring: which cable goes where, which pin carries what, and what the PLC calls it. ---

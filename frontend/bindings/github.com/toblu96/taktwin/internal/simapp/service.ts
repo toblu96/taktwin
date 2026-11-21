@@ -93,6 +93,15 @@ export function ConnectionsFor(plc: string): $CancellablePromise<$models.Connect
 }
 
 /**
+ * CustomizeStation gives the open project a station of its own, a copy of its collection's,
+ * to build on. It no longer follows the collection's updates. The station of an exercise
+ * stays as the exercise has it.
+ */
+export function CustomizeStation(): $CancellablePromise<$models.ProjectInfo> {
+    return $Call.ByID(2956331995);
+}
+
+/**
  * DeleteConnection removes a connection file of the user's folder, by id.
  */
 export function DeleteConnection(id: string): $CancellablePromise<void> {
@@ -151,6 +160,15 @@ export function FindCODESYSList(plc: string, values: { [_ in string]?: any } | n
  */
 export function ImportProject(): $CancellablePromise<$models.ProjectInfo> {
     return $Call.ByID(2579285824);
+}
+
+/**
+ * NewEmptyProject makes a project with an empty station of its own, standing on what a
+ * collection has to stand on, and opens it to be built on. Without a name it is called New
+ * station, with a number where that is taken.
+ */
+export function NewEmptyProject(name: string, collection: string): $CancellablePromise<model$0.Scene> {
+    return $Call.ByID(2363545554, name, collection);
 }
 
 /**
@@ -223,6 +241,15 @@ export function Project(): $CancellablePromise<$models.ProjectInfo> {
  */
 export function Projects(): $CancellablePromise<$models.ProjectInfo[] | null> {
     return $Call.ByID(239662420);
+}
+
+/**
+ * ReloadStation loads the open project's station again, as its files have it now, such as
+ * after it was built on: every PLC is disconnected, as on a restart, while the soft PLCs go
+ * on with their programs, ready to connect again.
+ */
+export function ReloadStation(): $CancellablePromise<model$0.Scene> {
+    return $Call.ByID(2937054617);
 }
 
 /**

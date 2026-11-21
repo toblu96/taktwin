@@ -9,7 +9,7 @@ import StationDock from './components/StationDock.vue'
 import ProgramIde from './ide/ProgramIde.vue'
 import ConnectionEditor from './components/ConnectionEditor.vue'
 import ProjectsPage from './components/ProjectsPage.vue'
-import { connect, editingConnection, loadError, page, programming, project } from './sim'
+import { connect, editingConnection, loadError, page, programming, project, view } from './sim'
 import { connectUpdates } from './update'
 import StationViewer from './viewer/StationViewer.vue'
 
@@ -23,19 +23,19 @@ onMounted(() => {
   <p v-if="loadError" class="error">Could not load the station: {{ loadError }}</p>
   <div v-else class="app">
     <TopBar />
-    <!-- The simulation stays loaded and keeps running behind the library. -->
     <ProjectsPage v-if="page === 'simulation' && !project" />
-    <div v-show="page === 'simulation' && project" class="page">
+    <!-- The simulation stays loaded and keeps running behind the settings and the builder. -->
+    <div v-show="page === 'simulation' && project && view === 'simulate'" class="page">
       <main class="stage">
-        <StationViewer :active="page === 'simulation'" />
+        <StationViewer :active="page === 'simulation' && view === 'simulate'" />
         <StationDock place="bottom" />
         <ProgramIde v-if="programming !== null" :plc="programming" @close="programming = null" />
         <ConnectionEditor v-if="editingConnection" :key="editingConnection.id" v-bind="editingConnection" @close="editingConnection = null" />
       </main>
       <ContextPanel />
     </div>
+    <BuilderPage v-if="page === 'simulation' && project && view === 'build'" />
     <LibraryPage v-if="page === 'library'" />
-    <BuilderPage v-if="page === 'builder'" />
     <SettingsPage v-if="page === 'settings'" />
   </div>
 </template>

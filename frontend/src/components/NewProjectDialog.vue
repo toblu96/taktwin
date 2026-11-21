@@ -3,19 +3,22 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { LibraryService, Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { ExerciseInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import { grouped } from '../collections'
-import { newProject } from '../sim'
+import { newEmptyProject, newProject } from '../sim'
 
 // Makes a project from a station or an exercise of the collections, named after it unless
-// it is given a name, and opens it.
+// it is given a name, and opens it; or one with an empty station of its own, opened to be
+// built on.
 const props = defineProps<{ station?: string }>()
 const emit = defineEmits<{ close: [] }>()
 
 type Choice = { id: string; name: string; description?: string; collection?: string; on?: string }
 
-const from = ref<'station' | 'exercise'>('station')
+const from = ref<'station' | 'exercise' | 'empty'>('station')
 const stations = ref<Choice[]>([])
 const exercises = ref<Choice[]>([])
-const chosen = ref({ station: props.station ?? '', exercise: '' })
+// One empty station for each collection that has something to stand on, by its id.
+const empties = ref<Choice[]>([])
+const chosen = ref({ station: props.station ?? '', exercise: '', empty: '' })
 const name = ref('')
 const busy = ref(false)
 const error = ref('')
@@ -24,14 +27,22 @@ const nameInput = ref<HTMLInputElement | null>(null)
 onMounted(async () => {
   const [entries, all] = await Promise.all([LibraryService.Entries(), Service.AllExercises()])
   stations.value = (entries ?? []).filter((e) => e.level === 'station' && !e.error)
+  const stands = (entries ?? []).filter((e) => e.role === 'station' && !e.error)
+  empties.value = [...new Set(stands.map((e) => e.collection ?? ''))].map((c) => ({
+    id: c,
+    name: 'Empty station',
+    collection: c,
+    description: `Build your own, starting on ${stands.find((e) => (e.collection ?? '') === c)?.name ?? 'a stand'}.`,
+  }))
   exercises.value = (all ?? []).map((e: ExerciseInfo) => ({ id: e.id, name: e.name, description: e.description, collection: e.collection, on: e.stationName }))
   chosen.value.station ||= stations.value[0]?.id ?? ''
   chosen.value.exercise ||= exercises.value[0]?.id ?? ''
+  chosen.value.empty ||= empties.value[0]?.id ?? ''
   await nextTick()
   nameInput.value?.focus()
 })
 
-const choices = computed(() => (from.value === 'station' ? stations.value : exercises.value))
+const choices = computed(() => ({ station: stations.value, exercise: exercises.value, empty: empties.value })[from.value])
 const current = computed(() => choices.value.find((c) => c.id === chosen.value[from.value]))
 
 async function create() {
@@ -39,7 +50,8 @@ async function create() {
   busy.value = true
   error.value = ''
   try {
-    await newProject(from.value === 'station' ? { station: current.value.id, exercise: '' } : { station: '', exercise: current.value.id }, name.value.trim())
+    if (from.value === 'empty') await newEmptyProject(current.value.id, name.value.trim())
+    else await newProject(from.value === 'station' ? { station: current.value.id, exercise: '' } : { station: '', exercise: current.value.id }, name.value.trim())
     emit('close')
   } catch (e) {
     error.value = (e as Error).message ?? String(e)
@@ -69,6 +81,7 @@ onUnmounted(() => window.removeEventListener('keydown', key))
           <button role="tab" :aria-selected="from === 'exercise'" :class="{ active: from === 'exercise' }" :disabled="!exercises.length" @click="from = 'exercise'">
             Exercise
           </button>
+          <button role="tab" :aria-selected="from === 'empty'" :class="{ active: from === 'empty' }" :disabled="!empties.length" @click="from = 'empty'">Empty</button>
         </div>
       </header>
 
@@ -91,13 +104,13 @@ onUnmounted(() => window.removeEventListener('keydown', key))
             </button>
           </div>
         </template>
-        <p v-if="!choices.length" class="empty">Your collections have no {{ from === 'station' ? 'stations' : 'exercises' }}.</p>
+        <p v-if="!choices.length" class="empty">Your collections have no {{ from === 'exercise' ? 'exercises' : 'stations' }}.</p>
       </div>
 
       <footer>
         <label class="field">
           <span>Name</span>
-          <input ref="nameInput" v-model="name" type="text" maxlength="80" :placeholder="current?.name ?? ''" @keydown.enter="create" />
+          <input ref="nameInput" v-model="name" type="text" maxlength="80" :placeholder="from === 'empty' ? 'New station' : (current?.name ?? '')" @keydown.enter="create" />
         </label>
         <p v-if="error" class="error" role="alert">{{ error }}</p>
         <div class="actions">
