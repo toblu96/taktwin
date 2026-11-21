@@ -603,6 +603,6 @@ func ImportProjectFile(from string) (string, error) {
 	return name, nil
 }
 
-// ProjectCommandEvent carries a command of the app's File menu to the frontend: import or
-// close.
-const ProjectCommandEvent = "project:command"
+// MenuCommandEvent carries a command of the app's menu on a Mac to the frontend: import or
+// close a project, or show the settings.
+const MenuCommandEvent = "menu:command"

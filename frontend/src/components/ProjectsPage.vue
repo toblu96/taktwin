@@ -21,7 +21,7 @@ async function refresh() {
 onMounted(refresh)
 watch(filesRead, refresh)
 
-// act runs an action and shows what went wrong, in the same place as the File menu's errors.
+// act runs an action and shows what went wrong, in the same place as the app menu's errors.
 async function act(what: () => Promise<unknown>) {
   busy.value = true
   projectError.value = ''

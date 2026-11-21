@@ -19,9 +19,9 @@ export const BuilderSnapshot = "builder:snapshot";
 export const LibrarySnapshot = "library:snapshot";
 
 /**
- * Name of the custom event "project:command".
+ * Name of the custom event "menu:command".
  */
-export const ProjectCommand = "project:command";
+export const MenuCommand = "menu:command";
 
 /**
  * Name of the custom event "sim:check".

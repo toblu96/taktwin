@@ -30,8 +30,10 @@ The app starts on **Projects**, with your projects first, the latest on top, and
 
 - **New project** makes one from a station or from an exercise of your collections. It is named after the station or exercise unless you give it a name, with a number where that name is taken. A project on an exercise has the station set up as the exercise says, and its check in **Exercises**.
 - **Rename**, **Duplicate** and **Delete** work on projects that are not open.
-- **Export…** writes a project into a `.taktwin-project` file, to hand it in or move it to another computer. **Import project file…** opens such a file as a project of its own, also from the app's **File** menu (⌘O / Ctrl+O).
-- **‹ Projects** in the top bar closes the project, also **Close Project** in the **File** menu (⌘W / Ctrl+W). Closing disconnects every PLC and stops its soft PLCs; the program you downloaded is downloaded again the next time.
+- **Export…** writes a project into a `.taktwin-project` file, to hand it in or move it to another computer. **Import project file…** opens such a file as a project of its own; on a Mac also **File › Import Project File…** (⌘O).
+- **‹ Projects** in the top bar closes the project; on a Mac also **File › Close Project** (⌘W). Closing disconnects every PLC and stops its soft PLCs, so download the program again after opening the project.
+
+Only a Mac has a menu bar, as every Mac app does: besides the **File** menu it has **Taktwin › Settings…** (⌘,). On Windows everything is on the app's pages.
 
 Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. A project whose station or exercise is in none of your collections, for example because the collection is hidden, is listed with the reason and does not open. Projects are kept in the `projects` folder of your folder, one folder each, with `project.json` and the programs in `programs/<plc>/`. A project file holds only these, and an import refuses anything else.
 

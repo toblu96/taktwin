@@ -213,8 +213,12 @@ export function connect() {
   Events.On('sim:snapshot', (event) => {
     simulation.snapshot.value = event.data as Snapshot
   })
-  // The commands of the app's File menu.
-  Events.On('project:command', (event) => {
+  // The commands of the app's menu, which only a Mac has.
+  Events.On('menu:command', (event) => {
+    if (event.data === 'settings') {
+      page.value = 'settings'
+      return
+    }
     const run = event.data === 'import' ? importProject : event.data === 'close' && project.value ? closeProject : null
     run?.().catch((error: Error) => (projectError.value = error.message ?? String(error)))
   })
@@ -228,5 +232,5 @@ export function connect() {
     })
 }
 
-// What went wrong with a command of the File menu, for the projects page to show.
+// What went wrong with a command of the app's menu, for the projects page to show.
 export const projectError = ref('')

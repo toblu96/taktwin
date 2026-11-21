@@ -31,7 +31,7 @@ const paused = computed(() => snapshot.value?.paused ?? false)
       <button :class="{ active: page === 'settings' }" @click="page = 'settings'">Settings<span v-if="updateAvailable" class="dot" title="An update is available"></span></button>
     </nav>
     <template v-if="running && project">
-      <button class="back" title="Close the project and go back to your projects (⌘W / Ctrl+W)" @click="closeProject">‹ Projects</button>
+      <button class="back" title="Close the project and go back to your projects" @click="closeProject">‹ Projects</button>
       <span class="project" :title="project.folder">
         {{ project.name }}
         <small>{{ project.exerciseName ? `Exercise: ${project.exerciseName}` : project.stationName }}</small>

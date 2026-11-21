@@ -19,28 +19,36 @@ func init() {
 	application.RegisterEvent[engine.Snapshot](simapp.LibraryEvent)
 	application.RegisterEvent[engine.Snapshot](simapp.BuilderEvent)
 	application.RegisterEvent[simapp.CheckState](simapp.CheckEvent)
-	application.RegisterEvent[string](simapp.ProjectCommandEvent)
+	application.RegisterEvent[string](simapp.MenuCommandEvent)
 }
 
-// menu is the app's menu: a File menu to import a project file and to close the project, with
-// the shortcuts of the system (CmdOrCtrl is ⌘ on a Mac and Ctrl elsewhere). Everything else
-// about projects is on the app's start page. On a Mac it also has the app's, the Edit and the
-// Window menu, without which copy and paste would not work in the app's text fields.
+// menu is the app's menu on a Mac, where every app has one: the app's menu with Settings, a
+// File menu to import a project file and to close the project, and the Edit and Window
+// menus, without which copy and paste would not work in the app's text fields. Elsewhere the
+// window has no menu bar: everything is on the app's pages.
 func menu(app *application.App) *application.Menu {
-	m := app.NewMenu()
-	if runtime.GOOS == "darwin" {
-		m.AddRole(application.AppMenu)
-	}
 	command := func(name string) func(*application.Context) {
-		return func(*application.Context) { app.Event.Emit(simapp.ProjectCommandEvent, name) }
+		return func(*application.Context) { app.Event.Emit(simapp.MenuCommandEvent, name) }
 	}
+	m := app.NewMenu()
+	// The app menu as Wails' AppMenu role has it, with Settings below About as on a Mac.
+	about := m.AddSubmenu("Taktwin")
+	about.AddRole(application.About)
+	about.AddSeparator()
+	about.Add("Settings…").SetAccelerator("CmdOrCtrl+,").OnClick(command("settings"))
+	about.AddSeparator()
+	about.AddRole(application.ServicesMenu)
+	about.AddSeparator()
+	about.AddRole(application.Hide)
+	about.AddRole(application.HideOthers)
+	about.AddRole(application.UnHide)
+	about.AddSeparator()
+	about.AddRole(application.Quit)
 	file := m.AddSubmenu("File")
 	file.Add("Import Project File…").SetAccelerator("CmdOrCtrl+O").OnClick(command("import"))
 	file.Add("Close Project").SetAccelerator("CmdOrCtrl+W").OnClick(command("close"))
-	if runtime.GOOS == "darwin" {
-		m.AddRole(application.EditMenu)
-		m.AddRole(application.WindowMenu)
-	}
+	m.AddRole(application.EditMenu)
+	m.AddRole(application.WindowMenu)
 	return m
 }
 
@@ -69,7 +77,9 @@ func main() {
 		},
 	})
 
-	app.Menu.Set(menu(app))
+	if runtime.GOOS == "darwin" {
+		app.Menu.Set(menu(app))
+	}
 
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:              "Taktwin",
