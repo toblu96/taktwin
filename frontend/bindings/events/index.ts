@@ -19,6 +19,11 @@ export const BuilderSnapshot = "builder:snapshot";
 export const FilesDropped = "files:dropped";
 
 /**
+ * Name of the custom event "files:opened".
+ */
+export const FilesOpened = "files:opened";
+
+/**
  * Name of the custom event "library:snapshot".
  */
 export const LibrarySnapshot = "library:snapshot";

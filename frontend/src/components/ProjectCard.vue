@@ -12,6 +12,7 @@ const emit = defineEmits<{
   duplicate: []
   reveal: []
   export: []
+  handout: []
   remove: []
 }>()
 
@@ -109,6 +110,9 @@ const exact = (iso?: string) => (iso ? new Date(iso).toLocaleString() : '')
       <button role="menuitem" @click="act(() => emit('duplicate'))">Duplicate</button>
       <button role="menuitem" @click="act(() => emit('reveal'))">Show in folder</button>
       <button role="menuitem" @click="act(() => emit('export'))">Export…</button>
+      <button v-if="p.exercise" role="menuitem" title="One file for students, with the station, the exercise and what they need" @click="act(() => emit('handout'))">
+        Hand out as exercise…
+      </button>
       <hr />
       <button role="menuitem" class="danger" @click="act(() => emit('remove'))">Delete…</button>
     </div>

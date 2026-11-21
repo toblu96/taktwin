@@ -321,6 +321,21 @@ export interface LastCheck {
 }
 
 /**
+ * OpenOptions are the answers to what InspectProjectFile asks.
+ */
+export interface OpenOptions {
+    /**
+     * Install installs the collections the file brings that are missing here, or older.
+     */
+    "install": boolean;
+
+    /**
+     * Continue opens the project made from the same exercise handed out before instead.
+     */
+    "continue": boolean;
+}
+
+/**
  * PLCConfig says which PLC the station uses.
  */
 export interface PLCConfig {
@@ -410,6 +425,31 @@ export interface ProgramStatus {
 }
 
 /**
+ * ProjectFileInfo is what opening a project file would do, for the app to ask about first.
+ */
+export interface ProjectFileInfo {
+    "name": string;
+    "handout": boolean;
+    "exerciseName"?: string;
+
+    /**
+     * Existing is the project made from the same exercise handed out before, which can be
+     * gone on with instead.
+     */
+    "existing"?: string;
+
+    /**
+     * Installs are the collections the file brings that are missing here, or older.
+     */
+    "installs": Requirement[] | null;
+
+    /**
+     * Missing are the collections it needs that are neither here, shown, nor in the file.
+     */
+    "missing": Requirement[] | null;
+}
+
+/**
  * ProjectInfo is a project as the app lists it.
  */
 export interface ProjectInfo {
@@ -445,6 +485,21 @@ export interface ProjectInfo {
      */
     "thumbnail"?: string;
     "lastCheck"?: LastCheck | null;
+}
+
+/**
+ * Requirement is a collection a project needs, with the version it was made with.
+ */
+export interface Requirement {
+    "collection": string;
+    "name"?: string;
+    "version"?: string;
+
+    /**
+     * Installed is the version here, if one is; Hidden says that it is hidden in the settings.
+     */
+    "installed"?: string;
+    "hidden"?: boolean;
 }
 
 /**

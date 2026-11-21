@@ -8,8 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -62,6 +62,24 @@ type ProjectDef struct {
 	Parameters map[string]float64 `json:"parameters,omitempty"`
 	// LastCheck is how the last check of an exercise that ran to its end went.
 	LastCheck *LastCheck `json:"lastCheck,omitempty"`
+	// Handout marks a project file written to hand an exercise out: it brings its station and
+	// exercise, and opening it again offers to go on with the project made from it before.
+	Handout bool `json:"handout,omitempty"`
+	// FromHandout marks a project made from such a file.
+	FromHandout bool `json:"fromHandout,omitempty"`
+	// Requires lists the collections the station is built from, as they were when the file
+	// was written.
+	Requires []Requirement `json:"requires,omitempty"`
+}
+
+// Requirement is a collection a project needs, with the version it was made with.
+type Requirement struct {
+	Collection string `json:"collection"`
+	Name       string `json:"name,omitempty"`
+	Version    string `json:"version,omitempty"`
+	// Installed is the version here, if one is; Hidden says that it is hidden in the settings.
+	Installed string `json:"installed,omitempty"`
+	Hidden    bool   `json:"hidden,omitempty"`
 }
 
 // LastCheck is how a check of an exercise went: passed or not, and when, as RFC 3339.
@@ -111,17 +129,11 @@ type ProjectInfo struct {
 
 func projectInfo(lib *model.Library, name string, def ProjectDef) ProjectInfo {
 	info := ProjectInfo{Name: name, Station: def.Base.Station, Exercise: def.Base.Exercise, Folder: projectDir(name)}
-	if data, ok := ownStation(projectDir(name)); ok {
-		var st struct {
-			Name string `json:"name"`
-		}
-		_ = json.Unmarshal(data, &st)
-		info.Own, info.StationName = true, cmpOr(st.Name, def.Base.Station)
-	} else {
-		info.StationName = cmpOr(lib.StationName(def.Base.Station), def.Base.Station)
-		if !slices.Contains(lib.Stations(), def.Base.Station) {
-			info.Problem = fmt.Sprintf("Its station %s is in none of your collections.", def.Base.Station)
-		}
+	_, info.Own = ownStation(projectDir(name))
+	lib = projectLibraryFrom(lib, name, def.Base)
+	info.StationName = cmpOr(lib.StationName(def.Base.Station), def.Base.Station)
+	if !slices.Contains(lib.Stations(), def.Base.Station) {
+		info.Problem = fmt.Sprintf("Its station %s is in none of your collections.", def.Base.Station)
 	}
 	if def.Base.Exercise != "" {
 		if ex, err := lib.Exercise(def.Base.Exercise); err == nil {
@@ -234,13 +246,32 @@ func ownStation(dir string) ([]byte, bool) {
 }
 
 // projectLibrary is the library a project's station loads from: the collections, with the
-// project's own station in front of them if it has one.
-func projectLibrary(name string, b Base) *model.Library {
-	lib := Library()
+// project's own station and exercise in front of them if it has them.
+func projectLibrary(name string, b Base) *model.Library { return projectLibraryFrom(Library(), name, b) }
+
+func projectLibraryFrom(lib *model.Library, name string, b Base) *model.Library {
+	layer := fstest.MapFS{}
 	if data, ok := ownStation(projectDir(name)); ok {
-		lib = lib.With(fstest.MapFS{path.Join("stations", b.Station, "station.json"): {Data: data}})
+		layer[path.Join("stations", b.Station, "station.json")] = &fstest.MapFile{Data: data}
 	}
-	return lib
+	if data, err := os.ReadFile(filepath.Join(projectDir(name), ExerciseFile)); err == nil && b.Exercise != "" {
+		layer[path.Join("exercises", b.Exercise, "exercise.json")] = &fstest.MapFile{Data: data}
+	}
+	if len(layer) == 0 {
+		return lib
+	}
+	return lib.With(layer)
+}
+
+// library is the library of the open project, or the collections while none is open.
+func (s *Service) library() *model.Library {
+	s.mu.Lock()
+	name, b := s.proj.name, s.proj.def.Base
+	s.mu.Unlock()
+	if name == "" {
+		return Library()
+	}
+	return projectLibrary(name, b)
 }
 
 // loadBase loads what a project is based on: its station, set up as its exercise changes it.
@@ -694,43 +725,10 @@ func (s *Service) ExportProject(name string) (string, error) {
 	return to, ExportProjectTo(projectDir(name), to)
 }
 
-// ImportProject lets the user pick a .taktwin-project file in the system's dialog, unpacks it
-// into a project of its own and opens it. Cancelling gives no name. A project that is
-// imported but does not open, such as one whose station is missing, is listed all the same.
-func (s *Service) ImportProject() (ProjectInfo, error) {
-	app := application.Get()
-	if app == nil {
-		return ProjectInfo{}, errors.New("no window to choose a file in")
-	}
-	from, err := app.Dialog.OpenFile().SetTitle("Import a project").AddFilter("Taktwin project", "*"+ProjectExtension).
-		CanChooseFiles(true).PromptForSingleSelection()
-	if err != nil || from == "" {
-		return ProjectInfo{}, err
-	}
-	return s.OpenProjectFile(from)
-}
-
-// OpenProjectFile imports a .taktwin-project file, such as one dropped onto the window, into a
-// project of its own and opens it. A project that is imported but does not open, such as one
-// whose station is missing, is listed all the same.
-func (s *Service) OpenProjectFile(from string) (ProjectInfo, error) {
-	if !strings.EqualFold(filepath.Ext(from), ProjectExtension) {
-		return ProjectInfo{}, fmt.Errorf("%s is no project file: those end in %s", filepath.Base(from), ProjectExtension)
-	}
-	name, err := ImportProjectFile(from)
-	if err != nil {
-		return ProjectInfo{}, err
-	}
-	if _, err := s.OpenProject(name); err != nil {
-		return ProjectInfo{Name: name}, fmt.Errorf("imported as %s, but it does not open: %w", name, err)
-	}
-	return s.Project(), nil
-}
-
-// ExportProjectTo writes a project's folder into a zip file: its project.json and programs.
+// ExportProjectTo writes a project's folder into a zip file: its project.json, station,
+// exercise, picture and programs.
 func ExportProjectTo(dir, to string) error {
-	var buf bytes.Buffer
-	z := zip.NewWriter(&buf)
+	files := map[string][]byte{}
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !d.Type().IsRegular() {
 			return err
@@ -739,19 +737,28 @@ func ExportProjectTo(dir, to string) error {
 		if err != nil {
 			return err
 		}
-		w, err := z.Create(filepath.ToSlash(rel))
-		if err != nil {
-			return err
-		}
 		data, err := os.ReadFile(p)
-		if err != nil {
-			return err
-		}
-		_, err = w.Write(data)
+		files[filepath.ToSlash(rel)] = data
 		return err
 	})
 	if err != nil {
 		return err
+	}
+	return writeZip(to, files)
+}
+
+// writeZip writes files into a zip file, in the order of their names.
+func writeZip(to string, files map[string][]byte) error {
+	var buf bytes.Buffer
+	z := zip.NewWriter(&buf)
+	for _, name := range slices.Sorted(maps.Keys(files)) {
+		w, err := z.Create(name)
+		if err != nil {
+			return err
+		}
+		if _, err := w.Write(files[name]); err != nil {
+			return err
+		}
 	}
 	if err := z.Close(); err != nil {
 		return err
@@ -759,72 +766,9 @@ func ExportProjectTo(dir, to string) error {
 	return os.WriteFile(to, buf.Bytes(), 0o644)
 }
 
-// ImportProjectFile unpacks a .taktwin-project file into a project of the user folder, named
-// as it says, or after the file, with a number where the name is taken. It holds data only:
-// a project.json and the sources of programs.
-func ImportProjectFile(from string) (string, error) {
-	data, err := os.ReadFile(from)
-	if err != nil {
-		return "", err
-	}
-	z, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		return "", fmt.Errorf("%s is no project file: %w", filepath.Base(from), err)
-	}
-	files := map[string][]byte{}
-	var total int64
-	for _, f := range z.File {
-		if f.FileInfo().IsDir() {
-			continue
-		}
-		name := path.Clean(f.Name)
-		if !fs.ValidPath(name) || strings.Contains(f.Name, `\`) || (name != ProjectFile && name != ThumbnailFile && name != StationFile && !strings.HasPrefix(name, "programs/")) {
-			return "", fmt.Errorf("%s holds %s, which no project has", filepath.Base(from), f.Name)
-		}
-		total += int64(f.UncompressedSize64)
-		if total > maxProjectBytes {
-			return "", fmt.Errorf("%s is larger than a project can be", filepath.Base(from))
-		}
-		r, err := f.Open()
-		if err != nil {
-			return "", err
-		}
-		content, err := io.ReadAll(io.LimitReader(r, maxProjectBytes+1))
-		r.Close()
-		if err != nil {
-			return "", err
-		}
-		files[name] = content
-	}
-	raw, ok := files[ProjectFile]
-	if !ok {
-		return "", fmt.Errorf("%s is no project: it has no %s", filepath.Base(from), ProjectFile)
-	}
-	var def ProjectDef
-	if err := json.Unmarshal(raw, &def); err != nil {
-		return "", fmt.Errorf("%s: %w", ProjectFile, err)
-	}
-	if def.Format > ProjectFormat {
-		return "", fmt.Errorf("the project is of a newer version of Taktwin (format %d)", def.Format)
-	}
-	name := freeName(cmpOr(strings.TrimSpace(def.Name), strings.TrimSuffix(filepath.Base(from), ProjectExtension)))
-	dir := projectDir(name)
-	names := make([]string, 0, len(files))
-	for n := range files {
-		names = append(names, n)
-	}
-	slices.Sort(names)
-	for _, n := range names {
-		target := filepath.Join(dir, filepath.FromSlash(n))
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return "", err
-		}
-		if err := os.WriteFile(target, files[n], 0o644); err != nil {
-			return "", err
-		}
-	}
-	return name, nil
-}
+// FileOpenedEvent says that the system asked the app to open a file, such as a project file
+// that was double-clicked; TakeOpenedFile gives it.
+const FileOpenedEvent = "files:opened"
 
 // FilesDroppedEvent carries the paths of files dropped onto the window to the frontend.
 const FilesDroppedEvent = "files:dropped"

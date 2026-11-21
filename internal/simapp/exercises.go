@@ -58,7 +58,7 @@ func (s *Service) Exercises() []ExerciseInfo {
 	station, open := s.bundle.Station.ID, s.exercise
 	s.mu.Unlock()
 	out := []ExerciseInfo{}
-	for _, ex := range exercises(Library()) {
+	for _, ex := range exercises(s.library()) {
 		if ex.Station == station {
 			ex.Open = len(ex.Changes) == 0 || open == ex.ID
 			out = append(out, ex)
@@ -122,7 +122,7 @@ func (s *Service) checkState() CheckState {
 // StartCheck checks the station against an exercise, from its power-on state with the PLC
 // as it is, line by line on the wall clock, as someone with the grading sheet would.
 func (s *Service) StartCheck(id string) error {
-	ex, err := Library().Exercise(id)
+	ex, err := s.library().Exercise(id)
 	if err != nil {
 		return err
 	}

@@ -54,6 +54,14 @@ export function Check(): $CancellablePromise<$models.CheckState> {
 }
 
 /**
+ * ChooseProjectFile lets the user pick a .taktwin-project file in the system's dialog, to
+ * open with OpenProjectFile. Cancelling gives an empty path.
+ */
+export function ChooseProjectFile(): $CancellablePromise<string> {
+    return $Call.ByID(1886390706);
+}
+
+/**
  * ClearTestOutputs switches all outputs off during an I/O test.
  */
 export function ClearTestOutputs(): $CancellablePromise<void> {
@@ -138,6 +146,14 @@ export function Exercises(): $CancellablePromise<$models.ExerciseInfo[] | null> 
 }
 
 /**
+ * ExportExercise writes a project on an exercise into a file to hand out, which the user
+ * picks in the system's dialog; see ExportExerciseTo. Cancelling gives an empty path.
+ */
+export function ExportExercise(name: string, programs: boolean): $CancellablePromise<string> {
+    return $Call.ByID(3690180174, name, programs);
+}
+
+/**
  * ExportProject writes a project into a .taktwin-project file the user picks in the system's
  * dialog. Cancelling gives an empty path.
  */
@@ -154,12 +170,18 @@ export function FindCODESYSList(plc: string, values: { [_ in string]?: any } | n
 }
 
 /**
- * ImportProject lets the user pick a .taktwin-project file in the system's dialog, unpacks it
- * into a project of its own and opens it. Cancelling gives no name. A project that is
- * imported but does not open, such as one whose station is missing, is listed all the same.
+ * InspectProjectFile says what opening a project file would do, without doing it.
  */
-export function ImportProject(): $CancellablePromise<$models.ProjectInfo> {
-    return $Call.ByID(2579285824);
+export function InspectProjectFile($from: string): $CancellablePromise<$models.ProjectFileInfo> {
+    return $Call.ByID(1346009773, $from);
+}
+
+/**
+ * Instructions are what the open project's exercise asks for, in Markdown: the project's own
+ * instructions.md, or else the one beside the exercise in its collection; "" without.
+ */
+export function Instructions(): $CancellablePromise<string> {
+    return $Call.ByID(1889845795);
 }
 
 /**
@@ -190,12 +212,21 @@ export function OpenProject(name: string): $CancellablePromise<model$0.Scene> {
 }
 
 /**
- * OpenProjectFile imports a .taktwin-project file, such as one dropped onto the window, into a
- * project of its own and opens it. A project that is imported but does not open, such as one
- * whose station is missing, is listed all the same.
+ * OpenProjectFile opens a .taktwin-project file, such as one dropped onto the window or
+ * double-clicked: as a project of its own, after installing the collections it brings when
+ * asked to, or as the project made from the same handout before. A project that is imported
+ * but does not open, such as one whose station is missing, is listed all the same.
  */
-export function OpenProjectFile($from: string): $CancellablePromise<$models.ProjectInfo> {
-    return $Call.ByID(2863485121, $from);
+export function OpenProjectFile($from: string, opts: $models.OpenOptions): $CancellablePromise<$models.ProjectInfo> {
+    return $Call.ByID(2863485121, $from, opts);
+}
+
+/**
+ * Opened keeps a file the system asked the app to open, such as a project file that was
+ * double-clicked, until the window takes it: it may come before the window is there.
+ */
+export function Opened(file: string): $CancellablePromise<void> {
+    return $Call.ByID(2030088271, file);
 }
 
 /**
@@ -419,4 +450,11 @@ export function StartCheck(id: string): $CancellablePromise<void> {
  */
 export function StopCheck(): $CancellablePromise<void> {
     return $Call.ByID(2214853510);
+}
+
+/**
+ * TakeOpenedFile gives the file the system asked the app to open, once, or "".
+ */
+export function TakeOpenedFile(): $CancellablePromise<string> {
+    return $Call.ByID(3662972854);
 }

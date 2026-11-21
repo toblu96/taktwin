@@ -1,6 +1,7 @@
 import { Events } from '@wailsio/runtime'
 import { computed, inject, ref, shallowRef, watch, type InjectionKey } from 'vue'
 import { Service } from '../bindings/github.com/toblu96/taktwin/internal/simapp'
+import { ask, choose, tell } from './ask'
 import type { Base, ProjectInfo } from '../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import type { Snapshot } from '../bindings/github.com/toblu96/taktwin/internal/engine'
 import type { Scene, SceneInstance } from '../bindings/github.com/toblu96/taktwin/internal/model'
@@ -238,10 +239,54 @@ export async function closeProject() {
   view.value = 'simulate'
 }
 
-// Imports a project file the user picks, and opens it; cancelling changes nothing.
+// Opens a project file the user picks; cancelling changes nothing.
 export async function importProject() {
-  const info = await Service.ImportProject()
-  if (info.name) await show(Service.Scene())
+  const path = await Service.ChooseProjectFile()
+  if (path) await openProjectFile(path)
+}
+
+// Opens a project file, after asking what it needs: to install the collections an exercise
+// brings, and whether to go on with the project made from it before or to start again.
+export async function openProjectFile(path: string) {
+  const info = await Service.InspectProjectFile(path)
+  const list = (rs: { name?: string; collection: string; version?: string }[]) => rs.map((r) => `${r.name || r.collection}${r.version ? ` ${r.version}` : ''}`).join(', ')
+  const missing = info.missing ?? []
+  if (missing.length) {
+    const hidden = missing.every((r) => r.hidden)
+    throw new Error(
+      hidden
+        ? `${info.name} needs the collection ${list(missing)}, which is hidden: show it in Settings › Collections.`
+        : `${info.name} needs the collection ${list(missing)}: import it in Settings › Collections first.`,
+    )
+  }
+  const options = { install: false, continue: false }
+  const installs = info.installs ?? []
+  if (installs.length) {
+    const update = installs.every((r) => r.installed)
+    const what = `${info.exerciseName || info.name} brings the collection ${list(installs)}${update ? ', newer than the one you have' : ''}.`
+    if (!(await ask(`${what} ${update ? 'Update' : 'Install'} it?`, update ? 'Update and open' : 'Install and open'))) return
+    options.install = true
+  }
+  if (info.existing) {
+    const CONTINUE = 'Continue my work'
+    const answer = await choose(`You have worked on ${info.exerciseName || info.name} already, in the project ${info.existing}.`, [CONTINUE, 'Start again'])
+    if (!answer) return
+    options.continue = answer === CONTINUE
+  }
+  await show(Service.OpenProjectFile(path, options).then(() => Service.Scene()))
+}
+
+// Shows what went wrong on the projects page, or in a dialog while a project is open.
+function report(error: unknown) {
+  const text = error instanceof Error ? error.message : String(error)
+  projectError.value = text
+  if (project.value) void tell(text)
+}
+
+// Opens a file the system asked the app to open, such as a double-clicked project file.
+async function takeOpened() {
+  const path = await Service.TakeOpenedFile()
+  if (path) await openProjectFile(path).catch(report)
 }
 
 // The PLC whose programming tool is open over the 3D view, "" for the station's first, or
@@ -260,23 +305,26 @@ export function connect() {
   // The commands of the app's menu, which only a Mac has.
   Events.On('menu:command', (event) => {
     if (event.data === 'settings') {
-      page.value = 'settings'
+      openSettings()
       return
     }
     const run = event.data === 'import' ? importProject : event.data === 'close' && project.value ? closeProject : null
-    run?.().catch((error: Error) => (projectError.value = error.message ?? String(error)))
+    run?.().catch(report)
   })
   // Project files dropped onto the projects page open, the first of them.
   Events.On('files:dropped', (event) => {
     const [path] = (event.data as string[] | null) ?? []
     if (!path || project.value) return
     projectError.value = ''
-    show(Service.OpenProjectFile(path).then(() => Service.Scene())).catch((error: Error) => (projectError.value = error.message ?? String(error)))
+    openProjectFile(path).catch(report)
   })
+  // A project file double-clicked opens, also when it started the app.
+  Events.On('files:opened', () => void takeOpened())
   // A project stays open when the window is reloaded.
   refreshProject()
     .then(async () => {
       if (project.value) simulation.scene.value = await Service.Scene()
+      await takeOpened()
     })
     .catch((error: Error) => {
       loadError.value = error.message

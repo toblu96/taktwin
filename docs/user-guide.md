@@ -37,7 +37,17 @@ The app starts on **Projects**: a card for each of your projects, the latest fir
 
 Only a Mac has a menu bar, as every Mac app does: besides the **File** menu it has **Taktwin › Settings…** (⌘,). On Windows everything is on the app's pages.
 
-Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. A project whose station or exercise is in none of your collections, for example because the collection is hidden, is listed with the reason and does not open. Projects are kept in the `projects` folder of your folder, one folder each, with `project.json`, the programs in `programs/<plc>/`, `thumbnail.jpg`, and `station.json` once the project has a station of its own. A project file holds only these, and an import refuses anything else.
+Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. A project whose station or exercise is in none of your collections, for example because the collection is hidden, is listed with the reason and does not open. Projects are kept in the `projects` folder of your folder, one folder each, with `project.json`, the programs in `programs/<plc>/`, `thumbnail.jpg`, `station.json` once the project has a station of its own, and `exercise.json` and `instructions.md` for an exercise handed out. A project file holds only these, and an import refuses anything else.
+
+### Exercises as one file
+
+A teacher hands an exercise out as one file: in the card menu of a project on an exercise, **Hand out as exercise…** writes a `.taktwin-project` file with the station and the exercise as copies, the station's settings, the instructions, and the collections students may not have, those you imported. It asks whether this project's programs go along as a start; by default they do not, so that a solution does not go out by mistake. How the PLCs are connected and how checks went stay behind. A station that uses modules from your own folder cannot be handed out: put them into a collection first.
+
+The instructions are Markdown: `instructions.md` in the project's folder, or beside the exercise in its collection (`exercises/<id>/instructions.md`). They show under the exercise, beside its **Check**.
+
+Students open the file by double-clicking it, dropping it onto **Projects**, or with **Open file…**. When it brings a collection they do not have, or a newer one, the app asks to install it first; one it needs but does not bring must be imported in **Settings › Collections**. The project keeps the exercise's station as it is. Opening the file again asks whether to go on with the project made from it before or to start again.
+
+To hand in, students use **Export…** on their project. A teacher opening that file gets a project named after the file, such as `Anna.taktwin-project`, and presses **Check**.
 
 ## Running a station
 

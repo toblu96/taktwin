@@ -41,6 +41,8 @@ type Service struct {
 	// proj is the project the simulation works in, which keeps the PLCs' connections, the
 	// station's settings and the soft PLCs' programs.
 	proj project
+	// opened is a file the system asked the app to open, until the window takes it.
+	opened string
 
 	check checking
 }

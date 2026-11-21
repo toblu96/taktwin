@@ -245,6 +245,10 @@ func (l *Library) StationCollection(id string) string {
 	return l.collectionOf(path.Join("stations", id, "station.json"))
 }
 
+// FileCollection is the collection a file of the library comes from, by its path such as
+// parts/screw.json, "" for the user's own or one in no collection.
+func (l *Library) FileCollection(name string) string { return l.collectionOf(name) }
+
 // ExerciseCollection is the collection an exercise comes from, "" for the user's own.
 func (l *Library) ExerciseCollection(id string) string {
 	return l.collectionOf(path.Join("exercises", id, "exercise.json"))

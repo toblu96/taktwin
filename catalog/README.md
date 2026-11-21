@@ -16,6 +16,7 @@ modules/<id>/module.json        a machine
 accessories/<id>/module.json    what goes onto machines: sensors, I/O blocks, consoles, PLCs
 stations/<id>/station.json      a station: which modules, where, how they are cabled and wired
 exercises/<id>/exercise.json    a task on a station, and how a run of it is checked
+exercises/<id>/instructions.md  what the exercise asks for, in Markdown, shown beside its check (optional)
 connections/<id>.json           how a station's PLC connects to a controller outside the app
 ```
 

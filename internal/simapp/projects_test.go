@@ -300,14 +300,14 @@ func TestAProjectShowsItsPictureAndLastCheck(t *testing.T) {
 	if err := s.SaveThumbnail(jpeg); err == nil {
 		t.Error("a picture with no project open")
 	}
-	opened, err := s.OpenProjectFile(file)
+	opened, err := s.OpenProjectFile(file, OpenOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if opened.Name != "Test (2)" || opened.Thumbnail != jpeg || opened.LastCheck == nil || s.Project().Name != "Test (2)" {
 		t.Errorf("the file opens as a project with its picture: %+v", opened)
 	}
-	if _, err := s.OpenProjectFile(filepath.Join(t.TempDir(), "notes.txt")); err == nil {
+	if _, err := s.OpenProjectFile(filepath.Join(t.TempDir(), "notes.txt"), OpenOptions{}); err == nil {
 		t.Error("a file that is no project")
 	}
 }
@@ -385,7 +385,7 @@ func TestAProjectBuildsAStationOfItsOwn(t *testing.T) {
 	if err := ExportProjectTo(projectDir("New station"), file); err != nil {
 		t.Fatal(err)
 	}
-	opened, err := s.OpenProjectFile(file)
+	opened, err := s.OpenProjectFile(file, OpenOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,6 +3,7 @@ import { ask } from '../ask'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { Example, ProjectInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
+import { choose } from '../ask'
 import { filesRead, importProject, newProject, openProject, projectError } from '../sim'
 import NewProjectDialog from './NewProjectDialog.vue'
 import ProjectCard from './ProjectCard.vue'
@@ -42,6 +43,17 @@ async function act(what: () => Promise<unknown>) {
 async function remove(p: ProjectInfo) {
   if (!(await ask(`Delete the project ${p.name}, with its programs? This cannot be undone.`, 'Delete'))) return
   await act(() => Service.DeleteProject(p.name))
+}
+
+// Hands an exercise out as one file, with the programs as a start only when asked to, so
+// that a solution does not go out by mistake.
+async function handout(p: ProjectInfo) {
+  const WITH = 'With the programs'
+  const answer = await choose(
+    `Hand out ${p.exerciseName || p.name} as one file? It brings the station, the exercise and the collections students may not have. Should the programs of this project go along as a start?`,
+    ['Without programs', WITH],
+  )
+  if (answer) await act(() => Service.ExportExercise(p.name, answer === WITH))
 }
 
 // The tabs show while there are projects of both kinds.
@@ -107,6 +119,7 @@ onUnmounted(() => window.removeEventListener('keydown', key))
           @duplicate="act(() => Service.DuplicateProject(p.name))"
           @reveal="act(() => Service.RevealProject(p.name))"
           @export="act(() => Service.ExportProject(p.name))"
+          @handout="handout(p)"
           @remove="remove(p)"
         />
         <button

@@ -22,6 +22,7 @@ func init() {
 	application.RegisterEvent[simapp.CheckState](simapp.CheckEvent)
 	application.RegisterEvent[string](simapp.MenuCommandEvent)
 	application.RegisterEvent[[]string](simapp.FilesDroppedEvent)
+	application.RegisterEvent[string](simapp.FileOpenedEvent)
 }
 
 // menu is the app's menu on a Mac, where every app has one: the app's menu with Settings, a
@@ -74,6 +75,9 @@ func main() {
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
 		},
+		// A project file double-clicked opens in the app; on a Mac the app's Info.plist and on
+		// Windows its installer tie the files to it.
+		FileAssociations: []string{simapp.ProjectExtension},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
@@ -82,6 +86,9 @@ func main() {
 	if runtime.GOOS == "darwin" {
 		app.Menu.Set(menu(app))
 	}
+	app.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile, func(e *application.ApplicationEvent) {
+		service.Opened(e.Context().Filename())
+	})
 
 	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:              "Taktwin",
