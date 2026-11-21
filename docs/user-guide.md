@@ -1,12 +1,12 @@
 # User guide
 
-Taktwin has four pages. **Simulation** runs a station with its PLC. **Builder** puts stations together. **Library** browses the collections and previews any module on its own, without a PLC. **Settings** manages collections, your folder and updates.
+Taktwin has four pages. **Projects** lists your projects, and once one is open, **Simulation** runs its station with its PLC. **Builder** puts stations together. **Library** browses the collections and previews any module on its own, without a PLC. **Settings** manages collections, your folder and updates.
 
 ## Collections and your own stations
 
 Stations, modules, workpieces and exercises are JSON files, described by the JSON Schemas in [`schema/`](../schema) and by [the collection format](../catalog/README.md). A collection is a folder of them, or a `.taktwin` zip of that folder, which **Settings** imports.
 
-The app also reads stations from a `Taktwin` folder in your documents folder, wherever the system keeps that, or from the folder in `TAKTWIN_HOME`. **Settings** shows the exact path, opens it in the file manager and has **Reload**, which reads your files again. Put each station in `stations/<id>/station.json` there. They show in the station list next to the built-in ones, and in the Library. A station that does not load is listed in red with the reason; one that loads but does not fit together shows its problems under **Station checks**.
+The app also reads stations from a `Taktwin` folder in your documents folder, wherever the system keeps that, or from the folder in `TAKTWIN_HOME`. **Settings** shows the exact path, opens it in the file manager and has **Reload**, which reads your files again. Put each station in `stations/<id>/station.json` there. They show next to the built-in ones when you make a project, and in the Library. A station that does not load is listed in red with the reason; one that loads but does not fit together shows its problems under **Station checks**.
 
 ## The builder
 
@@ -20,23 +20,20 @@ The **Builder** page puts a station together without editing files. Start from a
 - The station checks have their own tab and update with every change.
 - A selected stand shows a **+** on each side where there is room, to put another stand beside it, so that a station grows into a line, each stand with its own PLC.
 - **Wiring** shows the PLCs, consoles, interfaces and I/O terminals with the cables between them. Click a connector, then another of its kind, to move its cable; click a pin to move what it carries. Each pin shows the PLC address it reaches, as the PLC module shows them, and the name the PLC knows it by, which can be changed.
-- **Save** writes it to your folder, and **Try in Simulation** opens it there.
+- **Save** writes it to your folder, and **Try in Simulation** opens it in a new project, or in the open one when that is on this station.
 
 ## Projects
 
-A project keeps your work on a station: the soft PLC's programs, how each PLC is connected, and the station's settings. Its menu is in the top bar, and the app's **File** menu has the same commands with the system's shortcuts, as a programming tool has them:
+Everything you do in the simulation belongs to a project: the soft PLC's programs, how each PLC is connected, and the station's settings. A project is saved as it changes, so there is nothing to save.
 
-| Command | Shortcut | Does |
-|---|---|---|
-| New Project… | ⌘N / Ctrl+N | Makes a project of a station under a name and opens it |
-| Open Project… | ⌘O / Ctrl+O | Lists your projects, the latest first, to open or delete one |
-| Save Project | ⌘S / Ctrl+S | Gives untitled work a name; a named project is saved already |
-| Save Project As… | ⌘⇧S / Ctrl+Shift+S | Keeps the project under another name, and goes on in that one |
-| Close Project | | Leaves a named project for the untitled work on its station |
-| Export Project File… | | Writes the project into a `.taktwin-project` file, to hand it in or move it to another computer |
-| Import Project File… | | Opens such a file as a project of its own |
+The app starts on **Projects**, with your projects first, the latest on top, and below them the station each collection comes with as an **Example**. An example is listed until its collection is hidden in **Settings**. Clicking a project opens it; clicking an example makes a project of your own on it.
 
-Work on a station that is in no project yet is **Untitled**: it is kept all the same, one for each station, and choosing another station in the top bar goes on with that station's. A named project is saved as it changes. Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. Projects are kept in the `projects` folder of your folder, one folder each, with `project.json` and the programs in `programs/<plc>/`. A project file holds only these, and an import refuses anything else.
+- **New project** makes one from a station or from an exercise of your collections. It is named after the station or exercise unless you give it a name, with a number where that name is taken. A project on an exercise has the station set up as the exercise says, and its check in **Exercises**.
+- **Rename**, **Duplicate** and **Delete** work on projects that are not open.
+- **Export…** writes a project into a `.taktwin-project` file, to hand it in or move it to another computer. **Import project file…** opens such a file as a project of its own, also from the app's **File** menu (⌘O / Ctrl+O).
+- **‹ Projects** in the top bar closes the project, also **Close Project** in the **File** menu (⌘W / Ctrl+W). Closing disconnects every PLC and stops its soft PLCs; the program you downloaded is downloaded again the next time.
+
+Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. A project whose station or exercise is in none of your collections, for example because the collection is hidden, is listed with the reason and does not open. Projects are kept in the `projects` folder of your folder, one folder each, with `project.json` and the programs in `programs/<plc>/`. A project file holds only these, and an import refuses anything else.
 
 ## Running a station
 
@@ -74,4 +71,4 @@ Each PLC can also run a Structured Text program written in the app. In the PLC's
 - **Online**, the code shows each variable's value in a box after its name. Click a value to prepare a new one, then F7 forces it, Ctrl+F7 writes it once, and Alt+F7 releases all forces.
 - **Watch** lists every variable live, and can prepare, write and force values in the same way.
 
-A PLC's program lives in the project you work in, under `programs/<plc>/`, one `.st` file for each POU, with `project.json` for the task. Programs that were kept under `programs/<station>/` in your folder before projects are taken over into the untitled work on that station the first time it opens. `Bits.st` is written from the station's I/O table each time the project opens. A new project starts from a template with a step chain; a collection can bring an example program for its station.
+A PLC's program lives in the project you work in, under `programs/<plc>/`, one `.st` file for each POU, with `project.json` for the task. `Bits.st` is written from the station's I/O table each time the project opens. A new project starts from a template with a step chain; a collection can bring an example program for its station.

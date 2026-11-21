@@ -18,6 +18,14 @@ import * as sim$0 from "../sim/models.js";
 import * as st$0 from "../../st/models.js";
 
 /**
+ * Base is what a project is based on: a station, or an exercise and its station.
+ */
+export interface Base {
+    "station": string;
+    "exercise"?: string;
+}
+
+/**
  * BuildResult is what building a project says.
  */
 export interface BuildResult {
@@ -261,12 +269,29 @@ export interface ConnectionInfo {
 }
 
 /**
- * ExerciseInfo is an exercise on the station in the simulation.
+ * Example is a station a collection opens with, offered to start a project from.
+ */
+export interface Example {
+    "station": string;
+    "stationName": string;
+    "collection": string;
+    "description": string;
+}
+
+/**
+ * ExerciseInfo is an exercise and the station it is on.
  */
 export interface ExerciseInfo {
     "id": string;
     "name": string;
     "description": string;
+    "station": string;
+    "stationName": string;
+
+    /**
+     * Collection is the collection it comes from, "" for the user's own.
+     */
+    "collection"?: string;
 
     /**
      * Changes says how the exercise sets the station up, one line each, and Open whether the
@@ -339,7 +364,7 @@ export interface PreviewBinding {
  */
 export interface ProgramProject {
     /**
-     * Project is the key of the project the program is in, which SaveFile takes.
+     * Project is the name of the project the program is in, which SaveFile takes.
      */
     "project": string;
     "station": string;
@@ -380,14 +405,10 @@ export interface ProgramStatus {
  */
 export interface ProjectInfo {
     "name": string;
-
-    /**
-     * Saved is set for a project with a name; unsaved work has none.
-     */
-    "saved": boolean;
     "station": string;
     "stationName": string;
     "exercise"?: string;
+    "exerciseName"?: string;
 
     /**
      * Folder is where it is kept.
@@ -398,6 +419,11 @@ export interface ProjectInfo {
      * Modified is when its file was last written, as RFC 3339.
      */
     "modified"?: string;
+
+    /**
+     * Problem says why it does not open, such as its station's collection being hidden or gone.
+     */
+    "problem"?: string;
 }
 
 /**

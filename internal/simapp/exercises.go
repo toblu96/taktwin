@@ -17,11 +17,15 @@ import (
 // CheckEvent is emitted with the CheckState each time a line of a running check is done.
 const CheckEvent = "sim:check"
 
-// ExerciseInfo is an exercise on the station in the simulation.
+// ExerciseInfo is an exercise and the station it is on.
 type ExerciseInfo struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Station     string `json:"station"`
+	StationName string `json:"stationName"`
+	// Collection is the collection it comes from, "" for the user's own.
+	Collection string `json:"collection,omitempty"`
 	// Changes says how the exercise sets the station up, one line each, and Open whether the
 	// station in the simulation is set up so. One without changes is always open.
 	Changes []string `json:"changes"`
@@ -46,34 +50,34 @@ type checking struct {
 // Exercises lists the exercises of the station in the simulation.
 func (s *Service) Exercises() []ExerciseInfo {
 	s.mu.Lock()
+	if s.bundle == nil {
+		s.mu.Unlock()
+		return []ExerciseInfo{}
+	}
 	station, open := s.bundle.Station.ID, s.exercise
 	s.mu.Unlock()
-	lib := Library()
 	out := []ExerciseInfo{}
-	for _, id := range lib.Exercises() {
-		if ex, err := lib.Exercise(id); err == nil && ex.Station == station {
-			changes := describeChanges(ex.Changes)
-			out = append(out, ExerciseInfo{ID: ex.ID, Name: ex.Name, Description: ex.Description, Changes: changes, Open: len(changes) == 0 || open == ex.ID})
+	for _, ex := range exercises(Library()) {
+		if ex.Station == station {
+			ex.Open = len(ex.Changes) == 0 || open == ex.ID
+			out = append(out, ex)
 		}
 	}
 	return out
 }
 
-// OpenExercise puts the station of an exercise into the simulation, set up as the exercise
-// changes it, with no PLC until one is connected.
-func (s *Service) OpenExercise(id string) (model.Scene, error) {
-	bundle, _, err := Library().LoadExercise(id)
-	if err != nil {
-		return model.Scene{}, err
+// AllExercises lists every exercise of the library, to start a project from.
+func (s *Service) AllExercises() []ExerciseInfo { return exercises(Library()) }
+
+func exercises(lib *model.Library) []ExerciseInfo {
+	out := []ExerciseInfo{}
+	for _, id := range lib.Exercises() {
+		if ex, err := lib.Exercise(id); err == nil {
+			out = append(out, ExerciseInfo{ID: ex.ID, Name: ex.Name, Description: ex.Description, Station: ex.Station, StationName: cmpOr(lib.StationName(ex.Station), ex.Station),
+				Collection: lib.ExerciseCollection(ex.ID), Changes: describeChanges(ex.Changes)})
+		}
 	}
-	base := Base{Station: bundle.Station.ID, Exercise: id}
-	if _, err := s.openWork(base); err != nil {
-		return model.Scene{}, err
-	}
-	if err := s.enterUnsaved(base); err != nil {
-		return model.Scene{}, err
-	}
-	return s.Scene(), nil
+	return out
 }
 
 // describeChanges says what an exercise changes on its station, one line each.
@@ -122,6 +126,10 @@ func (s *Service) StartCheck(id string) error {
 		return err
 	}
 	s.mu.Lock()
+	if s.engine == nil {
+		s.mu.Unlock()
+		return errNoProject
+	}
 	e, station, ctx, open := s.engine, s.bundle.Station.ID, s.ctx, s.exercise
 	s.mu.Unlock()
 	if ex.Station != station {

@@ -9,33 +9,54 @@ import (
 	"testing"
 )
 
-// The app starts on the unsaved work on its station, which takes over the programs the
-// station had before projects, and keeps what is changed: how the PLC is connected, without
-// connecting it again, and the station's settings.
-func TestUnsavedWorkIsKept(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("TAKTWIN_HOME", home)
+// The app starts with no project: there is no station in the simulation, and nothing to
+// connect, check or program until one is opened.
+func TestTheAppStartsWithNoProject(t *testing.T) {
+	t.Setenv("TAKTWIN_HOME", t.TempDir())
 	t.Setenv("TAKTWIN_CONFIG", t.TempDir())
 	t.Setenv("TAKTWIN_COLLECTIONS", "")
-	old := filepath.Join(home, "programs", "pallet-loading", "cabinet")
-	if err := os.MkdirAll(old, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(old, "Mine.st"), []byte("PROGRAM Mine\nEND_PROGRAM\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	s, err := New()
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.current().Close() })
-	p := s.Project()
-	if p.Saved || p.Station != "pallet-loading" || p.StationName == "" {
-		t.Fatalf("project: %+v", p)
+	if p := s.Project(); p.Name != "" {
+		t.Errorf("a project is open: %+v", p)
 	}
-	unsaved := filepath.Join(home, ProjectsFolder, unsavedFolder, "pallet-loading")
-	if _, err := os.Stat(filepath.Join(unsaved, "programs", "cabinet", "Mine.st")); err != nil {
-		t.Errorf("the station's programs are taken over: %v", err)
+	if scene := s.Scene(); scene.ID != "" {
+		t.Errorf("a station is in the simulation: %s", scene.ID)
+	}
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCSoft}); err == nil {
+		t.Error("a PLC is connected with no project")
+	}
+	if err := s.StartCheck("load-a-pallet"); err == nil {
+		t.Error("an exercise is checked with no project")
+	}
+	if got := s.Exercises(); len(got) != 0 {
+		t.Errorf("exercises: %+v", got)
+	}
+	if _, err := NewProgramService(s).Open(""); err == nil {
+		t.Error("a program is opened with no project")
+	}
+	s.SetPaused(true)
+	s.CloseProject()
+
+	examples := s.Examples()
+	if len(examples) != 1 || examples[0].Station != "pallet-loading" || examples[0].StationName != "Pallet loading" {
+		t.Errorf("the reference station is the example: %+v", examples)
+	}
+	all := s.AllExercises()
+	if len(all) != 1 || all[0].ID != "load-a-pallet" || all[0].Station != "pallet-loading" || all[0].Collection != "taktwin" {
+		t.Errorf("every exercise is offered: %+v", all)
+	}
+}
+
+// A project keeps what is changed in it: how the PLC is connected, without connecting it
+// again, and the station's settings. Closing it disconnects the PLC and stops its soft PLC.
+func TestAProjectKeepsItsWork(t *testing.T) {
+	s, home := newService(t)
+	p := s.Project()
+	if p.Name != "Test" || p.Station != "pallet-loading" || p.StationName != "Pallet loading" || p.Folder != filepath.Join(home, ProjectsFolder, "Test") || p.Problem != "" {
+		t.Fatalf("project: %+v", p)
 	}
 	// The reference station has no settings of its own; the engine keeps one by any id.
 	param := struct{ ID string }{"speed"}
@@ -47,110 +68,151 @@ func TestUnsavedWorkIsKept(t *testing.T) {
 	if err := s.SetPLCFor("", config); err != nil {
 		t.Fatal(err)
 	}
-	_ = s.SetPLCFor("", PLCConfig{Mode: PLCNone})
-	_ = s.SetPLCFor("", config)
-
-	again, err := New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { again.current().Close() })
-	if got := again.PlannedPLC(""); got.Mode != PLCExternal || got.Connection != "opcua" || got.Values["endpoint"] != "opc.tcp://127.0.0.1:1" {
-		t.Errorf("the PLC's connection is kept: %+v", got)
-	}
-	if got := again.PLCFor(""); got.Mode != PLCNone {
-		t.Errorf("but not connected again: %+v", got)
-	}
-	if got := again.Snapshot().Parameters[param.ID]; got != value {
-		t.Errorf("the setting is %v, not %v", got, value)
-	}
-}
-
-// Save as keeps the work under a name, with its programs; the soft PLC's programs are then
-// the project's, and opening another station leaves it for that station's unsaved work.
-func TestAProjectIsSavedUnderAName(t *testing.T) {
-	s, home := newService(t)
 	prog := NewProgramService(s)
 	if _, err := prog.Open(""); err != nil {
 		t.Fatal(err)
 	}
-	for _, bad := range []string{"", ".hidden", "a/b", "x:y", strings.Repeat("x", 81)} {
-		if _, err := s.SaveProjectAs(bad); err == nil {
+	if res, err := prog.Download(""); err != nil || !res.OK {
+		t.Fatalf("the template downloads: %+v %v", res, err)
+	}
+
+	s.CloseProject()
+	if p := s.Project(); p.Name != "" || s.Scene().ID != "" {
+		t.Fatalf("closed: %+v", p)
+	}
+	if _, err := s.OpenProject("Test"); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.PlannedPLC(""); got.Mode != PLCExternal || got.Connection != "opcua" || got.Values["endpoint"] != "opc.tcp://127.0.0.1:1" {
+		t.Errorf("the PLC's connection is kept: %+v", got)
+	}
+	if got := s.PLCFor(""); got.Mode != PLCNone {
+		t.Errorf("but not connected again: %+v", got)
+	}
+	if got := s.Snapshot().Parameters[param.ID]; got != value {
+		t.Errorf("the setting is %v, not %v", got, value)
+	}
+	if st, err := prog.Status(""); err != nil || st.Loaded {
+		t.Errorf("the soft PLC stopped with the project and starts empty: %+v %v", st, err)
+	}
+	if _, err := os.Stat(filepath.Join(home, ProjectsFolder, "Test", "programs", "cabinet", "PLC_PRG.st")); err != nil {
+		t.Errorf("the program is kept: %v", err)
+	}
+}
+
+// A new project is named after its station or exercise unless it is given a name; projects
+// that are not open can be renamed, duplicated and deleted.
+func TestProjectsAreMadeAndManaged(t *testing.T) {
+	s, home := newService(t)
+	for _, bad := range []string{".hidden", "a/b", "x:y", strings.Repeat("x", 81)} {
+		if _, err := s.NewProject(bad, Base{Station: "pallet-loading"}); err == nil {
 			t.Errorf("%q is no name", bad)
 		}
 	}
-	info, err := s.SaveProjectAs("Line 1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir := filepath.Join(home, ProjectsFolder, "Line 1")
-	if !info.Saved || info.Name != "Line 1" || info.Folder != dir {
-		t.Errorf("saved: %+v", info)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "programs", "cabinet", "PLC_PRG.st")); err != nil {
-		t.Errorf("the programs are in the project: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(home, ProjectsFolder, unsavedFolder, "pallet-loading")); !os.IsNotExist(err) {
-		t.Errorf("the unsaved work is gone: %v", err)
-	}
-	if _, err := s.SaveProjectAs("Line 1"); err == nil {
+	if _, err := s.NewProject("Test", Base{Station: "pallet-loading"}); err == nil {
 		t.Error("a name that is taken")
 	}
-
-	// The programming tool works in the project now, and saves back to where it opened.
-	opened, err := prog.Open("")
-	if err != nil {
+	if _, err := s.NewProject("", Base{Station: "nope"}); err == nil {
+		t.Error("a station that does not exist")
+	}
+	if _, err := s.NewProject("", Base{Station: "pallet-loading"}); err != nil {
 		t.Fatal(err)
 	}
-	if opened.Project != "Line 1" || !strings.HasPrefix(opened.Folder, dir) {
-		t.Errorf("the program is the project's: %+v", opened)
+	if p := s.Project(); p.Name != "Pallet loading" {
+		t.Errorf("named after the station: %+v", p)
 	}
-	if err := prog.SaveFile(opened.Project, "cabinet", "Extra.st", "PROGRAM Extra\nEND_PROGRAM\n"); err != nil {
+	if _, err := s.NewProject("", Base{Station: "pallet-loading"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, "programs", "cabinet", "Extra.st")); err != nil {
-		t.Error(err)
+	if p := s.Project(); p.Name != "Pallet loading (2)" {
+		t.Errorf("with a number where the name is taken: %+v", p)
 	}
-	for _, key := range []string{"../x", ".unsaved/../../x", "a/b", "", "pallet-loading", ".unsaved/nope"} {
-		if err := prog.SaveFile(key, "cabinet", "X.st", ""); err == nil {
-			t.Errorf("no project %q", key)
-		}
+	if _, err := s.NewProject("", Base{Exercise: "load-a-pallet"}); err != nil {
+		t.Fatal(err)
+	}
+	if p := s.Project(); p.Name != "Load a pallet" || p.Exercise != "load-a-pallet" || p.ExerciseName != "Load a pallet" || p.Station != "pallet-loading" {
+		t.Errorf("named after the exercise, on its station: %+v", p)
+	}
+	if got := s.Exercises(); len(got) != 1 || !got[0].Open {
+		t.Errorf("the exercise is set up: %+v", got)
 	}
 
-	if err := s.DeleteProject("Line 1"); err == nil {
+	if err := s.DeleteProject("Load a pallet"); err == nil {
 		t.Error("the open project cannot be deleted")
 	}
-	if _, err := s.CloseProject(); err != nil {
+	if _, err := s.RenameProject("Load a pallet", "Mine"); err == nil {
+		t.Error("the open project cannot be renamed")
+	}
+	if _, err := s.RenameProject("Test", "Pallet loading"); err == nil {
+		t.Error("renamed onto another project")
+	}
+	renamed, err := s.RenameProject("Test", "Line 1")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if p := s.Project(); p.Saved || p.Station != "pallet-loading" {
-		t.Errorf("closed: %+v", p)
+	if renamed.Name != "Line 1" || !exists(filepath.Join(home, ProjectsFolder, "Line 1", ProjectFile)) || exists(filepath.Join(home, ProjectsFolder, "Test")) {
+		t.Errorf("renamed: %+v", renamed)
 	}
-	if _, err := s.NewProject("Line 2", "pallet-loading"); err != nil {
+	if def, _, _ := readProject(projectDir("Line 1")); def.Name != "Line 1" {
+		t.Errorf("its file has the new name: %+v", def)
+	}
+	copied, err := s.DuplicateProject("Line 1")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.NewProject("Line 2", "pallet-loading"); err == nil {
-		t.Error("a name that is taken")
+	if copied.Name != "Line 1 (copy)" || copied.Station != "pallet-loading" {
+		t.Errorf("duplicated: %+v", copied)
+	}
+	if err := s.DeleteProject("Pallet loading (2)"); err != nil {
+		t.Fatal(err)
 	}
 	var names []string
 	for _, p := range s.Projects() {
 		names = append(names, p.Name)
 	}
 	slices.Sort(names)
-	if !slices.Equal(names, []string{"Line 1", "Line 2"}) {
+	if !slices.Equal(names, []string{"Line 1", "Line 1 (copy)", "Load a pallet", "Pallet loading"}) {
 		t.Errorf("projects: %v", names)
 	}
-	if _, err := s.OpenProject("Line 1"); err != nil {
-		t.Fatal(err)
-	}
-	if p := s.Project(); p.Name != "Line 1" {
-		t.Errorf("opened: %+v", p)
-	}
-	if err := s.DeleteProject("Line 2"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.OpenProject("Line 2"); err == nil {
+	if _, err := s.OpenProject("Pallet loading (2)"); err == nil {
 		t.Error("it is gone")
+	}
+
+	// A program is saved back into the project it was opened from, which must exist.
+	prog := NewProgramService(s)
+	opened, err := prog.Open("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opened.Project != "Load a pallet" || !strings.HasPrefix(opened.Folder, projectDir("Load a pallet")) {
+		t.Errorf("the program is the project's: %+v", opened)
+	}
+	if err := prog.SaveFile(opened.Project, "cabinet", "Extra.st", "PROGRAM Extra\nEND_PROGRAM\n"); err != nil {
+		t.Fatal(err)
+	}
+	if !exists(filepath.Join(projectDir("Load a pallet"), "programs", "cabinet", "Extra.st")) {
+		t.Error("saved into the project it came from")
+	}
+	for _, name := range []string{"../x", "a/b", "", "Test", ".unsaved/pallet-loading"} {
+		if err := prog.SaveFile(name, "cabinet", "X.st", ""); err == nil {
+			t.Errorf("no project %q", name)
+		}
+	}
+
+	// A project whose station is gone is listed with the problem, and does not open.
+	if err := writeProject(projectDir("Gone"), ProjectDef{Base: Base{Station: "gone"}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range s.Projects() {
+		if p.Name == "Gone" && p.Problem == "" {
+			t.Errorf("no problem: %+v", p)
+		}
+	}
+	if _, err := s.OpenProject("Gone"); err == nil {
+		t.Error("it opens")
+	}
+	if p := s.Project(); p.Name != "Load a pallet" {
+		t.Errorf("the open project stays open: %+v", p)
 	}
 }
 
@@ -160,10 +222,7 @@ func TestAProjectIsExportedAndImported(t *testing.T) {
 	if _, err := NewProgramService(s).Open(""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.SaveProjectAs("Line 1"); err != nil {
-		t.Fatal(err)
-	}
-	file := filepath.Join(t.TempDir(), "Line 1"+ProjectExtension)
+	file := filepath.Join(t.TempDir(), "Test"+ProjectExtension)
 	if err := ExportProjectTo(s.Project().Folder, file); err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +230,7 @@ func TestAProjectIsExportedAndImported(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if name != "Line 1 (2)" {
+	if name != "Test (2)" {
 		t.Errorf("a name that is taken gets a number: %s", name)
 	}
 	if _, err := os.Stat(filepath.Join(home, ProjectsFolder, name, "programs", "cabinet", "PLC_PRG.st")); err != nil {

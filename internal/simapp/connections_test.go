@@ -31,7 +31,10 @@ func newService(t *testing.T) (*Service, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { s.current().Close() })
+	if _, err := s.NewProject("Test", Base{Station: "pallet-loading"}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(s.CloseProject)
 	return s, home
 }
 

@@ -32,7 +32,7 @@ func NewProgramService(sim *Service) *ProgramService { return &ProgramService{si
 
 // ProgramProject is a PLC's project as the editor opens it.
 type ProgramProject struct {
-	// Project is the key of the project the program is in, which SaveFile takes.
+	// Project is the name of the project the program is in, which SaveFile takes.
 	Project string         `json:"project"`
 	Station string         `json:"station"`
 	PLC     string         `json:"plc"`
@@ -67,12 +67,13 @@ type BuildResult struct {
 func (p *ProgramService) project(plc string) (*plcprog.Project, string, string, string, error) {
 	p.sim.mu.Lock()
 	station, id, err := p.sim.plcOf(plc)
-	scene := p.sim.engine.Plan().Scene
-	key, dir := p.sim.proj.key, p.sim.proj.dir()
-	p.sim.mu.Unlock()
 	if err != nil {
+		p.sim.mu.Unlock()
 		return nil, "", "", "", err
 	}
+	scene := p.sim.engine.Plan().Scene
+	key, dir := p.sim.proj.name, p.sim.proj.dir()
+	p.sim.mu.Unlock()
 	table := scene.PLC
 	for _, sp := range scene.PLCs {
 		if sp.Module == id {
@@ -94,7 +95,10 @@ func (p *ProgramService) Open(plc string) (ProgramProject, error) {
 		return ProgramProject{}, err
 	}
 	p.sim.mu.Lock()
-	name := p.sim.bundle.Station.Name
+	name := station
+	if p.sim.bundle != nil {
+		name = p.sim.bundle.Station.Name
+	}
 	p.sim.mu.Unlock()
 	example, _ := Library().Folder(exampleDir(station, id))
 	names := slices.Sorted(maps.Keys(example))
@@ -140,18 +144,16 @@ func (p *ProgramService) ReadFile(plc, name string) (string, error) {
 	return proj.Read(name)
 }
 
-// SaveFile saves a source file of the program of a PLC, by the key of its project and the
+// SaveFile saves a source file of the program of a PLC, by the name of its project and the
 // PLC, as ProgramProject names them: the file goes back to where it was opened from, also
 // when the simulation has changed to another project since.
-func (p *ProgramService) SaveFile(projectKey, plc, name, src string) error {
-	unsaved, rest, isUnsaved := strings.Cut(projectKey, "/")
-	switch {
-	case isUnsaved && (unsaved != unsavedFolder || !folderName(rest)), !isUnsaved && !projectName(projectKey), !folderName(plc):
-		return fmt.Errorf("there is no program for %q in %q", plc, projectKey)
+func (p *ProgramService) SaveFile(project, plc, name, src string) error {
+	if !projectName(project) || !folderName(plc) {
+		return fmt.Errorf("there is no program for %q in %q", plc, project)
 	}
-	dir := project{key: projectKey}.dir()
+	dir := projectDir(project)
 	if _, ok, _ := readProject(dir); !ok {
-		return fmt.Errorf("there is no project %q: it was closed or deleted", projectKey)
+		return fmt.Errorf("there is no project %q: it was renamed or deleted", project)
 	}
 	proj := &plcprog.Project{Dir: filepath.Join(dir, "programs", plc)}
 	return proj.Write(name, src)
@@ -250,7 +252,7 @@ func (p *ProgramService) Download(plc string) (BuildResult, error) {
 func (p *ProgramService) soft(plc string) (*plcprog.Soft, error) {
 	p.sim.mu.Lock()
 	_, id, err := p.sim.plcOf(plc)
-	key := p.sim.proj.key
+	key := p.sim.proj.name
 	p.sim.mu.Unlock()
 	if err != nil {
 		return nil, err
@@ -291,7 +293,7 @@ func (p *ProgramService) Reset(plc string, cold bool) error {
 func (p *ProgramService) Status(plc string) (ProgramStatus, error) {
 	p.sim.mu.Lock()
 	station, id, err := p.sim.plcOf(plc)
-	key := p.sim.proj.key
+	key := p.sim.proj.name
 	p.sim.mu.Unlock()
 	if err != nil {
 		return ProgramStatus{}, err

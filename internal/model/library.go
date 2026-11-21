@@ -245,6 +245,11 @@ func (l *Library) StationCollection(id string) string {
 	return l.collectionOf(path.Join("stations", id, "station.json"))
 }
 
+// ExerciseCollection is the collection an exercise comes from, "" for the user's own.
+func (l *Library) ExerciseCollection(id string) string {
+	return l.collectionOf(path.Join("exercises", id, "exercise.json"))
+}
+
 // ModuleCollection is the collection a module or accessory comes from, "" for the user's own.
 func (l *Library) ModuleCollection(id string) string {
 	if c := l.collectionOf(path.Join("modules", id, "module.json")); c != "" {

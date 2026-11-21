@@ -120,12 +120,12 @@ export function Reset(plc: string, cold: boolean): $CancellablePromise<void> {
 }
 
 /**
- * SaveFile saves a source file of the program of a PLC, by the key of its project and the
+ * SaveFile saves a source file of the program of a PLC, by the name of its project and the
  * PLC, as ProgramProject names them: the file goes back to where it was opened from, also
  * when the simulation has changed to another project since.
  */
-export function SaveFile(projectKey: string, plc: string, name: string, src: string): $CancellablePromise<void> {
-    return $Call.ByID(2852879915, projectKey, plc, name, src);
+export function SaveFile(project: string, plc: string, name: string, src: string): $CancellablePromise<void> {
+    return $Call.ByID(2852879915, project, plc, name, src);
 }
 
 /**

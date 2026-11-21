@@ -316,20 +316,20 @@ func (l linkProgram) Step() (plcio.StepInfo, bool) {
 func (l linkProgram) Reset() { l.s.Reset() }
 func (l linkProgram) Close() {}
 
-// Manager keeps the soft PLCs of the app, one for each PLC of each station.
+// Manager keeps the soft PLCs of the app, one for each PLC of each project.
 type Manager struct {
 	mu   sync.Mutex
 	plcs map[string]*Soft
 }
 
-// Get gives the soft PLC for a station's PLC, making it on first use.
-func (m *Manager) Get(station, plc string) *Soft {
+// Get gives the soft PLC for a PLC of a project, making it on first use.
+func (m *Manager) Get(project, plc string) *Soft {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.plcs == nil {
 		m.plcs = map[string]*Soft{}
 	}
-	key := station + "/" + plc
+	key := project + "/" + plc
 	s := m.plcs[key]
 	if s == nil {
 		s = NewSoft(fmt.Sprintf("Soft PLC %s (Structured Text)", plc))
@@ -338,15 +338,15 @@ func (m *Manager) Get(station, plc string) *Soft {
 	return s
 }
 
-// Move gives the soft PLCs of one project, by the key Get had for it, to another, as they
-// run on when the project is saved under a new name.
-func (m *Manager) Move(from, to string) {
+// Drop stops the soft PLCs of a project and forgets them, so that the project starts afresh
+// when it is opened again.
+func (m *Manager) Drop(project string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for key, s := range m.plcs {
-		if rest, ok := strings.CutPrefix(key, from+"/"); ok {
+		if strings.HasPrefix(key, project+"/") {
+			s.Close()
 			delete(m.plcs, key)
-			m.plcs[to+"/"+rest] = s
 		}
 	}
 }

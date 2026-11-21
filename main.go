@@ -22,10 +22,10 @@ func init() {
 	application.RegisterEvent[string](simapp.ProjectCommandEvent)
 }
 
-// menu is the app's menu: a File menu with the project's commands, as a programming tool has
-// them, with the shortcuts of the system (CmdOrCtrl is ⌘ on a Mac and Ctrl elsewhere). On a
-// Mac it also has the app's, the Edit and the Window menu, without which copy and paste
-// would not work in the app's text fields.
+// menu is the app's menu: a File menu to import a project file and to close the project, with
+// the shortcuts of the system (CmdOrCtrl is ⌘ on a Mac and Ctrl elsewhere). Everything else
+// about projects is on the app's start page. On a Mac it also has the app's, the Edit and the
+// Window menu, without which copy and paste would not work in the app's text fields.
 func menu(app *application.App) *application.Menu {
 	m := app.NewMenu()
 	if runtime.GOOS == "darwin" {
@@ -35,15 +35,8 @@ func menu(app *application.App) *application.Menu {
 		return func(*application.Context) { app.Event.Emit(simapp.ProjectCommandEvent, name) }
 	}
 	file := m.AddSubmenu("File")
-	file.Add("New Project…").SetAccelerator("CmdOrCtrl+N").OnClick(command("new"))
-	file.Add("Open Project…").SetAccelerator("CmdOrCtrl+O").OnClick(command("open"))
-	file.AddSeparator()
-	file.Add("Save Project").SetAccelerator("CmdOrCtrl+S").OnClick(command("save"))
-	file.Add("Save Project As…").SetAccelerator("CmdOrCtrl+Shift+S").OnClick(command("saveAs"))
-	file.Add("Close Project").OnClick(command("close"))
-	file.AddSeparator()
-	file.Add("Export Project File…").OnClick(command("export"))
-	file.Add("Import Project File…").OnClick(command("import"))
+	file.Add("Import Project File…").SetAccelerator("CmdOrCtrl+O").OnClick(command("import"))
+	file.Add("Close Project").SetAccelerator("CmdOrCtrl+W").OnClick(command("close"))
 	if runtime.GOOS == "darwin" {
 		m.AddRole(application.EditMenu)
 		m.AddRole(application.WindowMenu)

@@ -17,6 +17,7 @@ export {
 };
 
 export type {
+    Base,
     BuildResult,
     BuilderCheck,
     BuilderFloor,
@@ -32,6 +33,7 @@ export type {
     CollectionInfo,
     ConnectionDoc,
     ConnectionInfo,
+    Example,
     ExerciseInfo,
     FolderInfo,
     PLCConfig,
