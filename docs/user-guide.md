@@ -2,7 +2,7 @@
 
 Taktwin starts on **Projects**, which lists your projects. Beside it, **Library** browses the collections and previews any module on its own, without a PLC. An open project shows its station: **Simulate** runs it with its PLC, and **Build** puts it together. The gear at the top right opens **Settings**: **General** for your folder, **Collections**, **Updates** and **About**. A second click on the gear, or Esc, goes back.
 
-The status bar along the bottom shows the app's version, with a dot when an update is ready; a click opens **Updates**. While a station runs it shows its PLC and connection, an I/O test with **End**, the PLC's step, and the simulated time and speed; a click on the PLC shows its panel. On the right, **✓ Saved** shows the project's folder, and **Feedback** opens a new issue on GitHub. What needs acknowledging, such as a collision or a workpiece that fell off, stays in the top bar.
+The status bar along the bottom shows the app's version, with a dot when an update is ready; a click opens **Updates**. While a station runs it shows its PLC and connection, an I/O test with **End**, the PLC's step, and the simulated time and speed; a click on the PLC shows its panel. On the right, **✓ Saved** shows the project's folder. What needs acknowledging, such as a collision or a workpiece that fell off, stays in the top bar.
 
 ## Collections and your own stations
 

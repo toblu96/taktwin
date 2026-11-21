@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ask } from '../ask'
-import { Browser } from '@wailsio/runtime'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { LibraryService, SettingsService } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { CollectionInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
@@ -36,18 +35,12 @@ const tabs: { id: SettingsTab; name: string }[] = [
   { id: 'updates', name: 'Updates' },
   { id: 'about', name: 'About' },
 ]
+const title = computed(() => tabs.find((t) => t.id === settingsTab.value)?.name ?? '')
 function key(e: KeyboardEvent) {
   if (e.key === 'Escape') closeSettings()
 }
 onMounted(() => window.addEventListener('keydown', key))
 onUnmounted(() => window.removeEventListener('keydown', key))
-
-const REPO = 'https://github.com/toblu96/taktwin'
-const links = [
-  { name: 'User guide', url: `${REPO}/blob/main/docs/user-guide.md` },
-  { name: 'Source code', url: REPO },
-  { name: 'Report a problem or suggest an idea', url: `${REPO}/issues/new` },
-]
 
 // --- Collections: the app's own reference models, and what was imported.
 
@@ -147,106 +140,103 @@ async function reload() {
       </button>
     </nav>
     <div class="pane">
-      <button class="close" title="Back (Esc)" aria-label="Close the settings" @click="closeSettings">✕</button>
-      <section v-if="settingsTab === 'general'" class="block">
-        <h3 class="section-title">Your folder</h3>
-        <p class="hint">
-          Your projects are kept in this folder, under <span class="mono">projects</span>, and imported collections under <span class="mono">collections</span>. The app also reads
-          stations of your own from it, in front of the collections, each in <span class="mono">stations/&lt;id&gt;/station.json</span>.
-        </p>
-        <div class="folder">
-          <code class="mono path" :title="folder">{{ folder }}</code>
-          <button @click="openFolder">Open folder</button>
-          <button :disabled="busy" @click="reload">Reload</button>
-        </div>
-        <div class="folder">
-          <button :disabled="busy || fixed" @click="change(true)">Change…</button>
-          <button v-if="!isDefault" :disabled="busy || fixed" @click="change(false)">Use the default folder</button>
-          <span v-if="fixed" class="hint">Set by TAKTWIN_HOME.</span>
-          <span v-else class="hint">Stations already in the old folder stay there.</span>
-        </div>
-        <p v-if="status" class="hint">{{ status }}</p>
-        <p v-if="failed" class="problem">{{ failed }}</p>
-        <p v-for="p in problems" :key="p.name" class="problem">
-          <strong>{{ p.name }}</strong> {{ p.error }}
-        </p>
-      </section>
-      <section v-if="settingsTab === 'collections'" class="block">
-        <h3 class="section-title">Collections</h3>
-        <p class="hint">
-          Stations, modules and parts come in collections. The built-in one can be hidden; an imported <span class="mono">.taktwin</span> collection is kept in your folder, and
-          importing a newer one replaces it.
-        </p>
-        <ul class="collections">
-          <li v-for="c in collections" :key="c.source + c.id + c.path" :class="{ hidden: c.hidden, shadowed: c.shadowed }">
-            <div class="what">
-              <strong>{{ c.name }}</strong>
-              <span v-if="c.version" class="mono version">{{ c.version }}</span>
-              <span class="badge">{{ SOURCES[c.source] ?? c.source }}</span>
-              <span v-if="c.hidden" class="badge off">Hidden</span>
-              <p v-if="c.description" class="hint">{{ c.description }}</p>
-              <p class="hint counts">{{ c.stations }} stations · {{ c.modules }} modules and accessories · {{ c.parts }} parts</p>
-              <p v-if="c.shadowed" class="hint">Another collection with the id {{ c.id }} comes first and is used instead.</p>
-              <p v-if="c.error" class="problem">{{ c.error }}</p>
-            </div>
-            <div class="actions">
-              <button v-if="c.id" :disabled="busy" @click="toggleHidden(c)">{{ c.hidden ? 'Show' : 'Hide' }}</button>
-              <button v-if="c.source === 'installed'" class="danger" :disabled="busy" @click="removeCollection(c)">Remove</button>
-            </div>
-          </li>
-        </ul>
-        <div class="folder">
-          <button :disabled="busy" @click="importCollection">Import collection…</button>
-          <span v-if="collectionStatus" class="hint">{{ collectionStatus }}</span>
-        </div>
-        <p v-if="collectionFailed" class="problem">{{ collectionFailed }}</p>
-      </section>
-      <section v-if="settingsTab === 'updates'" class="block">
-        <h3 class="section-title">Updates</h3>
-        <p class="hint">
-          You run Taktwin <span class="mono">{{ update?.version ?? '…' }}</span>.<template v-if="update && !update.installable">
-            It runs from the sources, so it checks for updates but does not install them.</template
-          >
-        </p>
-        <div v-if="update?.ready" class="folder">
-          <strong>Taktwin {{ update.latest?.version }} is installed.</strong>
-          <button class="primary" @click="restartForUpdate">Restart now</button>
-          <span class="hint">It takes effect when Taktwin starts again.</span>
-        </div>
-        <div v-else-if="update?.latest" class="folder">
-          <strong>Taktwin {{ update.latest.version }} is available.</strong>
-          <button class="primary" :disabled="updating || !update.installable" @click="installUpdate">Download and install</button>
-          <button @click="openRelease(update.latest.url)">What's new</button>
-        </div>
-        <div v-else class="folder">
-          <button :disabled="updating" @click="checkForUpdate">{{ updating ? 'Checking…' : 'Check for updates' }}</button>
-          <span v-if="update?.state === 'up-to-date'" class="hint">Taktwin is up to date.</span>
-        </div>
-        <div v-if="progress" class="progress" role="progressbar" :aria-valuenow="percent ?? undefined" aria-valuemin="0" aria-valuemax="100">
-          <div class="bar" :style="{ width: (percent ?? 5) + '%' }"></div>
-          <span class="hint">{{ percent === null ? 'Downloading…' : `Downloading… ${percent} %` }}</span>
-        </div>
-        <label class="check">
-          <input type="checkbox" :checked="update?.autoCheck ?? true" @change="setAutoCheck(($event.target as HTMLInputElement).checked)" />
-          Check for updates when Taktwin starts
-        </label>
-        <p v-if="updateFailed || update?.problem" class="problem">{{ updateFailed || update?.problem }}</p>
-      </section>
-      <section v-if="settingsTab === 'about'" class="block">
-        <h3 class="section-title">About</h3>
-        <p class="about">
-          <img src="/logo.svg" alt="" width="40" height="40" />
-          <span>
-            <strong>Taktwin</strong> <span class="mono version">{{ update?.version ?? '' }}</span>
-            <span class="hint">A PLC training simulator with a 3D digital twin of production stations. Apache License 2.0.</span>
-          </span>
-        </p>
-        <ul class="links">
-          <li v-for="l in links" :key="l.url">
-            <button class="link" @click="Browser.OpenURL(l.url)">{{ l.name }}</button>
-          </li>
-        </ul>
-      </section>
+      <header class="pane-head">
+        <h3>{{ title }}</h3>
+        <button class="close" title="Back (Esc)" aria-label="Close the settings" @click="closeSettings">✕</button>
+      </header>
+      <div class="content">
+        <section v-if="settingsTab === 'general'" class="block">
+          <h3 class="section-title">Your folder</h3>
+          <p class="hint">
+            Your projects are kept in this folder, under <span class="mono">projects</span>, and imported collections under <span class="mono">collections</span>. The app also
+            reads stations of your own from it, in front of the collections, each in <span class="mono">stations/&lt;id&gt;/station.json</span>.
+          </p>
+          <div class="folder">
+            <code class="mono path" :title="folder">{{ folder }}</code>
+            <button @click="openFolder">Open folder</button>
+            <button :disabled="busy" @click="reload">Reload</button>
+          </div>
+          <div class="folder">
+            <button :disabled="busy || fixed" @click="change(true)">Change…</button>
+            <button v-if="!isDefault" :disabled="busy || fixed" @click="change(false)">Use the default folder</button>
+            <span v-if="fixed" class="hint">Set by TAKTWIN_HOME.</span>
+            <span v-else class="hint">Stations already in the old folder stay there.</span>
+          </div>
+          <p v-if="status" class="hint">{{ status }}</p>
+          <p v-if="failed" class="problem">{{ failed }}</p>
+          <p v-for="p in problems" :key="p.name" class="problem">
+            <strong>{{ p.name }}</strong> {{ p.error }}
+          </p>
+        </section>
+        <section v-if="settingsTab === 'collections'" class="block">
+          <p class="hint">
+            Stations, modules and parts come in collections. The built-in one can be hidden; an imported <span class="mono">.taktwin</span> collection is kept in your folder, and
+            importing a newer one replaces it.
+          </p>
+          <ul class="collections">
+            <li v-for="c in collections" :key="c.source + c.id + c.path" :class="{ hidden: c.hidden, shadowed: c.shadowed }">
+              <div class="what">
+                <strong>{{ c.name }}</strong>
+                <span v-if="c.version" class="mono version">{{ c.version }}</span>
+                <span class="badge">{{ SOURCES[c.source] ?? c.source }}</span>
+                <span v-if="c.hidden" class="badge off">Hidden</span>
+                <p v-if="c.description" class="hint">{{ c.description }}</p>
+                <p class="hint counts">{{ c.stations }} stations · {{ c.modules }} modules and accessories · {{ c.parts }} parts</p>
+                <p v-if="c.shadowed" class="hint">Another collection with the id {{ c.id }} comes first and is used instead.</p>
+                <p v-if="c.error" class="problem">{{ c.error }}</p>
+              </div>
+              <div class="actions">
+                <button v-if="c.id" :disabled="busy" @click="toggleHidden(c)">{{ c.hidden ? 'Show' : 'Hide' }}</button>
+                <button v-if="c.source === 'installed'" class="danger" :disabled="busy" @click="removeCollection(c)">Remove</button>
+              </div>
+            </li>
+          </ul>
+          <div class="folder">
+            <button :disabled="busy" @click="importCollection">Import collection…</button>
+            <span v-if="collectionStatus" class="hint">{{ collectionStatus }}</span>
+          </div>
+          <p v-if="collectionFailed" class="problem">{{ collectionFailed }}</p>
+        </section>
+        <section v-if="settingsTab === 'updates'" class="block">
+          <p class="hint">
+            You run Taktwin <span class="mono">{{ update?.version ?? '…' }}</span>.<template v-if="update && !update.installable">
+              It runs from the sources, so it checks for updates but does not install them.</template
+            >
+          </p>
+          <div v-if="update?.ready" class="folder">
+            <strong>Taktwin {{ update.latest?.version }} is installed.</strong>
+            <button class="primary" @click="restartForUpdate">Restart now</button>
+            <span class="hint">It takes effect when Taktwin starts again.</span>
+          </div>
+          <div v-else-if="update?.latest" class="folder">
+            <strong>Taktwin {{ update.latest.version }} is available.</strong>
+            <button class="primary" :disabled="updating || !update.installable" @click="installUpdate">Download and install</button>
+            <button @click="openRelease(update.latest.url)">What's new</button>
+          </div>
+          <div v-else class="folder">
+            <button :disabled="updating" @click="checkForUpdate">{{ updating ? 'Checking…' : 'Check for updates' }}</button>
+            <span v-if="update?.state === 'up-to-date'" class="hint">Taktwin is up to date.</span>
+          </div>
+          <div v-if="progress" class="progress" role="progressbar" :aria-valuenow="percent ?? undefined" aria-valuemin="0" aria-valuemax="100">
+            <div class="bar" :style="{ width: (percent ?? 5) + '%' }"></div>
+            <span class="hint">{{ percent === null ? 'Downloading…' : `Downloading… ${percent} %` }}</span>
+          </div>
+          <label class="check">
+            <input type="checkbox" :checked="update?.autoCheck ?? true" @change="setAutoCheck(($event.target as HTMLInputElement).checked)" />
+            Check for updates when Taktwin starts
+          </label>
+          <p v-if="updateFailed || update?.problem" class="problem">{{ updateFailed || update?.problem }}</p>
+        </section>
+        <section v-if="settingsTab === 'about'" class="block">
+          <p class="about">
+            <img src="/logo.svg" alt="" width="40" height="40" />
+            <span>
+              <span><strong>Taktwin</strong> <span class="mono version">{{ update?.version ?? '' }}</span></span>
+              <span class="hint">A PLC training simulator with a 3D digital twin of production stations. Apache License 2.0.</span>
+            </span>
+          </p>
+        </section>
+      </div>
     </div>
   </main>
 </template>
@@ -300,27 +290,44 @@ h2 {
 }
 
 .pane {
-  max-width: 800px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  min-width: 0;
+}
+
+.pane-head {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 14px 12px 28px;
+}
+
+.pane-head h3 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.content {
   overflow: auto;
-  padding: 20px 28px;
-  position: relative;
+  padding: 20px 28px 32px;
+}
+
+.content > section {
+  max-width: 800px;
 }
 
 .close {
   background: none;
   border-color: transparent;
   color: var(--text-dim);
-  position: absolute;
-  right: 12px;
-  top: 12px;
+  font-size: 15px;
+  padding: 2px 8px;
 }
 
 .close:hover {
   color: var(--text);
-}
-
-.block {
-  padding-right: 32px;
 }
 
 .about {
@@ -336,23 +343,6 @@ h2 {
 
 .about .hint {
   margin: 0;
-}
-
-.links {
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
-}
-
-.link {
-  background: none;
-  border: 0;
-  color: var(--signal);
-  padding: 3px 0;
-}
-
-.link:hover {
-  text-decoration: underline;
 }
 
 .primary {

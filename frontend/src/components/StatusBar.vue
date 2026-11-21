@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Browser } from '@wailsio/runtime'
 import { computed, ref } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { edits } from '../builder'
@@ -7,8 +6,7 @@ import { openSettings, page, project, simulation, view } from '../sim'
 import { update, updateAvailable } from '../update'
 
 // The status bar, as a desktop tool has one: the app and its version on the left, then how
-// the open project's station runs, and on the right where the project is kept and a way to
-// give feedback. Everything in it shows a state; a click goes to where it is changed.
+// the open project's station runs, and on the right where the project is kept. Everything in it shows a state; a click goes to where it is changed.
 const { scene, snapshot } = simulation
 
 const running = computed(() => page.value === 'simulation' && !!project.value && view.value === 'simulate')
@@ -33,8 +31,6 @@ async function reveal() {
     problem.value = (e as Error).message ?? String(e)
   }
 }
-
-const FEEDBACK = 'https://github.com/toblu96/taktwin/issues/new'
 </script>
 
 <template>
@@ -69,7 +65,6 @@ const FEEDBACK = 'https://github.com/toblu96/taktwin/issues/new'
     <span class="spacer" />
     <span v-if="problem" class="item problem">{{ problem }}</span>
     <button v-if="project" class="item" :title="`Kept as it changes, in ${project.folder}: click to show the folder`" @click="reveal">✓ Saved</button>
-    <button class="item" title="Report a problem or suggest an idea" @click="Browser.OpenURL(FEEDBACK)">Feedback</button>
   </footer>
 </template>
 
