@@ -865,6 +865,26 @@ export class StationScene {
     })
   }
 
+  // A small picture of the view as it is, cut to its size, as a JPEG data URL, such as a
+  // project keeps of its station.
+  thumbnail(width = 480, height = 300): string | null {
+    const source = this.renderer.domElement
+    if (!source.width || !source.height) return null
+    // Drawn now, so that the canvas still holds the picture when it is copied.
+    this.build?.beforeRender()
+    this.renderer.render(this.scene, this.camera)
+    const out = document.createElement('canvas')
+    out.width = width
+    out.height = height
+    const context = out.getContext('2d')
+    if (!context) return null
+    const scale = Math.max(width / source.width, height / source.height)
+    const w = width / scale
+    const h = height / scale
+    context.drawImage(source, (source.width - w) / 2, (source.height - h) / 2, w, h, 0, 0, width, height)
+    return out.toDataURL('image/jpeg', 0.82)
+  }
+
   // Renderer load, shown in the viewer: draw calls and triangles.
   stats() {
     return { calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles }

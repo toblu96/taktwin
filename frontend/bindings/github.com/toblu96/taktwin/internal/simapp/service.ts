@@ -172,6 +172,15 @@ export function OpenProject(name: string): $CancellablePromise<model$0.Scene> {
 }
 
 /**
+ * OpenProjectFile imports a .taktwin-project file, such as one dropped onto the window, into a
+ * project of its own and opens it. A project that is imported but does not open, such as one
+ * whose station is missing, is listed all the same.
+ */
+export function OpenProjectFile($from: string): $CancellablePromise<$models.ProjectInfo> {
+    return $Call.ByID(2863485121, $from);
+}
+
+/**
  * PLC returns which PLC the station uses, its first one.
  */
 export function PLC(): $CancellablePromise<$models.PLCConfig> {
@@ -231,6 +240,13 @@ export function Reset(): $CancellablePromise<void> {
 }
 
 /**
+ * RevealProject shows a project's folder in the system's file manager.
+ */
+export function RevealProject(name: string): $CancellablePromise<void> {
+    return $Call.ByID(3408525328, name);
+}
+
+/**
  * RunAction triggers a function of a module or the station.
  */
 export function RunAction(name: string, args: { [_ in string]?: string } | null): $CancellablePromise<void> {
@@ -243,6 +259,14 @@ export function RunAction(name: string, args: { [_ in string]?: string } | null)
  */
 export function SaveConnection(plc: string, doc: string, values: { [_ in string]?: any } | null): $CancellablePromise<$models.ConnectionInfo> {
     return $Call.ByID(606904059, plc, doc, values);
+}
+
+/**
+ * SaveThumbnail keeps a picture of the open project's station, a JPEG as a data URL, to
+ * show the project by.
+ */
+export function SaveThumbnail(dataURL: string): $CancellablePromise<void> {
+    return $Call.ByID(3224563681, dataURL);
 }
 
 /**

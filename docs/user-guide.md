@@ -26,16 +26,16 @@ The **Builder** page puts a station together without editing files. Start from a
 
 Everything you do in the simulation belongs to a project: the soft PLC's programs, how each PLC is connected, and the station's settings. A project is saved as it changes, so there is nothing to save.
 
-The app starts on **Projects**, with your projects first, the latest on top, and below them the station each collection comes with as an **Example**. An example is listed until its collection is hidden in **Settings**. Clicking a project opens it; clicking an example makes a project of your own on it.
+The app starts on **Projects**: a card for each of your projects, the latest first, with a picture of its station as you left it and how its last exercise check went. Below them is the station each collection comes with, as an **Example**, until its collection is hidden in **Settings**. Clicking a project opens it; clicking an example makes a project of your own on it. With projects on stations and on exercises, tabs show either kind, and the filter field (⌘F / Ctrl+F) finds a project by its name, station or exercise.
 
 - **New project** makes one from a station or from an exercise of your collections. It is named after the station or exercise unless you give it a name, with a number where that name is taken. A project on an exercise has the station set up as the exercise says, and its check in **Exercises**.
-- **Rename**, **Duplicate** and **Delete** work on projects that are not open.
-- **Export…** writes a project into a `.taktwin-project` file, to hand it in or move it to another computer. **Import project file…** opens such a file as a project of its own; on a Mac also **File › Import Project File…** (⌘O).
+- A card's **⋯** menu renames, duplicates, shows the project's folder, exports or deletes it.
+- **Export…** writes a project into a `.taktwin-project` file, to hand it in or move it to another computer. **Open file…** opens such a file as a project of its own, as does dropping it onto the page; on a Mac also **File › Import Project File…** (⌘O).
 - **‹ Projects** in the top bar closes the project; on a Mac also **File › Close Project** (⌘W). Closing disconnects every PLC and stops its soft PLCs, so download the program again after opening the project.
 
 Only a Mac has a menu bar, as every Mac app does: besides the **File** menu it has **Taktwin › Settings…** (⌘,). On Windows everything is on the app's pages.
 
-Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. A project whose station or exercise is in none of your collections, for example because the collection is hidden, is listed with the reason and does not open. Projects are kept in the `projects` folder of your folder, one folder each, with `project.json` and the programs in `programs/<plc>/`. A project file holds only these, and an import refuses anything else.
+Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. A project whose station or exercise is in none of your collections, for example because the collection is hidden, is listed with the reason and does not open. Projects are kept in the `projects` folder of your folder, one folder each, with `project.json`, the programs in `programs/<plc>/` and `thumbnail.jpg`. A project file holds only these, and an import refuses anything else.
 
 ## Running a station
 

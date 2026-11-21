@@ -1,17 +1,18 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { LibraryService, Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import type { Example, ExerciseInfo, ProjectInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
-import { grouped } from '../collections'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
+import type { Example, ProjectInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import { filesRead, importProject, newProject, openProject, projectError } from '../sim'
+import NewProjectDialog from './NewProjectDialog.vue'
+import ProjectCard from './ProjectCard.vue'
 
 // The app's start: the user's projects, the latest first, then the stations the collections
-// open with, to start a project from. Everything in the simulation belongs to a project.
+// open with, to start a project from. A project file dropped onto the page opens. Everything
+// in the simulation belongs to a project.
 const projects = ref<ProjectInfo[]>([])
 const examples = ref<Example[]>([])
-const stations = ref<{ id: string; name: string; collection?: string }[]>([])
-const exercises = ref<ExerciseInfo[]>([])
 const busy = ref(false)
+const creating = ref(false)
 
 async function refresh() {
   const [p, e] = await Promise.all([Service.Projects(), Service.Examples()])
@@ -20,6 +21,8 @@ async function refresh() {
 }
 onMounted(refresh)
 watch(filesRead, refresh)
+// A dropped file may be imported and still not open.
+watch(projectError, refresh)
 
 // act runs an action and shows what went wrong, in the same place as the app menu's errors.
 async function act(what: () => Promise<unknown>) {
@@ -35,171 +38,159 @@ async function act(what: () => Promise<unknown>) {
   }
 }
 
-// The form for a new project: from a station or an exercise, with a name of its own or that
-// of what it is made from.
-const creating = ref(false)
-const from = ref<'station' | 'exercise'>('station')
-const station = ref('')
-const exercise = ref('')
-const name = ref('')
-
-async function startNew() {
-  creating.value = true
-  ;[stations.value, exercises.value] = await Promise.all([
-    LibraryService.Entries().then((all) => (all ?? []).filter((e) => e.level === 'station' && !e.error)),
-    Service.AllExercises().then((all) => all ?? []),
-  ])
-  station.value ||= examples.value[0]?.station ?? stations.value[0]?.id ?? ''
-  exercise.value ||= exercises.value[0]?.id ?? ''
-}
-
-const suggested = computed(() =>
-  from.value === 'station' ? (stations.value.find((s) => s.id === station.value)?.name ?? '') : (exercises.value.find((e) => e.id === exercise.value)?.name ?? ''),
-)
-
-const create = () =>
-  act(async () => {
-    await newProject(from.value === 'station' ? { station: station.value, exercise: '' } : { station: '', exercise: exercise.value }, name.value.trim())
-    creating.value = false
-    name.value = ''
-  })
-
-// Renaming happens in place, one project at a time.
-const renaming = ref('')
-const newName = ref('')
-const renameInput = ref<HTMLInputElement[]>([])
-
-async function startRename(p: ProjectInfo) {
-  renaming.value = p.name
-  newName.value = p.name
-  await nextTick()
-  renameInput.value[0]?.select()
-}
-
-const rename = (p: ProjectInfo) =>
-  act(async () => {
-    if (newName.value.trim() !== p.name) await Service.RenameProject(p.name, newName.value.trim())
-    renaming.value = ''
-  })
-
 function remove(p: ProjectInfo) {
   if (!confirm(`Delete the project ${p.name}, with its programs? This cannot be undone.`)) return
   void act(() => Service.DeleteProject(p.name))
 }
 
-const when = (iso?: string) => (iso ? new Date(iso).toLocaleString() : '')
-const what = (p: ProjectInfo) => (p.exerciseName ? `Exercise: ${p.exerciseName} · ${p.stationName}` : p.stationName)
+// The tabs show while there are projects of both kinds.
+type Kind = 'all' | 'station' | 'exercise'
+const kind = ref<Kind>('all')
+const query = ref('')
+const search = ref<HTMLInputElement | null>(null)
+const matches = (...texts: (string | undefined)[]) => {
+  const q = query.value.trim().toLowerCase()
+  return !q || texts.some((t) => t?.toLowerCase().includes(q))
+}
+const counts = computed(() => ({
+  all: projects.value.length,
+  station: projects.value.filter((p) => !p.exercise).length,
+  exercise: projects.value.filter((p) => p.exercise).length,
+}))
+const shown = computed(() => projects.value.filter((p) => (kind.value === 'all' || (kind.value === 'exercise') === !!p.exercise) && matches(p.name, p.stationName, p.exerciseName)))
+const shownExamples = computed(() => (kind.value === 'exercise' ? [] : examples.value.filter((e) => matches(e.stationName, e.collection, e.description))))
+watch(counts, (c) => {
+  if (!c.station || !c.exercise) kind.value = 'all'
+})
+
+// ⌘F or Ctrl+F goes to the filter, Esc clears it.
+function key(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
+    e.preventDefault()
+    search.value?.focus()
+  }
+}
+onMounted(() => window.addEventListener('keydown', key))
+onUnmounted(() => window.removeEventListener('keydown', key))
 </script>
 
 <template>
-  <main class="projects">
-    <header class="head">
-      <h2>Projects</h2>
-      <div class="actions">
-        <button :disabled="busy" @click="act(importProject)">Import project file…</button>
-        <button class="primary" :disabled="busy" @click="creating ? (creating = false) : startNew()">New project</button>
-      </div>
-    </header>
+  <main class="projects" data-file-drop-target>
+    <div class="content">
+      <header class="head">
+        <h2>Projects</h2>
+        <nav v-if="counts.station && counts.exercise" class="tabs" aria-label="Show">
+          <button :class="{ active: kind === 'all' }" @click="kind = 'all'">All {{ counts.all }}</button>
+          <button :class="{ active: kind === 'station' }" @click="kind = 'station'">Stations {{ counts.station }}</button>
+          <button :class="{ active: kind === 'exercise' }" @click="kind = 'exercise'">Exercises {{ counts.exercise }}</button>
+        </nav>
+        <span class="spacer" />
+        <input ref="search" v-model="query" class="search" type="search" placeholder="Filter" aria-label="Filter projects" @keydown.esc="query = ''" />
+        <button :disabled="busy" title="Open a .taktwin-project file, or drop one onto this page" @click="act(importProject)">Open file…</button>
+        <button class="primary" :disabled="busy" @click="creating = true">New project</button>
+      </header>
 
-    <section v-if="creating" class="new">
-      <div class="from" role="radiogroup" aria-label="Start from">
-        <label><input v-model="from" type="radio" value="station" /> A station</label>
-        <label><input v-model="from" type="radio" value="exercise" :disabled="!exercises.length" /> An exercise</label>
-      </div>
-      <label v-if="from === 'station'" class="field">
-        <span>Station</span>
-        <select v-model="station">
-          <optgroup v-for="g in grouped(stations)" :key="g.id" :label="g.name">
-            <option v-for="s in g.items" :key="s.id" :value="s.id">{{ s.name }}</option>
-          </optgroup>
-        </select>
-      </label>
-      <label v-else class="field">
-        <span>Exercise</span>
-        <select v-model="exercise">
-          <optgroup v-for="g in grouped(exercises)" :key="g.id" :label="g.name">
-            <option v-for="e in g.items" :key="e.id" :value="e.id">{{ e.name }} ({{ e.stationName }})</option>
-          </optgroup>
-        </select>
-      </label>
-      <label class="field">
-        <span>Name</span>
-        <input v-model="name" type="text" maxlength="80" :placeholder="suggested" @keydown.enter="create" @keydown.esc="creating = false" />
-      </label>
-      <div class="actions">
-        <button class="primary" :disabled="busy || (from === 'station' ? !station : !exercise)" @click="create">Create</button>
-        <button @click="creating = false">Cancel</button>
-      </div>
-    </section>
+      <p v-if="projectError" class="problem" role="alert">
+        {{ projectError }}
+        <button class="dismiss" aria-label="Dismiss" @click="projectError = ''">✕</button>
+      </p>
 
-    <p v-if="projectError" class="problem" role="alert">{{ projectError }}</p>
+      <div class="grid">
+        <ProjectCard
+          v-for="p in shown"
+          :key="p.name"
+          :project="p"
+          :busy="busy"
+          @open="act(() => openProject(p.name))"
+          @rename="(to) => act(() => Service.RenameProject(p.name, to))"
+          @duplicate="act(() => Service.DuplicateProject(p.name))"
+          @reveal="act(() => Service.RevealProject(p.name))"
+          @export="act(() => Service.ExportProject(p.name))"
+          @remove="remove(p)"
+        />
+        <button
+          v-for="e in shownExamples"
+          :key="'example:' + e.station"
+          class="example"
+          :disabled="busy"
+          title="Start a project of your own on this station"
+          @click="act(() => newProject({ station: e.station, exercise: '' }))"
+        >
+          <span class="picture"><img src="/logo.svg" alt="" /><span class="badge">Example</span></span>
+          <span class="body">
+            <strong>{{ e.stationName }}</strong>
+            <small>{{ e.collection }}</small>
+            <span v-if="e.description" class="description">{{ e.description }}</span>
+          </span>
+        </button>
+      </div>
 
-    <ul class="list">
-      <li v-for="p in projects" :key="p.name" :class="{ broken: p.problem }">
-        <div class="what">
-          <input
-            v-if="renaming === p.name"
-            ref="renameInput"
-            v-model="newName"
-            class="rename"
-            type="text"
-            maxlength="80"
-            aria-label="New name"
-            @keydown.enter="rename(p)"
-            @keydown.esc="renaming = ''"
-            @blur="renaming = ''"
-          />
-          <button v-else class="open" :disabled="busy || !!p.problem" :title="p.folder" @click="act(() => openProject(p.name))">{{ p.name }}</button>
-          <p class="hint">{{ what(p) }} · {{ when(p.modified) }}</p>
-          <p v-if="p.problem" class="hint warn">{{ p.problem }}</p>
-        </div>
-        <div class="actions">
-          <button :disabled="busy" @click="startRename(p)">Rename</button>
-          <button :disabled="busy" @click="act(() => Service.DuplicateProject(p.name))">Duplicate</button>
-          <button :disabled="busy" @click="act(() => Service.ExportProject(p.name))">Export…</button>
-          <button :disabled="busy" @click="remove(p)">Delete</button>
-        </div>
-      </li>
-      <li v-for="e in examples" :key="'example:' + e.station" class="example">
-        <div class="what">
-          <button class="open" :disabled="busy" title="Start a project of your own on this station" @click="act(() => newProject({ station: e.station, exercise: '' }))">
-            {{ e.stationName }}
-          </button>
-          <span class="badge">Example</span>
-          <p class="hint">
-            {{ e.collection }}<template v-if="e.description"> · {{ e.description }}</template>
-          </p>
-        </div>
-      </li>
-    </ul>
-    <p v-if="!projects.length && !examples.length" class="hint">There is nothing to start from: import a collection in the settings, or a project file.</p>
+      <p v-if="!shown.length && !shownExamples.length" class="empty">
+        <template v-if="query">No project matches “{{ query }}”.</template>
+        <template v-else>There is nothing to start from yet: import a collection in the settings, or open a project file.</template>
+      </p>
+    </div>
+    <div class="drop" aria-hidden="true">Drop a project file to open it</div>
+    <NewProjectDialog v-if="creating" @close="creating = false" />
   </main>
 </template>
 
 <style scoped>
 .projects {
-  max-width: 860px;
+  min-height: 0;
   overflow: auto;
-  padding: 20px 24px;
+  position: relative;
+}
+
+.content {
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 22px 28px 32px;
 }
 
 .head {
   align-items: center;
   display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
 }
 
 h2 {
-  font-size: 18px;
-  margin: 0;
+  font-size: 20px;
+  margin: 0 6px 0 0;
 }
 
-.actions {
-  align-items: flex-start;
+.tabs {
   display: flex;
   gap: 6px;
+}
+
+.tabs button {
+  background: none;
+  border-radius: 12px;
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 3px 10px;
+}
+
+.tabs .active {
+  background: var(--panel-raised);
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.search {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--text);
+  padding: 5px 8px;
+  width: 200px;
 }
 
 .primary {
@@ -209,105 +200,121 @@ h2 {
   font-weight: 600;
 }
 
-.new {
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  display: grid;
-  gap: 10px;
-  margin-bottom: 14px;
-  padding: 12px;
-}
-
-.from {
-  display: flex;
-  gap: 16px;
-}
-
-.field {
-  display: grid;
-  gap: 3px;
-  max-width: 420px;
-}
-
-.field span {
-  color: var(--text-dim);
-  font-size: 12px;
-}
-
-.field input,
-.field select,
-.rename {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  color: var(--text);
-  padding: 4px 6px;
-}
-
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.list li {
+.problem {
   align-items: center;
-  border: 1px solid var(--line);
-  border-radius: 3px;
+  border-left: 2px solid var(--danger);
   display: flex;
-  gap: 12px;
-  margin-bottom: 8px;
-  padding: 10px 12px;
+  font-size: 13px;
+  gap: 10px;
+  justify-content: space-between;
+  margin: 0 0 16px;
+  padding: 4px 0 4px 10px;
 }
 
-.list li.example {
-  border-style: dashed;
-}
-
-.what {
-  flex: 1;
-  min-width: 0;
-}
-
-.open {
+.dismiss {
   background: none;
-  border: none;
-  font-size: 14px;
-  font-weight: 600;
+  border: 0;
+  color: var(--text-dim);
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+}
+
+.example {
+  background: none;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
   padding: 0;
   text-align: left;
 }
 
-.open:hover:not(:disabled) {
-  color: var(--accent);
+.example:hover:not(:disabled) {
+  border-color: var(--text-dim);
 }
 
-.broken .open {
-  color: var(--text-dim);
+.example .picture {
+  align-items: center;
+  aspect-ratio: 16 / 10;
+  background: var(--panel);
+  border-bottom: 1px dashed var(--line);
+  border-radius: 5px 5px 0 0;
+  display: flex;
+  justify-content: center;
+  position: relative;
+  width: 100%;
 }
 
-.hint {
-  color: var(--text-dim);
-  font-size: 12px;
-  margin: 3px 0 0;
-}
-
-.warn {
-  color: var(--danger);
+.example .picture img {
+  height: 56px;
+  opacity: 0.5;
+  width: 56px;
 }
 
 .badge {
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 1px solid var(--text-dim);
+  border-radius: 3px;
   color: var(--text-dim);
   font-size: 11px;
-  margin-left: 8px;
-  padding: 0 7px;
+  font-weight: 600;
+  left: 8px;
+  padding: 0 6px;
+  position: absolute;
+  top: 8px;
 }
 
-.problem {
-  border-left: 2px solid var(--danger);
-  font-size: 13px;
-  margin: 0 0 12px;
-  padding: 2px 0 2px 8px;
+.example .body {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px 12px;
+}
+
+.example strong {
+  font-size: 14px;
+}
+
+.example small {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.description {
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--text-dim);
+  display: -webkit-box;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+}
+
+.empty {
+  color: var(--text-dim);
+  margin-top: 24px;
+  text-align: center;
+}
+
+/* Wails marks the drop target while a file is dragged over the window. */
+.drop {
+  align-items: center;
+  background: rgb(11 31 34 / 85%);
+  border: 2px dashed var(--accent);
+  border-radius: 8px;
+  color: var(--accent);
+  display: none;
+  font-size: 16px;
+  font-weight: 600;
+  inset: 12px;
+  justify-content: center;
+  pointer-events: none;
+  position: absolute;
+}
+
+.projects.file-drop-target-active .drop {
+  display: flex;
 }
 </style>

@@ -312,6 +312,15 @@ export interface FolderInfo {
 }
 
 /**
+ * LastCheck is how a check of an exercise went: passed or not, and when, as RFC 3339.
+ */
+export interface LastCheck {
+    "exercise": string;
+    "passed": boolean;
+    "at": string;
+}
+
+/**
  * PLCConfig says which PLC the station uses.
  */
 export interface PLCConfig {
@@ -424,6 +433,12 @@ export interface ProjectInfo {
      * Problem says why it does not open, such as its station's collection being hidden or gone.
      */
     "problem"?: string;
+
+    /**
+     * Thumbnail is a picture of its station as it was last closed, as a data URL.
+     */
+    "thumbnail"?: string;
+    "lastCheck"?: LastCheck | null;
 }
 
 /**

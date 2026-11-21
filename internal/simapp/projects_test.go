@@ -269,3 +269,43 @@ func TestAProjectIsExportedAndImported(t *testing.T) {
 		t.Error("no file")
 	}
 }
+
+// A project keeps a picture of its station and how its last check went, lists them, and
+// takes the picture along in its file.
+func TestAProjectShowsItsPictureAndLastCheck(t *testing.T) {
+	s, _ := newService(t)
+	jpeg := "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ=="
+	for _, bad := range []string{"", "data:image/png;base64,AAAA", "data:image/jpeg;base64,***"} {
+		if err := s.SaveThumbnail(bad); err == nil {
+			t.Errorf("%q is kept", bad)
+		}
+	}
+	if err := s.SaveThumbnail(jpeg); err != nil {
+		t.Fatal(err)
+	}
+	s.keepCheck("Other", LastCheck{Exercise: "load-a-pallet", Passed: true})
+	s.keepCheck("Test", LastCheck{Exercise: "load-a-pallet", Passed: true, At: "2026-11-21T10:00:00Z"})
+	p := s.Project()
+	if p.Thumbnail != jpeg || p.LastCheck == nil || !p.LastCheck.Passed || p.LastCheck.At != "2026-11-21T10:00:00Z" {
+		t.Errorf("project: %+v", p)
+	}
+
+	file := filepath.Join(t.TempDir(), "Test"+ProjectExtension)
+	if err := ExportProjectTo(p.Folder, file); err != nil {
+		t.Fatal(err)
+	}
+	s.CloseProject()
+	if err := s.SaveThumbnail(jpeg); err == nil {
+		t.Error("a picture with no project open")
+	}
+	opened, err := s.OpenProjectFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opened.Name != "Test (2)" || opened.Thumbnail != jpeg || opened.LastCheck == nil || s.Project().Name != "Test (2)" {
+		t.Errorf("the file opens as a project with its picture: %+v", opened)
+	}
+	if _, err := s.OpenProjectFile(filepath.Join(t.TempDir(), "notes.txt")); err == nil {
+		t.Error("a file that is no project")
+	}
+}

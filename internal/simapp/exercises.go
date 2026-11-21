@@ -7,6 +7,7 @@ import (
 	"maps"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
@@ -130,7 +131,7 @@ func (s *Service) StartCheck(id string) error {
 		s.mu.Unlock()
 		return errNoProject
 	}
-	e, station, ctx, open := s.engine, s.bundle.Station.ID, s.ctx, s.exercise
+	e, station, ctx, open, project := s.engine, s.bundle.Station.ID, s.ctx, s.exercise, s.proj.name
 	s.mu.Unlock()
 	if ex.Station != station {
 		return fmt.Errorf("%s is an exercise for the %s station", ex.Name, ex.Station)
@@ -160,11 +161,40 @@ func (s *Service) StartCheck(id string) error {
 		if err != nil {
 			s.check.state.Error = err.Error()
 		}
+		passed := passed(s.check.state)
 		s.check.mu.Unlock()
+		// A check that was stopped says nothing about the program.
+		if run.Err() == nil {
+			s.keepCheck(project, LastCheck{Exercise: id, Passed: passed, At: time.Now().UTC().Format(time.RFC3339)})
+		}
 		stop()
 		s.emitCheck()
 	}()
 	return nil
+}
+
+// passed says whether a check that ran to its end passed every line.
+func passed(st CheckState) bool {
+	if st.Error != "" || len(st.Lines) == 0 {
+		return false
+	}
+	for _, l := range st.Lines {
+		if !l.OK {
+			return false
+		}
+	}
+	return true
+}
+
+// keepCheck keeps how a check went in the project it ran in, if that is still open.
+func (s *Service) keepCheck(project string, c LastCheck) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if project == "" || s.proj.name != project {
+		return
+	}
+	s.proj.def.LastCheck = &c
+	_ = s.saveProject()
 }
 
 // StopCheck stops a running check.

@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 
 	"github.com/toblu96/taktwin/internal/engine"
 	"github.com/toblu96/taktwin/internal/simapp"
@@ -20,6 +21,7 @@ func init() {
 	application.RegisterEvent[engine.Snapshot](simapp.BuilderEvent)
 	application.RegisterEvent[simapp.CheckState](simapp.CheckEvent)
 	application.RegisterEvent[string](simapp.MenuCommandEvent)
+	application.RegisterEvent[[]string](simapp.FilesDroppedEvent)
 }
 
 // menu is the app's menu on a Mac, where every app has one: the app's menu with Settings, a
@@ -81,7 +83,7 @@ func main() {
 		app.Menu.Set(menu(app))
 	}
 
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:              "Taktwin",
 		UseApplicationMenu: true,
 		Width:              1360,
@@ -90,6 +92,11 @@ func main() {
 		MinHeight:          700,
 		BackgroundColour:   application.NewRGB(11, 31, 34),
 		URL:                "/",
+		// Project files dropped onto the projects page open there.
+		EnableFileDrop: true,
+	})
+	window.OnWindowEvent(events.Common.WindowFilesDropped, func(e *application.WindowEvent) {
+		app.Event.Emit(simapp.FilesDroppedEvent, e.Context().DroppedFiles())
 	})
 
 	if err := app.Run(); err != nil {

@@ -36,6 +36,7 @@ export type {
     Example,
     ExerciseInfo,
     FolderInfo,
+    LastCheck,
     PLCConfig,
     Preview,
     PreviewBinding,

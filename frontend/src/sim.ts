@@ -182,10 +182,16 @@ async function show(next: Promise<Scene>) {
 export const openProject = (name: string) => show(Service.OpenProject(name))
 export const newProject = (base: Base, name = '') => show(Service.NewProject(name, base))
 
-// Closes the project: its PLCs are disconnected, and the app shows its projects.
+// What takes a picture of the simulation's 3D view, while it shows.
+export const thumbnails: { take: (() => string | null) | null } = { take: null }
+
+// Closes the project: it keeps a picture of its station to be shown by, its PLCs are
+// disconnected, and the app shows its projects.
 export async function closeProject() {
   programming.value = null
   editingConnection.value = null
+  const picture = thumbnails.take?.()
+  if (picture) await Service.SaveThumbnail(picture).catch(() => undefined)
   await Service.CloseProject()
   simulation.selection.value = null
   simulation.snapshot.value = null
@@ -221,6 +227,13 @@ export function connect() {
     }
     const run = event.data === 'import' ? importProject : event.data === 'close' && project.value ? closeProject : null
     run?.().catch((error: Error) => (projectError.value = error.message ?? String(error)))
+  })
+  // Project files dropped onto the projects page open, the first of them.
+  Events.On('files:dropped', (event) => {
+    const [path] = (event.data as string[] | null) ?? []
+    if (!path || project.value) return
+    projectError.value = ''
+    show(Service.OpenProjectFile(path).then(() => Service.Scene())).catch((error: Error) => (projectError.value = error.message ?? String(error)))
   })
   // A project stays open when the window is reloaded.
   refreshProject()

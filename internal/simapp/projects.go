@@ -3,6 +3,7 @@ package simapp
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,6 +33,10 @@ const (
 	ProjectExtension = ".taktwin-project"
 	// ProjectFormat is the format of project files this build writes.
 	ProjectFormat = 1
+	// ThumbnailFile is a picture of the project's station as it was last closed.
+	ThumbnailFile = "thumbnail.jpg"
+	// maxThumbnailBytes is the largest thumbnail a project keeps.
+	maxThumbnailBytes = 1 << 20
 	// maxProjectBytes is the most an imported project may unpack to.
 	maxProjectBytes = 64 << 20
 )
@@ -50,6 +55,15 @@ type ProjectDef struct {
 	PLCs map[string]PLCConfig `json:"plcs,omitempty"`
 	// Parameters are the station's settings as set in the simulation, by id.
 	Parameters map[string]float64 `json:"parameters,omitempty"`
+	// LastCheck is how the last check of an exercise that ran to its end went.
+	LastCheck *LastCheck `json:"lastCheck,omitempty"`
+}
+
+// LastCheck is how a check of an exercise went: passed or not, and when, as RFC 3339.
+type LastCheck struct {
+	Exercise string `json:"exercise"`
+	Passed   bool   `json:"passed"`
+	At       string `json:"at"`
 }
 
 // Base is what a project is based on: a station, or an exercise and its station.
@@ -82,6 +96,9 @@ type ProjectInfo struct {
 	Modified string `json:"modified,omitempty"`
 	// Problem says why it does not open, such as its station's collection being hidden or gone.
 	Problem string `json:"problem,omitempty"`
+	// Thumbnail is a picture of its station as it was last closed, as a data URL.
+	Thumbnail string     `json:"thumbnail,omitempty"`
+	LastCheck *LastCheck `json:"lastCheck,omitempty"`
 }
 
 func projectInfo(lib *model.Library, name string, def ProjectDef) ProjectInfo {
@@ -101,7 +118,46 @@ func projectInfo(lib *model.Library, name string, def ProjectDef) ProjectInfo {
 	if fi, err := os.Stat(filepath.Join(projectDir(name), ProjectFile)); err == nil {
 		info.Modified = fi.ModTime().UTC().Format(time.RFC3339)
 	}
+	if data, err := os.ReadFile(filepath.Join(projectDir(name), ThumbnailFile)); err == nil && len(data) <= maxThumbnailBytes {
+		info.Thumbnail = "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(data)
+	}
+	info.LastCheck = def.LastCheck
 	return info
+}
+
+// SaveThumbnail keeps a picture of the open project's station, a JPEG as a data URL, to
+// show the project by.
+func (s *Service) SaveThumbnail(dataURL string) error {
+	data, ok := strings.CutPrefix(dataURL, "data:image/jpeg;base64,")
+	if !ok {
+		return errors.New("a thumbnail is a JPEG data URL")
+	}
+	img, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return err
+	}
+	if len(img) > maxThumbnailBytes {
+		return errors.New("the thumbnail is too large")
+	}
+	s.mu.Lock()
+	name := s.proj.name
+	s.mu.Unlock()
+	if name == "" {
+		return errNoProject
+	}
+	return os.WriteFile(filepath.Join(projectDir(name), ThumbnailFile), img, 0o644)
+}
+
+// RevealProject shows a project's folder in the system's file manager.
+func (s *Service) RevealProject(name string) error {
+	if !projectName(name) || !exists(filepath.Join(projectDir(name), ProjectFile)) {
+		return fmt.Errorf("there is no project %s", name)
+	}
+	app := application.Get()
+	if app == nil {
+		return errors.New("no file manager to show it in")
+	}
+	return app.Env.OpenFileManager(projectDir(name), false)
 }
 
 // Project says which project the simulation works in, with no name while none is open.
@@ -494,6 +550,16 @@ func (s *Service) ImportProject() (ProjectInfo, error) {
 	if err != nil || from == "" {
 		return ProjectInfo{}, err
 	}
+	return s.OpenProjectFile(from)
+}
+
+// OpenProjectFile imports a .taktwin-project file, such as one dropped onto the window, into a
+// project of its own and opens it. A project that is imported but does not open, such as one
+// whose station is missing, is listed all the same.
+func (s *Service) OpenProjectFile(from string) (ProjectInfo, error) {
+	if !strings.EqualFold(filepath.Ext(from), ProjectExtension) {
+		return ProjectInfo{}, fmt.Errorf("%s is no project file: those end in %s", filepath.Base(from), ProjectExtension)
+	}
 	name, err := ImportProjectFile(from)
 	if err != nil {
 		return ProjectInfo{}, err
@@ -555,7 +621,7 @@ func ImportProjectFile(from string) (string, error) {
 			continue
 		}
 		name := path.Clean(f.Name)
-		if !fs.ValidPath(name) || strings.Contains(f.Name, `\`) || (name != ProjectFile && !strings.HasPrefix(name, "programs/")) {
+		if !fs.ValidPath(name) || strings.Contains(f.Name, `\`) || (name != ProjectFile && name != ThumbnailFile && !strings.HasPrefix(name, "programs/")) {
 			return "", fmt.Errorf("%s holds %s, which no project has", filepath.Base(from), f.Name)
 		}
 		total += int64(f.UncompressedSize64)
@@ -602,6 +668,9 @@ func ImportProjectFile(from string) (string, error) {
 	}
 	return name, nil
 }
+
+// FilesDroppedEvent carries the paths of files dropped onto the window to the frontend.
+const FilesDroppedEvent = "files:dropped"
 
 // MenuCommandEvent carries a command of the app's menu on a Mac to the frontend: import or
 // close a project, or show the settings.
