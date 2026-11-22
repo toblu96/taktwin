@@ -191,6 +191,27 @@ func (s *Service) SetPLCFor(plc string, c PLCConfig) error {
 	return s.remember(plc, c)
 }
 
+// DisconnectPLCFor ends the connection of one of the station's PLCs, by its module, and restarts
+// the station without it. The project keeps how it connects the PLC, so it is offered again,
+// ready to connect: a controller that cannot be reached is let go of without losing its form.
+func (s *Service) DisconnectPLCFor(plc string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.engine == nil {
+		return errNoProject
+	}
+	none := PLCConfig{Mode: PLCNone}
+	ctl, err := s.controller(plc, none)
+	if err != nil {
+		return err
+	}
+	if err := s.engine.SetControllerFor(plc, ctl); err != nil {
+		return err
+	}
+	s.plcs[s.plcKey(plc)] = none
+	return nil
+}
+
 // plcOf names a PLC of the station in the simulation by the station and its module, the
 // first one for "".
 func (s *Service) plcOf(plc string) (station, id string, err error) {

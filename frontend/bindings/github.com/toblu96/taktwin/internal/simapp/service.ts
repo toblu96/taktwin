@@ -124,6 +124,15 @@ export function DeleteProject(name: string): $CancellablePromise<void> {
 }
 
 /**
+ * DisconnectPLCFor ends the connection of one of the station's PLCs, by its module, and restarts
+ * the station without it. The project keeps how it connects the PLC, so it is offered again,
+ * ready to connect: a controller that cannot be reached is let go of without losing its form.
+ */
+export function DisconnectPLCFor(plc: string): $CancellablePromise<void> {
+    return $Call.ByID(3460384912, plc);
+}
+
+/**
  * DuplicateProject copies a project, with its programs, under a name of its own.
  */
 export function DuplicateProject(name: string): $CancellablePromise<$models.ProjectInfo> {
