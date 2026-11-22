@@ -14,6 +14,7 @@ import IconRefresh from '~icons/fluent/arrow-clockwise-16-regular'
 import IconAdd from '~icons/fluent/add-16-regular'
 import IconClose from '~icons/fluent/dismiss-16-regular'
 import IconDelete from '~icons/fluent/delete-16-regular'
+import IconUnbind from '~icons/fluent/link-dismiss-16-regular'
 
 // The editor of a connection, in the middle of the wiring: which item of the controller each
 // signal of the station is exchanged with, picked from what the controller offers, browsed in
@@ -86,6 +87,10 @@ watch(text, () => {
 
 const resolved = computed(() => new Map((preview.value?.bindings ?? []).map((b) => [b.address, b])))
 const unbound = computed(() => new Set(preview.value?.unbound ?? []))
+// A signal that nothing of the station reaches, with no symbol and nothing it is for, need not
+// be exchanged: it can be bound, but it is not missing when it is not.
+const used = (s: SignalInfo) => !!(s.symbol || s.description)
+const missing = (s: SignalInfo) => used(s) && unbound.value.has(s.address)
 
 // The binding a row edits: the first that names its signal, by symbol or by address.
 function bindingOf(s: SignalInfo): BindingDef | undefined {
@@ -263,8 +268,20 @@ const onlyHere = computed({
   },
 })
 
+// The file's id from the connection's name, kept apart from the ids of the app's own connections.
+function idOf(name: string) {
+  const id =
+    name
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'my-connection'
+  return /^(codesys|soft|opcua)(-|$)/.test(id) ? `my-${id}` : id
+}
+
 async function save() {
   if (!doc.value) return
+  if (!doc.value.id?.trim()) doc.value.id = idOf(doc.value.name ?? '')
   busy.value = true
   message.value = ''
   try {
@@ -290,9 +307,9 @@ async function remove() {
 }
 
 const counts = computed(() => {
-  const all = signals.value.length
-  const bound = all - unbound.value.size
-  return `${bound} of ${all} signals exchanged`
+  const inUse = signals.value.filter(used)
+  const bound = inUse.filter((s) => !unbound.value.has(s.address)).length
+  return `${bound} of the ${inUse.length} signals in use exchanged`
 })
 </script>
 
@@ -317,7 +334,12 @@ const counts = computed(() => {
         ]"
       />
       <button v-if="yours" class="t-btn text-danger" @click="remove"><IconDelete class="size-4" />Delete</button>
-      <button class="t-btn t-btn-primary" :disabled="busy || !doc || !doc.id" :title="yours ? undefined : 'Saves it into your folder'" @click="save">
+      <button
+        class="t-btn t-btn-primary"
+        :disabled="busy || !doc"
+        :title="yours ? undefined : 'Saves it into your folder, with an id from its name unless it has one'"
+        @click="save"
+      >
         {{ yours ? 'Save' : 'Save into your folder' }}
       </button>
       <button class="t-icon-btn" title="Close the bindings" aria-label="Close the bindings" @click="emit('close')"><IconClose class="size-4" /></button>
@@ -347,10 +369,11 @@ const counts = computed(() => {
           <table class="w-full table-fixed border-collapse">
             <colgroup>
               <col class="w-7" />
-              <col class="w-[42%]" />
+              <col class="w-[36%]" />
               <col />
-              <col class="w-28" />
+              <col class="w-24" />
               <col class="w-10" />
+              <col class="w-9" />
             </colgroup>
             <thead>
               <tr class="text-left text-[11px] font-semibold tracking-wide text-muted uppercase">
@@ -359,6 +382,7 @@ const counts = computed(() => {
                 <th class="pb-1.5 font-semibold">Node</th>
                 <th class="pb-1.5 font-semibold">Follows</th>
                 <th class="pb-1.5 font-semibold" title="Exchanged the other way round">Not</th>
+                <th class="pb-1.5 font-semibold"><span class="sr-only">Clear</span></th>
               </tr>
             </thead>
             <tbody>
@@ -389,7 +413,7 @@ const counts = computed(() => {
                 <td class="py-1 pr-2">
                   <input
                     class="t-input h-6 px-1.5 font-mono text-xs select-text"
-                    :class="unbound.has(s.address) && !generatedText(s) ? 'border-danger' : ''"
+                    :class="missing(s) ? 'border-danger' : ''"
                     type="text"
                     :value="itemText(bindingOf(s)?.item)"
                     :placeholder="generatedText(s) || '—'"
@@ -420,6 +444,17 @@ const counts = computed(() => {
                     :model-value="!!bindingOf(s)?.invert"
                     @update:model-value="(on: boolean) => setInvert(s, on)"
                   />
+                </td>
+                <td class="py-1 text-right">
+                  <button
+                    v-if="bindingOf(s)"
+                    class="t-icon-btn size-6"
+                    :title="`Clear the node of ${s.symbol || s.shown}`"
+                    :aria-label="`Clear the node of ${s.symbol || s.shown}`"
+                    @click.stop="setItem(s, null)"
+                  >
+                    <IconUnbind class="size-4" />
+                  </button>
                 </td>
               </tr>
             </tbody>
