@@ -173,10 +173,13 @@ function editBindings() {
 }
 
 // After the editor saved a connection, or deleted one, the list shows it as it is now.
+// After the bindings were saved, connecting again makes the PLC exchange with them.
+const justSaved = ref(false)
 watch(savedConnection, async (saved) => {
   if (!saved || saved.plc !== plcId.value) return
   await loadConnections()
   if (saved.id) {
+    justSaved.value = true
     connection.value = saved.id
     // The form keeps what was filled in to edit it, once the new connection's form is up.
     await nextTick()
@@ -247,6 +250,7 @@ async function disconnect() {
 }
 
 async function apply() {
+  justSaved.value = false
   busy.value = true
   message.value = ''
   const external = mode.value === 'external'
@@ -314,6 +318,7 @@ async function apply() {
       </div>
     </div>
 
+    <p v-if="pending && justSaved" class="m-0 mt-3 text-xs text-accent-ink" role="status">The bindings are saved. Connect to exchange with them.</p>
     <button v-if="pending" class="t-btn t-btn-primary mt-3 w-full justify-center" :disabled="busy || (mode === 'external' && !connection)" @click="apply">
       {{ mode === 'none' ? 'Disconnect the PLC' : 'Connect' }} and restart the station
     </button>

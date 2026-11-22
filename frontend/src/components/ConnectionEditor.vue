@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
+import { choose } from '../ask'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { Preview, SignalInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import type { Node } from '../../bindings/github.com/toblu96/taktwin/internal/link/models'
@@ -52,6 +54,21 @@ const jsonError = ref('')
 const selected = ref('')
 
 const text = computed(() => (doc.value ? JSON.stringify(doc.value, null, 2) : ''))
+
+// The bindings are kept when they are saved, not with each change as the station is: what has
+// changed since shows, and closing or leaving the wiring asks first.
+const savedText = ref('')
+const unsaved = computed(() => !!doc.value && text.value !== savedText.value)
+async function keepOrDrop(): Promise<boolean> {
+  if (!unsaved.value) return true
+  const answer = await choose('The bindings have changes that are not saved yet.', ['Save', 'Discard'])
+  if (answer === 'Save') return save(false)
+  return answer === 'Discard'
+}
+async function close() {
+  if (await keepOrDrop()) emit('close')
+}
+onBeforeRouteLeave(() => keepOrDrop())
 const station = computed(() => simulation.scene.value?.id ?? '')
 
 onMounted(async () => {
@@ -69,6 +86,7 @@ onMounted(async () => {
       parsed.bindings ??= []
     }
     doc.value = parsed
+    savedText.value = text.value
     selected.value = signals.value[0]?.address ?? ''
     await browse('')
   } catch (e) {
@@ -279,17 +297,21 @@ function idOf(name: string) {
   return /^(codesys|soft|opcua)(-|$)/.test(id) ? `my-${id}` : id
 }
 
-async function save() {
-  if (!doc.value) return
+// Saves the bindings, and closes the editor unless asked to stay; it says whether it saved.
+async function save(close = true): Promise<boolean> {
+  if (!doc.value) return false
   if (!doc.value.id?.trim()) doc.value.id = idOf(doc.value.name ?? '')
   busy.value = true
   message.value = ''
   try {
     const info = await Service.SaveConnection(props.plc, text.value, props.values)
+    savedText.value = text.value
     savedConnection.value = { plc: props.plc, id: info.id, values: props.values }
-    emit('close')
+    if (close) emit('close')
+    return true
   } catch (e) {
     message.value = (e as Error).message
+    return false
   } finally {
     busy.value = false
   }
@@ -334,15 +356,16 @@ const counts = computed(() => {
         ]"
       />
       <button v-if="yours" class="t-btn text-danger" @click="remove"><IconDelete class="size-4" />Delete</button>
+      <span v-if="unsaved" class="text-xs text-accent-ink" role="status">Not saved yet</span>
       <button
         class="t-btn t-btn-primary"
         :disabled="busy || !doc"
         :title="yours ? undefined : 'Saves it into your folder, with an id from its name unless it has one'"
-        @click="save"
+        @click="save()"
       >
         {{ yours ? 'Save' : 'Save into your folder' }}
       </button>
-      <button class="t-icon-btn" title="Close the bindings" aria-label="Close the bindings" @click="emit('close')"><IconClose class="size-4" /></button>
+      <button class="t-icon-btn" title="Close the bindings" aria-label="Close the bindings" @click="close"><IconClose class="size-4" /></button>
     </header>
     <p v-if="message" class="m-0 shrink-0 border-0 border-b border-solid border-line px-3 py-2 text-danger" role="alert">{{ message }}</p>
     <p v-else-if="preview?.error" class="m-0 shrink-0 border-0 border-b border-solid border-line px-3 py-2 text-danger">{{ preview.error }}</p>
