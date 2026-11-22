@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from 'vue'
-import { panelOpen, panelTab } from '../project-view'
+import { onMounted, onUnmounted } from 'vue'
+import { panelOpen } from '../project-view'
 import { useRoute } from 'vue-router'
-import { editingConnection, programming, project } from '../sim'
+import { editingConnection, programming } from '../sim'
 import { detailsWidth as details, panelHeight as panel, treeWidth as tree } from '../layout'
 import UiSash from '../ui/UiSash.vue'
 import ProgramIde from '../ide/ProgramIde.vue'
@@ -20,13 +20,6 @@ import SimulationSide from './SimulationSide.vue'
 // take the middle while they are open.
 const route = useRoute()
 const active = () => route.name === 'simulate'
-
-// A project opens on its signals.
-watch(
-  () => project.value?.name,
-  () => (panelTab.value = 'io'),
-  { immediate: true },
-)
 
 // ⌘J or Ctrl+J shows and hides the panel, as in VS Code.
 function key(e: KeyboardEvent) {

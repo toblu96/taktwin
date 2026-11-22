@@ -7,12 +7,16 @@ import UiLamp from '../ui/UiLamp.vue'
 // The signals of the PLC that is shown, live: a lamp for each digital input and output, the
 // value of each analogue one. During an I/O test the outputs are switched here by hand, and a
 // sensor's threshold sits next to its input, to teach it with a workpiece in front of it. Wide,
-// as in the panel below the 3D view, inputs and outputs stand side by side with what each is
-// for and the module it belongs to.
-defineProps<{ wide?: boolean }>()
+// on a page of its own, inputs and outputs stand side by side with their addresses; narrow, as
+// in a side bar, each signal shows what it is for and its variable, its address in its tooltip.
+// It shows the PLC given by its index, or else the one the selection picks.
+const props = defineProps<{ wide?: boolean; index?: number }>()
 
 const sim = useSim()
-const { parameterValue, plcId, plcScene, plcView, scene } = sim
+const { parameterValue, scene } = sim
+const plcScene = computed(() => (props.index === undefined ? sim.plcScene.value : (scene.value?.plcs?.[props.index] ?? scene.value?.plc ?? null)))
+const plcView = computed(() => (props.index === undefined ? sim.plcView.value : (sim.snapshot.value?.plcs?.[props.index] ?? null)))
+const plcId = computed(() => (props.index === undefined ? sim.plcId.value : props.index > 0 ? (scene.value?.plcs?.[props.index]?.module ?? '') : ''))
 
 const testing = computed(() => sim === simulation && !!plcView.value?.ioTest)
 const switchOutput = (variable: string, on: boolean) => void Service.SetTestOutputFor(plcId.value, variable, on)
@@ -63,11 +67,10 @@ const number = 't-input h-6 w-16 px-1.5 text-right font-mono text-xs'
         <colgroup>
           <col class="w-6" />
           <col class="w-20" />
-          <col v-if="wide || testing" />
-          <col v-if="testing && !group.outputs" class="w-32" />
+          <col />
           <template v-if="!testing">
-            <col class="w-28" />
-            <col class="w-20" />
+            <col :class="wide ? 'w-28' : 'w-24'" />
+            <col v-if="wide" class="w-20" />
           </template>
         </colgroup>
         <tbody>
@@ -85,30 +88,32 @@ const number = 't-input h-6 w-16 px-1.5 text-right font-mono text-xs'
               <UiLamp v-else :on="bit(group.image, signal.byte, signal.bit)" :out="group.outputs" />
             </td>
             <td :class="cell" class="truncate font-semibold">{{ signal.name }}</td>
-            <td v-if="wide || testing" :class="cell" class="text-muted">
-              <span class="block truncate">{{ signal.description }}</span>
-            </td>
-            <td v-if="testing && !group.outputs" :class="cell" class="pr-0 text-right whitespace-nowrap">
-              <label
-                v-if="settingOf(signal.address)"
-                class="inline-flex items-center gap-1 text-xs text-muted"
-                :title="`${settingOf(signal.address)?.label} of ${instanceOf(signal.address)?.name}`"
-              >
-                <input
-                  type="number"
-                  :class="number"
-                  :min="settingOf(signal.address)?.min"
-                  :max="settingOf(signal.address)?.max"
-                  :step="settingOf(signal.address)?.step || 1"
-                  :value="parameterValue(settingOf(signal.address)?.id ?? '', settingOf(signal.address)?.value ?? 0)"
-                  :aria-label="`${settingOf(signal.address)?.label} of ${signal.name}`"
-                  @change="changeSetting(signal.address, $event)"
-                />{{ settingOf(signal.address)?.unit }}
-              </label>
+            <td :class="cell" class="text-muted">
+              <span class="flex items-center gap-2">
+                <span class="min-w-0 flex-1 truncate">{{ signal.description }}</span>
+                <template v-if="testing && !group.outputs">
+                  <label
+                    v-if="settingOf(signal.address)"
+                    class="inline-flex items-center gap-1 text-xs text-muted"
+                    :title="`${settingOf(signal.address)?.label} of ${instanceOf(signal.address)?.name}`"
+                  >
+                    <input
+                      type="number"
+                      :class="number"
+                      :min="settingOf(signal.address)?.min"
+                      :max="settingOf(signal.address)?.max"
+                      :step="settingOf(signal.address)?.step || 1"
+                      :value="parameterValue(settingOf(signal.address)?.id ?? '', settingOf(signal.address)?.value ?? 0)"
+                      :aria-label="`${settingOf(signal.address)?.label} of ${signal.name}`"
+                      @change="changeSetting(signal.address, $event)"
+                    />{{ settingOf(signal.address)?.unit }}
+                  </label>
+                </template>
+              </span>
             </td>
             <template v-if="!testing">
-              <td :class="cell" class="truncate font-mono text-xs">{{ signal.variable }}</td>
-              <td :class="cell" class="pr-0 text-right font-mono text-xs whitespace-nowrap text-muted" :title="signal.address">{{ signal.shown || signal.address }}</td>
+              <td :class="[cell, wide ? '' : 'pr-0']" class="truncate font-mono text-xs" :title="wide ? undefined : signal.shown || signal.address">{{ signal.variable }}</td>
+              <td v-if="wide" :class="cell" class="pr-0 text-right font-mono text-xs whitespace-nowrap text-muted" :title="signal.address">{{ signal.shown || signal.address }}</td>
             </template>
           </tr>
         </tbody>
