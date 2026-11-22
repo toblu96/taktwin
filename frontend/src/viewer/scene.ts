@@ -641,10 +641,13 @@ export class StationScene {
     this.canvas.style.cursor = this.pick(event).press ? 'pointer' : ''
   }
 
+  // A double click frames a module, or a workpiece where they can be picked, from where the
+  // camera looks; beside them it goes back to the view of the whole station.
   private readonly onDoubleClick = (event: MouseEvent) => {
-    const { instance, press } = this.pick(event)
+    const { instance, press, workpiece } = this.pick(event)
     if (press) return
-    const box = instance ? this.moduleBox(instance) : null
+    const piece = workpiece === null ? undefined : this.workpieceMeshes.get(workpiece)
+    const box = piece ? new THREE.Box3().setFromObject(piece) : instance ? this.moduleBox(instance) : null
     if (!box) {
       this.home()
       this.invalidate()
