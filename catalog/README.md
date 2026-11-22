@@ -53,7 +53,7 @@ A module is a physical unit you could unscrew from where it stands. Its coordina
 | `plc` | For a PLC: how it shows its addresses. See [PLCs](#plcs) |
 | `group` | Where the library lists an accessory: Sensors, Actuators, PLC and I/O, or Mechanical |
 
-A `description` on a module is what people read in the library, so say what it is and what it does. The library previews every entry on its own, without a PLC.
+A `description` on a module is what people read in the library, so say what it is and what it does. The library previews every entry on its own, without a PLC. It does so with the workpieces its collection names, and offers on each transport only the kinds of the `family` that the module's own `placeWorkpiece` actions on that transport name, such as cartons on a carton conveyor; without one, every kind.
 
 Any number can be an expression over parameters, such as `"length - 47"` or `"radius * sin(45)"`. Angles are degrees. Expressions know `+ - * /`, comparisons, `&&`, `||` and `!` (true is 1, and anything from 0.5 counts as true), and `sin`, `cos`, `asin`, `sqrt`, `abs`, `min` and `max`. Anything with `"when"` only exists if the expression isn't zero. A station can pass text with `texts`, used as `{name}` in text fields.
 
@@ -367,7 +367,7 @@ A PLC bit the station does not name gets the name of the module pin it reaches, 
 
 Loading checks every reference, address, node and material. It refuses a signal with two sources, a device input wired to something other than the PLC, and links between transports more than 8 mm apart. A mistake gives an error naming the file instead of a station that misbehaves.
 
-Some things load but do not fit together. The app checks each station when it starts and shows what it finds under Station checks: a module that lacks what it `needs`, a `handsOver` transport leading nowhere, a pusher pushing to where no transport is, a gripper coming down at a place without one, an actuator that no PLC output reaches, a sensor that reaches no PLC input, and a part that runs into a fixed part of the station with only one PLC output on.
+Some things load but do not fit together. The app checks each station when it starts and shows what it finds under Problems while the station is edited: a module that lacks what it `needs`, a `handsOver` transport leading nowhere, a pusher pushing to where no transport is, a gripper coming down at a place without one, an actuator that no PLC output reaches, a sensor that reaches no PLC input, and a part that runs into a fixed part of the station with only one PLC output on.
 
 ## exercise.json
 

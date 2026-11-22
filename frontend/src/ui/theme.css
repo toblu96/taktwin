@@ -1,0 +1,202 @@
+/*
+  Taktwin's look. Surfaces step from the content (s0) to the chrome around it (s1), to what is
+  raised above it (s2: menus, dialogs, cards), with hairline borders between them, as VS Code's
+  modern UI does. Taktwin's own colours mark what matters: amber for the one action a page is
+  about and the active item, teal for focus and selection. Every colour has a dark and a light
+  value, and every pair of them that people read or press meets WCAG 2.2 AA: text 4.5:1, the
+  edges of controls and the focus ring 3:1.
+
+  Pages and components use the tokens as Tailwind utilities (bg-s1, text-muted, border-control).
+  Tailwind's reset is left out while older pages keep their own styles, which sit in the layer
+  legacy, below everything here.
+*/
+@layer ui-sdk, legacy, theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --t-s0: #121416;
+  --t-s1: #1a1d20;
+  --t-s2: #22262a;
+  --t-s3: #2e3338;
+  --t-hover: #ffffff0f;
+  --t-press: #ffffff1a;
+  --t-line: #2c3136;
+  --t-control: #6b737a;
+  --t-fg: #e2e5e7;
+  --t-muted: #a0a8ae;
+  --t-faint: #858d94;
+  --t-accent: #f5b83d;
+  --t-on-accent: #1d1503;
+  --t-accent-soft: #f5b83d24;
+  --t-accent-ink: #f5b83d;
+  --t-accent-ring: #f5b83d;
+  --t-focus: #4ec5b2;
+  --t-select: #4ec5b229;
+  --t-highlight: #1f4a44;
+  --t-danger: #f2766b;
+  --t-on-danger: #1a0605;
+  --t-ok: #5cd29a;
+  --t-lamp-in: #5cd29a;
+  --t-lamp-out: #ff9d2e;
+  --t-shadow: 0 8px 24px #00000073, 0 0 0 1px #ffffff0a;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --t-s0: #ffffff;
+  --t-s1: #f4f5f7;
+  --t-s2: #ffffff;
+  --t-s3: #e8ebee;
+  --t-hover: #0000000b;
+  --t-press: #00000014;
+  --t-line: #e1e4e8;
+  --t-control: #868f97;
+  --t-fg: #1b1f23;
+  --t-muted: #565f67;
+  --t-faint: #636c74;
+  --t-accent: #ffc847;
+  --t-on-accent: #2a1d00;
+  --t-accent-soft: #ffc84738;
+  --t-accent-ink: #7a5200;
+  --t-accent-ring: #a87400;
+  --t-focus: #0b7f6f;
+  --t-select: #0b7f6f1f;
+  --t-highlight: #cdeee8;
+  --t-danger: #c0352b;
+  --t-on-danger: #ffffff;
+  --t-ok: #1a7f50;
+  --t-lamp-in: #1a7f50;
+  --t-lamp-out: #b85c00;
+  --t-shadow: 0 8px 24px #1b1f2324, 0 0 0 1px #1b1f2312;
+}
+
+/* The tokens as Tailwind utilities: bg-s1, text-muted, border-control, ring-focus and so on. */
+@theme inline {
+  --color-s0: var(--t-s0);
+  --color-s1: var(--t-s1);
+  --color-s2: var(--t-s2);
+  --color-s3: var(--t-s3);
+  --color-hover: var(--t-hover);
+  --color-press: var(--t-press);
+  --color-line: var(--t-line);
+  --color-control: var(--t-control);
+  --color-fg: var(--t-fg);
+  --color-muted: var(--t-muted);
+  --color-faint: var(--t-faint);
+  --color-accent: var(--t-accent);
+  --color-on-accent: var(--t-on-accent);
+  --color-accent-soft: var(--t-accent-soft);
+  --color-accent-ink: var(--t-accent-ink);
+  --color-focus: var(--t-focus);
+  --color-select: var(--t-select);
+  --color-highlight: var(--t-highlight);
+  --color-danger: var(--t-danger);
+  --color-on-danger: var(--t-on-danger);
+  --color-ok: var(--t-ok);
+  --color-lamp-in: var(--t-lamp-in);
+  --color-lamp-out: var(--t-lamp-out);
+  --shadow-pop: var(--t-shadow);
+  --radius-control: 6px;
+  --radius-card: 8px;
+  --radius-dialog: 10px;
+  --font-sans: system-ui, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+}
+
+@layer base {
+  /* As the older pages' styles have it too; the components rely on it. */
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+  }
+  body {
+    background: var(--t-s0);
+    color: var(--t-fg);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  /*
+    The focus ring: a second border floating 2px off what has focus, so that it never touches a
+    coloured control. It is teal, or amber around an amber control (--t-ring-color). It shows when
+    the keyboard brings focus somewhere, and on a text field while it is typed in, but not on a
+    click. It is an outline, which the browser paints after the content around it, so neighbours
+    do not cover it; only an ancestor that clips or scrolls can cut it, so such a box keeps
+    --t-ring of space inside, or its children draw the ring inside.
+  */
+  :root {
+    --t-ring-width: 2px;
+    --t-ring-gap: 2px;
+    --t-ring: calc(var(--t-ring-width) + var(--t-ring-gap));
+  }
+  /*
+    Scrollbars slim and quiet, as in VS Code: a thin thumb on no track, darker while hovered.
+    Engines that know scrollbar-width use it; WebKit's older ones draw it from the pseudo-elements.
+  */
+  * {
+    scrollbar-color: color-mix(in oklab, var(--t-fg) 28%, transparent) transparent;
+    scrollbar-width: thin;
+  }
+  ::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--t-fg) 28%, transparent);
+    background-clip: content-box;
+    border: 2px solid transparent;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--t-fg) 45%, transparent);
+  }
+  :focus-visible {
+    outline: var(--t-ring-width) solid var(--t-ring-color, var(--t-focus));
+    outline-offset: var(--t-ring-gap);
+  }
+}
+
+/* What the components share. Interactive controls carry the control edge, which keeps 3:1. */
+@layer components {
+  .t-btn {
+    @apply inline-flex h-7 cursor-default items-center gap-1.5 rounded-control border border-control bg-s2 px-2.5 text-[13px] font-medium whitespace-nowrap text-fg select-none hover:bg-s3 disabled:opacity-45;
+  }
+  .t-btn-primary {
+    --t-ring-color: var(--t-accent-ring);
+    @apply border-transparent bg-accent text-on-accent hover:bg-accent hover:brightness-105;
+  }
+  .t-btn-ghost {
+    @apply border-transparent bg-transparent text-muted hover:bg-hover hover:text-fg;
+  }
+  .t-icon-btn {
+    @apply inline-flex size-7 cursor-default items-center justify-center rounded-control border-0 bg-transparent p-0 text-muted hover:bg-hover hover:text-fg;
+  }
+  .t-popup {
+    @apply z-50 min-w-44 rounded-card border border-line bg-s2 p-1 text-fg shadow-pop;
+  }
+  .t-item {
+    @apply flex h-7 cursor-default items-center gap-2 rounded-[5px] px-2 text-fg outline-none select-none data-highlighted:bg-highlight;
+  }
+  .t-input {
+    @apply h-7 w-full rounded-control border border-control bg-s0 px-2 text-[13px] text-fg placeholder:text-faint focus-visible:border-focus;
+  }
+  /* A part of a side bar's details, such as a module's settings, with its title. */
+  .t-section {
+    @apply border-0 border-b border-solid border-line p-3 last:border-b-0;
+  }
+  .t-section-title {
+    @apply m-0 mb-2.5 text-[11px] font-semibold tracking-wide text-muted uppercase;
+  }
+  .t-label {
+    @apply text-xs font-medium text-muted;
+  }
+}

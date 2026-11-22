@@ -518,6 +518,11 @@ export interface SceneTest {
      * one held in place, not a queue on a transport
      */
     "holds"?: boolean;
+
+    /**
+     * Kinds are the workpiece kinds that fit, all of them when it is nil.
+     */
+    "kinds"?: string[] | null;
 }
 
 /**

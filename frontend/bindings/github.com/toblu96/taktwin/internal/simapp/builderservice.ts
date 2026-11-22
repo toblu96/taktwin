@@ -217,6 +217,16 @@ export function State(): $CancellablePromise<$models.BuilderState> {
 }
 
 /**
+ * StationWiring returns the wiring of the station that runs in the open project, to look at and
+ * not to change: whether or not the project has a station of its own, with its cables as its
+ * file has them and its pins as they run, with what an exercise set up. It builds on nothing
+ * and keeps nothing; changing the wiring is Edit's.
+ */
+export function StationWiring(): $CancellablePromise<$models.WiringState> {
+    return $Call.ByID(148362979);
+}
+
+/**
  * Unplug takes the cable off a connector.
  */
 export function Unplug(ref: string): $CancellablePromise<$models.BuilderState> {

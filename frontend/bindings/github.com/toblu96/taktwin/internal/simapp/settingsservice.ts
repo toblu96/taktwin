@@ -23,6 +23,14 @@ export function ChooseUserFolder(): $CancellablePromise<$models.FolderInfo> {
 }
 
 /**
+ * ExpertMode says whether the app offers building stations and writing exercises, which a
+ * teacher switches on in the settings.
+ */
+export function ExpertMode(): $CancellablePromise<boolean> {
+    return $Call.ByID(2982366696);
+}
+
+/**
  * Folder describes the user folder.
  */
 export function Folder(): $CancellablePromise<$models.FolderInfo> {
@@ -34,6 +42,13 @@ export function Folder(): $CancellablePromise<$models.FolderInfo> {
  */
 export function OpenUserFolder(): $CancellablePromise<void> {
     return $Call.ByID(3725679172);
+}
+
+/**
+ * SetExpertMode switches expert mode on or off, kept between runs.
+ */
+export function SetExpertMode(on: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2478036654, on);
 }
 
 /**

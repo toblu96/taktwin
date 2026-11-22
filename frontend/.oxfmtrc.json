@@ -2,5 +2,8 @@
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
   "singleQuote": true,
   "semi": false,
-  "printWidth": 180
+  "printWidth": 180,
+  "sortTailwindcss": {
+    "stylesheet": "./src/ui/theme.css"
+  }
 }

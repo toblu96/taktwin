@@ -22,6 +22,17 @@ func (SettingsService) ServiceStartup(context.Context, application.ServiceOption
 	return nil
 }
 
+// ExpertMode says whether the app offers building stations and writing exercises, which a
+// teacher switches on in the settings.
+func (SettingsService) ExpertMode() bool { return readSettings().Expert }
+
+// SetExpertMode switches expert mode on or off, kept between runs.
+func (SettingsService) SetExpertMode(on bool) error {
+	set := readSettings()
+	set.Expert = on
+	return writeSettings(set)
+}
+
 // UserFolder is where the app reads the user's own stations and packages from.
 func (SettingsService) UserFolder() string { return UserFolder() }
 

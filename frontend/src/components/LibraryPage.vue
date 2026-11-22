@@ -1,28 +1,61 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, provide, ref } from 'vue'
-import type { Entry } from '../../bindings/github.com/toblu96/taktwin/internal/model'
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import type { Entry, EntryRef } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 import { grouped } from '../collections'
-import { current, enter, entries, leave, open, openError, preview, rootInstance } from '../library'
+import { detailsWidth, treeWidth } from '../layout'
+import { current, enter, entries, lastEntry, leave, open, openError, preview, rootInstance } from '../library'
 import { simKey } from '../sim'
+import UiSash from '../ui/UiSash.vue'
+import UiTree, { type TreeHeading, type TreeRow, type TreeSection } from '../ui/UiTree.vue'
 import StationViewer from '../viewer/StationViewer.vue'
 import LibraryDetails from './LibraryDetails.vue'
 import StationDock from './StationDock.vue'
+import IconStation from '~icons/fluent/grid-16-regular'
+import IconModule from '~icons/fluent/cube-16-regular'
+import IconAccessory from '~icons/fluent/toolbox-16-regular'
+import IconPart from '~icons/fluent/puzzle-piece-16-regular'
+import IconSearch from '~icons/fluent/search-16-regular'
+import IconWarning from '~icons/fluent/warning-16-regular'
+
+// The library: the collections' stations, modules, accessories and parts in a tree on the left,
+// the one chosen in a preview without a PLC in the middle, and what it is on the right, as an
+// open project lays out its station. The address names the entry shown, such as
+// #/library/module/pallet-conveyor; without one it shows the entry shown last.
 
 // The components below show the preview here, not the running simulation.
 provide(simKey, preview)
 const { scene } = preview
 
-onMounted(enter)
+const route = useRoute()
+const router = useRouter()
+const show = (e: EntryRef) => router.replace({ name: 'library', params: { level: e.level, id: e.id } })
+
+onMounted(async () => {
+  await enter()
+  if (!route.params.id) {
+    const first = lastEntry()
+    if (first) await show(first)
+  }
+})
 onBeforeUnmount(leave)
+watch(
+  () => [route.params.level, route.params.id, entries.value.length] as const,
+  ([level, id]) => {
+    // A part of the address that is left out comes as "".
+    if (typeof level !== 'string' || typeof id !== 'string' || !level || !id || !entries.value.length) return
+    if (current.value?.level !== level || current.value?.id !== id) void open({ level, id } as EntryRef)
+  },
+  { immediate: true },
+)
 
 const search = ref('')
-const expanded = ref(new Set<string>())
 
 const levels = [
-  { level: 'station', title: 'Stations', tree: true },
-  { level: 'module', title: 'Modules', tree: true },
-  { level: 'accessory', title: 'Accessories', tree: false },
-  { level: 'part', title: 'Parts', tree: false },
+  { level: 'station', title: 'Stations' },
+  { level: 'module', title: 'Modules' },
+  { level: 'accessory', title: 'Accessories' },
+  { level: 'part', title: 'Parts' },
 ]
 
 // Sensors and actuators first, then the rest.
@@ -30,26 +63,12 @@ const groupOrder = ['Sensors', 'Actuators', 'PLC and I/O', 'Mechanical', 'Pneuma
 
 const key = (e: { level: string; id: string }) => `${e.level}/${e.id}`
 
-// Stations and modules unfold into what they are built from. A search lists
-// everything that matches, flat.
-function rows(entry: Entry, depth: number, parents: string[]): { entry: Entry; depth: number; path: string }[] {
-  const path = [...parents, key(entry)].join('>')
-  const list = [{ entry, depth, path }]
-  if (!expanded.value.has(path)) return list
-  for (const ref of entry.contains ?? []) {
-    const child = entries.value.find((e) => e.id === ref.id && e.level === ref.level)
-    if (child && child.level !== 'part') list.push(...rows(child, depth + 1, [...parents, key(entry)]))
-  }
-  return list
-}
-
-const canUnfold = (entry: Entry) => (entry.contains ?? []).some((c) => c.level !== 'part')
-
-// Each collection with its levels: stations, modules, accessories and parts.
+// Each collection is a section of its own, which opens and closes, with its stations, modules,
+// accessories and parts. What an entry is built from shows beside its preview, not here.
 const collapsed = ref(new Set<string>())
-function toggleCollection(id: string) {
+function toggleCollection(id: string, open: boolean) {
   const next = new Set(collapsed.value)
-  if (next.has(id)) next.delete(id)
+  if (open) next.delete(id)
   else next.add(id)
   collapsed.value = next
 }
@@ -68,27 +87,54 @@ function levelsOf(all: Entry[], term: string) {
       const inLevel = all.filter((e) => e.level === level.level)
       const matching = term ? inLevel.filter((e) => `${e.name} ${e.id} ${e.group ?? ''} ${e.description ?? ''}`.toLowerCase().includes(term)) : inLevel
       const names = [...new Set(matching.map((e) => e.group ?? ''))].sort((a, b) => (groupOrder.indexOf(a) + 1 || 99) - (groupOrder.indexOf(b) + 1 || 99))
-      return {
-        ...level,
-        count: matching.length,
-        groups: names.map((name) => ({
-          name,
-          rows: matching.filter((e) => (e.group ?? '') === name).flatMap((e) => (level.tree && !term ? rows(e, 0, []) : [{ entry: e, depth: 0, path: key(e) }])),
-        })),
-      }
+      return { ...level, count: matching.length, groups: names.map((name) => ({ name, entries: matching.filter((e) => (e.group ?? '') === name) })) }
     })
     .filter((level) => level.count > 0)
 }
 
-function choose(row: { entry: Entry; path: string }) {
-  if (canUnfold(row.entry)) {
-    const next = new Set(expanded.value)
-    // Choosing it again folds it, while choosing it the first time always shows it.
-    if (current.value && key(current.value) === key(row.entry) && next.has(row.path)) next.delete(row.path)
-    else next.add(row.path)
-    expanded.value = next
-  }
-  void open(row.entry)
+// The tree's rows: a section for each collection, open while searching, with its levels and
+// groups as headings and its entries below them.
+const icons: Record<string, typeof IconStation> = { station: IconStation, module: IconModule, accessory: IconAccessory, part: IconPart }
+const byKey = new Map<string, Entry>()
+const items = computed<(TreeRow | TreeHeading | TreeSection)[]>(() => {
+  byKey.clear()
+  const term = search.value.trim()
+  return visible.value.flatMap((c) => {
+    const open = !collapsed.value.has(c.id) || !!term
+    const head: TreeSection = { key: `c:${c.id}`, section: c.name, open, count: c.count }
+    if (!open) return [head]
+    return [
+      head,
+      ...c.levels.flatMap((level) => [
+        { key: `l:${c.id}:${level.level}`, heading: level.title, count: level.count } as TreeHeading,
+        ...level.groups.flatMap((group) => [
+          ...(group.name ? [{ key: `g:${c.id}:${level.level}:${group.name}`, heading: group.name, depth: 1 } as TreeHeading] : []),
+          ...group.entries.map((entry): TreeRow => {
+            const k = `e:${c.id}:${key(entry)}`
+            byKey.set(k, entry)
+            return {
+              key: k,
+              label: entry.name,
+              depth: group.name ? 1 : 0,
+              icon: entry.error ? IconWarning : icons[entry.level],
+              selected: !!current.value && key(current.value) === key(entry),
+              parent: `c:${c.id}`,
+              title: entry.error || entry.description,
+              danger: !!entry.error,
+            }
+          }),
+        ]),
+      ]),
+    ]
+  })
+})
+
+function select(k: string) {
+  const entry = byKey.get(k)
+  if (entry) void show(entry)
+}
+function toggle(k: string, open: boolean) {
+  if (k.startsWith('c:')) toggleCollection(k.slice(2), open)
 }
 
 const hint = computed(() =>
@@ -99,195 +145,33 @@ const hint = computed(() =>
 </script>
 
 <template>
-  <div class="library">
-    <aside class="browser" aria-label="Catalog">
-      <input v-model="search" class="search" type="search" placeholder="Search catalog" aria-label="Search catalog" />
-      <div class="levels">
-        <template v-for="c in visible" :key="c.id">
-          <button class="collection" :aria-expanded="!collapsed.has(c.id)" @click="toggleCollection(c.id)">
-            <span class="fold mono">{{ collapsed.has(c.id) && !search ? '+' : '−' }}</span>{{ c.name }}<span class="mono">{{ c.count }}</span>
-          </button>
-          <section v-for="level in collapsed.has(c.id) && !search ? [] : c.levels" :key="c.id + level.level">
-            <h3 class="band">{{ level.title }}<span class="mono">{{ level.count }}</span></h3>
-            <template v-for="group in level.groups" :key="group.name">
-              <h4 v-if="group.name" class="group">{{ group.name }}</h4>
-              <button
-                v-for="row in group.rows"
-                :key="row.path"
-                class="row"
-                :class="{ active: current && key(current) === key(row.entry), broken: row.entry.error }"
-                :style="{ paddingLeft: `${10 + row.depth * 14}px` }"
-                :title="row.entry.error || row.entry.description"
-                @click="choose(row)"
-              >
-                <span class="fold mono">{{ level.tree && !search && canUnfold(row.entry) ? (expanded.has(row.path) ? '−' : '+') : '' }}</span>
-                <span class="name">{{ row.entry.name }}</span>
-              </button>
-            </template>
-          </section>
-        </template>
-        <p v-if="!visible.length" class="empty">No match for “{{ search }}”.</p>
+  <main class="flex h-full min-h-0">
+    <div class="relative shrink-0 border-r border-line" :style="{ width: `${treeWidth}px` }">
+      <aside class="flex h-full min-w-0 flex-col bg-s1" aria-label="Catalog">
+        <h2 class="m-0 flex h-9 shrink-0 items-center px-3 text-xs font-semibold tracking-wide text-muted uppercase">Library</h2>
+        <div class="relative shrink-0 px-2 pb-2">
+          <IconSearch class="pointer-events-none absolute top-1.5 left-4 size-4 text-faint" />
+          <input v-model="search" class="t-input pl-8" type="search" placeholder="Search the library" aria-label="Search the library" @keydown.esc="search = ''" />
+        </div>
+        <UiTree :items="items" label="Library" class="min-h-0 flex-1 overflow-auto px-1.5 pb-2" @select="select" @toggle="toggle" />
+        <p v-if="!visible.length" class="m-0 px-3 py-2 text-muted">Nothing matches “{{ search }}”.</p>
+      </aside>
+      <UiSash v-model="treeWidth" side="left" :min="180" :max="480" label="Width of the library's tree" />
+    </div>
+
+    <div class="relative flex min-w-0 flex-1 flex-col">
+      <p v-if="openError" class="m-auto flex max-w-md items-start gap-2 p-6 text-danger" role="alert">
+        <IconWarning class="mt-0.5 size-4 shrink-0" />Could not open this entry: {{ openError }}
+      </p>
+      <div v-else-if="scene" class="relative grid min-h-0 flex-1">
+        <StationViewer preview :root="rootInstance?.id ?? null" :hint="hint" />
       </div>
-    </aside>
-
-    <main class="stage">
-      <p v-if="openError" class="failed">Could not open this entry: {{ openError }}</p>
-      <StationViewer v-else-if="scene" preview :root="rootInstance?.id ?? null" :hint="hint" />
       <StationDock v-if="scene && !openError" place="bottom" />
-    </main>
+    </div>
 
-    <LibraryDetails @open="open" />
-  </div>
+    <div class="relative shrink-0 border-l border-line" :style="{ width: `${detailsWidth}px` }">
+      <UiSash v-model="detailsWidth" side="right" :min="260" :max="560" label="Width of the details" />
+      <LibraryDetails @open="show" />
+    </div>
+  </main>
 </template>
-
-<style scoped>
-.library {
-  display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 340px;
-  min-height: 0;
-}
-
-.browser {
-  background: var(--panel);
-  border-right: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.search {
-  background: var(--bg);
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  color: var(--text);
-  height: 34px;
-  outline-offset: -2px;
-  padding: 0 10px;
-  width: 100%;
-}
-
-.levels {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.collection {
-  align-items: center;
-  background: var(--bg);
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  color: var(--accent);
-  display: flex;
-  font-size: 12px;
-  font-weight: 700;
-  gap: 4px;
-  padding: 7px 10px;
-  text-align: left;
-  width: 100%;
-}
-
-.collection .mono {
-  color: var(--text-dim);
-  font-weight: 400;
-  margin-left: auto;
-}
-
-.band {
-  align-items: center;
-  background: var(--panel-raised);
-  border-bottom: 1px solid var(--line);
-  color: var(--text);
-  display: flex;
-  font-size: 11px;
-  font-weight: 600;
-  height: 24px;
-  justify-content: space-between;
-  letter-spacing: 0.08em;
-  margin: 0;
-  padding: 0 10px;
-  position: sticky;
-  text-transform: uppercase;
-  top: 0;
-  z-index: 1;
-}
-
-.band .mono {
-  color: var(--text-dim);
-  font-weight: 400;
-  letter-spacing: 0;
-}
-
-.group {
-  color: var(--text-dim);
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  margin: 0;
-  padding: 10px 10px 3px;
-}
-
-.row {
-  align-items: center;
-  background: none;
-  border: 0;
-  border-bottom: 1px solid #1a3a3f;
-  border-radius: 0;
-  display: flex;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px;
-  text-align: left;
-  width: 100%;
-}
-
-.row:hover:not(.active) {
-  background: var(--panel-raised);
-}
-
-.row.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #1b1405;
-  font-weight: 600;
-}
-
-.row.broken .name {
-  color: var(--danger);
-}
-
-.fold {
-  color: var(--text-dim);
-  flex: none;
-  text-align: center;
-  width: 10px;
-}
-
-.active .fold {
-  color: inherit;
-}
-
-.name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.empty {
-  color: var(--text-dim);
-  padding: 12px 10px;
-}
-
-.stage {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  min-width: 0;
-}
-
-.failed {
-  color: var(--danger);
-  padding: 24px;
-}
-</style>

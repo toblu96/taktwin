@@ -6,7 +6,7 @@ Everything Taktwin simulates is described in JSON files, so a new station or exe
 |---|---|---|
 | Module or accessory: a machine or what goes onto one | an editor, as JSON | a collection's `modules/<id>/` or `accessories/<id>/` |
 | Workpieces, parts, materials, connector types | an editor, as JSON | a collection |
-| Station: modules placed, cabled and wired | the app's **Build**, or an editor | a project, or a collection's `stations/<id>/` |
+| Station: modules placed, cabled and wired | the app's **Simulation** in expert mode, edited, or an editor | a project, or a collection's `stations/<id>/` |
 | Exercise: a task on a station and its check | an editor, as JSON | a collection's `exercises/<id>/`, or a project handed out as a file |
 
 ## A collection to work in
@@ -60,7 +60,7 @@ Build a module in this order, and look at it in the Library after each step. The
 3. **Movement** (`joints`) and **working parts** (`devices`): cylinders, axes, grippers, sensors and lamps, each with the states the station's PLC reads and the inputs it drives.
 4. **Workpieces** (`transport`): the paths that carry them, and where they are handed over.
 5. **Terminal** (`terminal`): the connectors and pins, and which device each pin belongs to.
-6. **Mounting** (`mounts`, `sites`, `role`): where it is screwed down and what can be screwed onto it, so that **Build** can place it.
+6. **Mounting** (`mounts`, `sites`, `role`): where it is screwed down and what can be screwed onto it, so that the builder can place it.
 
 If the engine has no primitive for what the module does, a module can bring a controller of its own as a `program` device in Structured Text (see [Programs](../catalog/README.md#programs)). A mechanism that even that cannot describe needs a new primitive in the engine. That is a change to the app, made for every station, never code for one module.
 
@@ -68,10 +68,10 @@ If the engine has no primitive for what the module does, a module can bring a co
 
 The easiest way is the app itself:
 
-1. **Projects › New project › Empty** opens an empty station of a collection in **Build**. Or start a project on a station that is close to what you want, and choose **Build**, which makes a copy that the project keeps.
-2. Pick modules on the left and put them down on the lines that light up. Move them with the arrows, and set their settings on the right. **Checks** lists what does not fit together.
+1. Switch on **Settings › General › Experimental › Expert mode**. **Projects › New project › Empty** then opens an empty station of a collection, edited. Or start a project on a station that is close to what you want, and switch the top bar to editing, which makes a copy that the project keeps.
+2. Pick modules on the left and put them down on the lines that light up. Move them with the arrows, and set their settings on the right. **Problems**, in the panel below, lists what does not fit together.
 3. **Wiring** shows the cables from the PLC to the I/O terminals, and the name the PLC knows each signal by.
-4. **Simulate** runs it. **I/O test** in the PLC panel switches outputs by hand.
+4. Switching editing off runs it. **I/O test** in the PLC panel switches outputs by hand.
 
 The project keeps the station as `station.json` in its folder (**Show in folder** in the project's card menu). To make it part of a collection, copy that file to the collection's `stations/<id>/station.json` and give it that `id`. A station can come with:
 
@@ -98,7 +98,7 @@ To hand it out:
 
 ## Before sharing
 
-- `taktwin-cli -validate` passes, and **Checks** in Build is empty.
+- `taktwin-cli -validate` passes, and **Problems** is empty while the station is edited.
 - Every check passes with a good program.
 - `version` in `collection.json` is raised.
 - Files for this repository name no particular vendor's training system: `catalog/public_test.go` refuses them. Such stations belong in a collection of their own.

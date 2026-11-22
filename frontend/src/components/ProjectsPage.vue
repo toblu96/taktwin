@@ -1,12 +1,19 @@
 <script setup lang="ts">
-import { ask } from '../ask'
+import { expert } from '../expert'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { Example, ProjectInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
-import { choose } from '../ask'
+import { ask, choose } from '../ask'
 import { filesRead, importProject, newProject, openProject, projectError } from '../sim'
 import NewProjectDialog from './NewProjectDialog.vue'
 import ProjectCard from './ProjectCard.vue'
+import UiSegmented from '../ui/UiSegmented.vue'
+import IconSearch from '~icons/fluent/search-20-regular'
+import IconAdd from '~icons/fluent/add-20-regular'
+import IconOpen from '~icons/fluent/folder-open-20-regular'
+import IconWrench from '~icons/fluent/wrench-20-regular'
+import IconWarning from '~icons/fluent/warning-16-filled'
+import IconDismiss from '~icons/fluent/dismiss-16-regular'
 
 // The app's start: the user's projects, the latest first, then the stations the collections
 // open with, to start a project from. A project file dropped onto the page opens. Everything
@@ -15,6 +22,11 @@ const projects = ref<ProjectInfo[]>([])
 const examples = ref<Example[]>([])
 const busy = ref(false)
 const creating = ref(false)
+const start = ref<'station' | 'exercise' | 'empty'>('station')
+const create = (from: 'station' | 'exercise' | 'empty') => {
+  start.value = from
+  creating.value = true
+}
 
 async function refresh() {
   const [p, e] = await Promise.all([Service.Projects(), Service.Examples()])
@@ -56,7 +68,7 @@ async function handout(p: ProjectInfo) {
   if (answer) await act(() => Service.ExportExercise(p.name, answer === WITH))
 }
 
-// The tabs show while there are projects of both kinds.
+// The kinds to show, once there are projects of both.
 type Kind = 'all' | 'station' | 'exercise'
 const kind = ref<Kind>('all')
 const query = ref('')
@@ -72,6 +84,11 @@ const counts = computed(() => ({
 }))
 const shown = computed(() => projects.value.filter((p) => (kind.value === 'all' || (kind.value === 'exercise') === !!p.exercise) && matches(p.name, p.stationName, p.exerciseName)))
 const shownExamples = computed(() => (kind.value === 'exercise' ? [] : examples.value.filter((e) => matches(e.stationName, e.collection, e.description))))
+const kinds = computed(() => [
+  { value: 'all', label: 'All', count: counts.value.all },
+  { value: 'station', label: 'Stations', count: counts.value.station },
+  { value: 'exercise', label: 'Exercises', count: counts.value.exercise },
+])
 watch(counts, (c) => {
   if (!c.station || !c.exercise) kind.value = 'all'
 })
@@ -88,27 +105,35 @@ onUnmounted(() => window.removeEventListener('keydown', key))
 </script>
 
 <template>
-  <main class="projects" data-file-drop-target>
-    <div class="content">
-      <header class="head">
-        <h2>Projects</h2>
-        <nav v-if="counts.station && counts.exercise" class="tabs" aria-label="Show">
-          <button :class="{ active: kind === 'all' }" @click="kind = 'all'">All {{ counts.all }}</button>
-          <button :class="{ active: kind === 'station' }" @click="kind = 'station'">Stations {{ counts.station }}</button>
-          <button :class="{ active: kind === 'exercise' }" @click="kind = 'exercise'">Exercises {{ counts.exercise }}</button>
-        </nav>
-        <span class="spacer" />
-        <input ref="search" v-model="query" class="search" type="search" placeholder="Filter" aria-label="Filter projects" @keydown.esc="query = ''" />
-        <button :disabled="busy" title="Open a .taktwin-project file, or drop one onto this page" @click="act(importProject)">Open file…</button>
-        <button class="primary" :disabled="busy" @click="creating = true">New project</button>
+  <main class="group relative min-h-0 overflow-auto" data-file-drop-target>
+    <div class="mx-auto max-w-295 px-8 pt-7 pb-10">
+      <header class="mb-5 flex items-end gap-3">
+        <div>
+          <h1 class="m-0 text-xl font-semibold tracking-tight">Projects</h1>
+          <p class="m-0 mt-0.5 text-muted">Your work on stations and exercises, saved as you go.</p>
+        </div>
+        <span class="flex-1" />
+        <button class="t-btn t-btn-ghost" :disabled="busy" title="Open a .taktwin-project file, or drop one onto this page" @click="act(importProject)">
+          <IconOpen class="size-4" />Open file…
+        </button>
+        <button class="t-btn t-btn-primary" :disabled="busy" @click="create('station')"><IconAdd class="size-4" />New project</button>
       </header>
 
-      <p v-if="projectError" class="problem" role="alert">
-        {{ projectError }}
-        <button class="dismiss" aria-label="Dismiss" @click="projectError = ''">✕</button>
+      <div class="mb-4 flex flex-wrap items-center gap-3">
+        <label class="relative w-64">
+          <IconSearch class="pointer-events-none absolute top-1.5 left-2 size-4 text-faint" />
+          <input ref="search" v-model="query" class="t-input pl-8" type="search" placeholder="Search projects" aria-label="Search projects" @keydown.esc="query = ''" />
+        </label>
+        <UiSegmented v-if="counts.station && counts.exercise" v-model="kind" label="Show" :options="kinds" />
+      </div>
+
+      <p v-if="projectError" class="m-0 mb-4 flex items-start gap-2 rounded-card border border-danger/40 bg-s1 px-3 py-2" role="alert">
+        <IconWarning class="mt-0.5 size-4 shrink-0 text-danger" />
+        <span class="flex-1">{{ projectError }}</span>
+        <button class="t-icon-btn -my-1 size-6" aria-label="Dismiss" @click="projectError = ''"><IconDismiss class="size-4" /></button>
       </p>
 
-      <div class="grid">
+      <div v-if="shown.length" class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
         <ProjectCard
           v-for="p in shown"
           :key="p.name"
@@ -122,213 +147,46 @@ onUnmounted(() => window.removeEventListener('keydown', key))
           @handout="handout(p)"
           @remove="remove(p)"
         />
+      </div>
+      <p v-else-if="query" class="m-0 text-muted">No project matches “{{ query }}”.</p>
+
+      <h2 v-if="kind !== 'exercise'" class="m-0 mt-9 mb-3 text-[13px] font-semibold text-muted">Start from</h2>
+      <div v-if="kind !== 'exercise'" class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
         <button
           v-for="e in shownExamples"
           :key="'example:' + e.station"
-          class="example"
+          class="flex cursor-default items-center gap-3 rounded-card border border-dashed border-control bg-transparent p-3 text-left text-fg hover:bg-hover"
           :disabled="busy"
-          title="Start a project of your own on this station"
+          :title="e.description || 'Start a project of your own on this station'"
           @click="act(() => newProject({ station: e.station, exercise: '' }))"
         >
-          <span class="picture"><img src="/logo.svg" alt="" /><span class="badge">Example</span></span>
-          <span class="body">
-            <strong>{{ e.stationName }}</strong>
-            <small>{{ e.collection }}</small>
-            <span v-if="e.description" class="description">{{ e.description }}</span>
+          <span class="flex h-12 w-19 shrink-0 items-center justify-center rounded-[5px] bg-s3"><img src="/logo.svg" alt="" class="size-7 opacity-70" /></span>
+          <span class="min-w-0">
+            <span class="block truncate font-semibold">{{ e.stationName }}</span>
+            <span class="block truncate text-xs text-muted">Example · {{ e.collection }}</span>
+          </span>
+        </button>
+        <button
+          v-if="expert"
+          class="flex cursor-default items-center gap-3 rounded-card border border-dashed border-control bg-transparent p-3 text-left text-fg hover:bg-hover"
+          :disabled="busy"
+          @click="create('empty')"
+        >
+          <span class="flex h-12 w-19 shrink-0 items-center justify-center rounded-[5px] bg-s3 text-muted"><IconWrench class="size-5" /></span>
+          <span class="min-w-0">
+            <span class="block font-semibold">Build your own</span>
+            <span class="block text-xs text-muted">An empty station to put together</span>
           </span>
         </button>
       </div>
-
-      <p v-if="!shown.length && !shownExamples.length" class="empty">
-        <template v-if="query">No project matches “{{ query }}”.</template>
-        <template v-else>There is nothing to start from yet: import a collection in the settings, or open a project file.</template>
-      </p>
     </div>
-    <div class="drop" aria-hidden="true">Drop a project file to open it</div>
-    <NewProjectDialog v-if="creating" @close="creating = false" />
+    <!-- Wails marks the page while a file is dragged over the window. -->
+    <div
+      class="pointer-events-none absolute inset-3 hidden items-center justify-center rounded-dialog border-2 border-dashed border-accent bg-s0/85 text-base font-semibold text-accent-ink group-[.file-drop-target-active]:flex"
+      aria-hidden="true"
+    >
+      Drop a project file to open it
+    </div>
+    <NewProjectDialog v-model:open="creating" :start="start" />
   </main>
 </template>
-
-<style scoped>
-.projects {
-  min-height: 0;
-  overflow: auto;
-  position: relative;
-}
-
-.content {
-  margin: 0 auto;
-  max-width: 1200px;
-  padding: 22px 28px 32px;
-}
-
-.head {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-h2 {
-  font-size: 20px;
-  margin: 0 6px 0 0;
-}
-
-.tabs {
-  display: flex;
-  gap: 6px;
-}
-
-.tabs button {
-  background: none;
-  border-radius: 12px;
-  color: var(--text-dim);
-  font-size: 12px;
-  padding: 3px 10px;
-}
-
-.tabs .active {
-  background: var(--panel-raised);
-  border-color: var(--text-dim);
-  color: var(--text);
-}
-
-.spacer {
-  flex: 1;
-}
-
-.search {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  color: var(--text);
-  padding: 5px 8px;
-  width: 200px;
-}
-
-.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--bg);
-  font-weight: 600;
-}
-
-.problem {
-  align-items: center;
-  border-left: 2px solid var(--danger);
-  display: flex;
-  font-size: 13px;
-  gap: 10px;
-  justify-content: space-between;
-  margin: 0 0 16px;
-  padding: 4px 0 4px 10px;
-}
-
-.dismiss {
-  background: none;
-  border: 0;
-  color: var(--text-dim);
-}
-
-.grid {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-}
-
-.example {
-  background: none;
-  border: 1px dashed var(--line);
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  text-align: left;
-}
-
-.example:hover:not(:disabled) {
-  border-color: var(--text-dim);
-}
-
-.example .picture {
-  align-items: center;
-  aspect-ratio: 16 / 10;
-  background: var(--panel);
-  border-bottom: 1px dashed var(--line);
-  border-radius: 5px 5px 0 0;
-  display: flex;
-  justify-content: center;
-  position: relative;
-  width: 100%;
-}
-
-.example .picture img {
-  height: 56px;
-  opacity: 0.5;
-  width: 56px;
-}
-
-.badge {
-  border: 1px solid var(--text-dim);
-  border-radius: 3px;
-  color: var(--text-dim);
-  font-size: 11px;
-  font-weight: 600;
-  left: 8px;
-  padding: 0 6px;
-  position: absolute;
-  top: 8px;
-}
-
-.example .body {
-  display: grid;
-  gap: 3px;
-  padding: 10px 12px 12px;
-}
-
-.example strong {
-  font-size: 14px;
-}
-
-.example small {
-  color: var(--text-dim);
-  font-size: 12px;
-}
-
-.description {
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  color: var(--text-dim);
-  display: -webkit-box;
-  font-size: 12px;
-  line-height: 1.4;
-  overflow: hidden;
-}
-
-.empty {
-  color: var(--text-dim);
-  margin-top: 24px;
-  text-align: center;
-}
-
-/* Wails marks the drop target while a file is dragged over the window. */
-.drop {
-  align-items: center;
-  background: rgb(11 31 34 / 85%);
-  border: 2px dashed var(--accent);
-  border-radius: 8px;
-  color: var(--accent);
-  display: none;
-  font-size: 16px;
-  font-weight: 600;
-  inset: 12px;
-  justify-content: center;
-  pointer-events: none;
-  position: absolute;
-}
-
-.projects.file-drop-target-active .drop {
-  display: flex;
-}
-</style>

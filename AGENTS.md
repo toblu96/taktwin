@@ -46,9 +46,24 @@ The frontend's TypeScript bindings in `frontend/bindings/` are generated from th
 ## Style
 
 - **Go:** `gofmt`. Doc comments are full sentences in plain English, saying what something is or does. Test names read as sentences, such as `TestAProjectKeepsItsWork`, with a comment saying what the test shows.
-- **Frontend:** formatted with [oxfmt](https://oxc.rs/docs/guide/usage/formatter) and `frontend/.oxfmtrc.json` (single quotes, no semicolons, lines up to 180 characters), linted with [oxlint](https://oxc.rs/docs/guide/usage/linter): `npm run fmt` and `npm run lint` in `frontend/`, which CI checks. Where a lint rule is wrong for a line, disable it for that line only, with the reason (`// oxlint-disable-next-line rule -- why`). Vue single-file components with `<script setup lang="ts">`. Shared state lives in plain modules with refs (`sim.ts`, `builder.ts`, `update.ts`), not in a store library.
+- **Frontend:** formatted with [oxfmt](https://oxc.rs/docs/guide/usage/formatter) and `frontend/.oxfmtrc.json` (single quotes, no semicolons, lines up to 180 characters), linted with [oxlint](https://oxc.rs/docs/guide/usage/linter): `npm run fmt` and `npm run lint` in `frontend/`, which CI checks. Where a lint rule is wrong for a line, disable it for that line only, with the reason (`// oxlint-disable-next-line rule -- why`). Vue single-file components with `<script setup lang="ts">`. Shared state lives in plain modules with refs (`sim.ts`, `builder.ts`, `update.ts`), not in a store library. Where the app is lives in the address, through vue-router (`router.ts`): navigate with the router, never with a ref of your own.
 - **Words in the app and the docs:** short, plain, British spelling, no jargon where a plain word does.
 - **Commits and pull request titles** follow Conventional Commits, such as `feat(projects): …`, `fix(ui): …` or `docs: …`. The subject says what the change brings, and the body lists the details. Work on a branch named like the change (`feat/…`, `fix/…`, `docs/…`), never directly on `main`. Pull requests are squash-merged with their title.
+
+## The UI
+
+The app is moving to a new look, page by page. New and reworked UI follows these rules:
+
+- **Components:** `frontend/src/ui/` has the shared ones (`UiDialog`, `UiMenu`, `UiSelect`, `UiSegmented`, `UiTabs`, `UiIoList`…) on [UI SDK](https://ui-sdk.dev)'s headless Vue parts. Pages use these, never UI SDK directly, so a part can change library in one place. Add a new shared control there.
+- **No UI SDK styles:** never import `@ui-sdk/core/web.css`. It is a full default theme whose rules (positions, focus rings, transitions) mix with ours; every style is our own.
+- **Immediate states:** hover, focus and selection change at once, with no colour transitions. A control's look never changes its size: no bolder text for the selected item, which would shift its neighbours.
+- **The focus ring:** `:focus-visible` draws one for every control, an outline 2px wide that stands 2px off it, so it never touches a coloured one. It is teal, and amber around an amber control (`--t-ring-color`), as `t-btn-primary` sets it. A button shows it only when reached with the keyboard; a text field shows it whenever it is being typed in. An outline is drawn over neighbouring elements, so only an ancestor that clips or scrolls can cut it: give the controls inside one `--t-ring` (4px) of room, or draw their ring inside them (`focus-visible:outline-offset-[-2px]`).
+- **Keyboard:** every control can be reached with Tab. WebKit, the Mac's webview, leaves buttons out of the tab order, so `frontend/src/ui/keyboard.ts` gives each one a tabindex. Each option of a choice is a stop of its own, as in `UiSegmented`, rather than one stop with arrow keys. Leave a second control that does the same as its neighbour out with `tabindex="-1"`, as a card's name does beside its picture.
+- **Styling:** Tailwind utilities with the tokens of `frontend/src/ui/theme.css`: `bg-s0`…`bg-s3` for surfaces, `text-fg`, `text-muted`, `border-line`, `border-control` for the edges of controls, `bg-accent` for the one main action, `text-focus` and `bg-highlight` for focus and selection, and the classes `t-btn`, `t-input`, `t-item`. No raw colours: every token has a dark and a light value.
+- **Contrast:** every token pair people read or press meets WCAG 2.2 AA (text 4.5:1, control edges and focus 3:1). Check a changed page with axe-core in the browser.
+- **No Tailwind reset yet:** buttons, lists and headings keep the browser's defaults, so components set margins, padding and line height themselves. Older pages' styles sit in the CSS layer `legacy`, below Tailwind, and map their colours onto the tokens.
+- **Icons:** [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons) (MIT), imported as `~icons/fluent/<name>-20-regular` and compiled in, never fetched.
+- **The lab:** `npm run dev`, then `/lab.html`, shows every component and the layouts in dark and light.
 
 ## Seeing a UI change in the real app
 

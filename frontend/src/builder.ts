@@ -396,8 +396,7 @@ export function leave() {
 
 // --- Wiring: which cable goes where, which pin carries what, and what the PLC calls it. ---
 
-// The builder shows the station in 3D to build it, or its wiring.
-export const mode = ref<'build' | 'wire'>('build')
+// The wiring of the station being built, for the wiring view while it is edited.
 export const wiring = shallowRef<WiringState | null>(null)
 
 export async function loadWiring() {

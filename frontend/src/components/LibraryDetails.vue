@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { EntryRef, SceneTest } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 import { collectionName } from '../collections'
 import { current, entries, preview, reset, rootInstance } from '../library'
@@ -8,7 +8,18 @@ import ConnectorsSection from './ConnectorsSection.vue'
 import PlcSection from './PlcSection.vue'
 import SettingsSection from './SettingsSection.vue'
 import WidgetList from './WidgetList.vue'
+import UiTree, { type TreeRow } from '../ui/UiTree.vue'
+import IconModule from '~icons/fluent/cube-16-regular'
+import IconAccessory from '~icons/fluent/toolbox-16-regular'
+import IconPlc from '~icons/fluent/developer-board-16-regular'
+import IconUp from '~icons/fluent/chevron-left-16-regular'
+import IconAdd from '~icons/fluent/add-16-regular'
+import IconOpen from '~icons/fluent/open-16-regular'
+import IconReset from '~icons/fluent/arrow-counterclockwise-16-regular'
+import IconWarning from '~icons/fluent/warning-16-regular'
 
+// What the library shows: the entry chosen, or a part of it clicked in the preview, with how it
+// behaves, what it holds as a tree, ways to try it, its settings and its signals.
 defineEmits<{ open: [entry: EntryRef] }>()
 
 const { actionMessage, runAction, scene, selected, selection } = preview
@@ -33,10 +44,36 @@ const collection = computed(() => {
 })
 const parent = computed(() => (scene.value?.instances ?? []).find((i) => i.id === selected.value?.parent) ?? null)
 
-const inside = computed(() => {
-  const id = shown.value?.id ?? ''
-  return (scene.value?.instances ?? []).filter((i) => !i.selectAs && (i.parent ?? '') === id)
-})
+// What it holds, as a tree: a module's parts, or a station's modules with theirs. A row opens
+// to what it holds in turn; choosing one shows it here, with the way back above.
+const listed = computed(() => (scene.value?.instances ?? []).filter((i) => !i.selectAs))
+const open = ref(new Set<string>())
+watch(current, () => (open.value = new Set()))
+function toggle(id: string, to: boolean) {
+  const next = new Set(open.value)
+  if (to) next.add(id)
+  else next.delete(id)
+  open.value = next
+}
+function rows(parent: string, depth: number): TreeRow[] {
+  return listed.value
+    .filter((i) => (i.parent ?? '') === parent)
+    .flatMap((i) => {
+      const children = listed.value.some((c) => c.parent === i.id)
+      const row: TreeRow = {
+        key: i.id,
+        label: i.name,
+        depth,
+        icon: i.isPlc ? IconPlc : i.level === 'module' ? IconModule : IconAccessory,
+        children,
+        open: open.value.has(i.id),
+        parent: depth > 0 ? parent : undefined,
+        title: i.module,
+      }
+      return [row, ...(children && row.open ? rows(i.id, depth + 1) : [])]
+    })
+}
+const inside = computed(() => rows(shown.value?.id ?? '', 0))
 
 const parameters = computed(() => {
   const all = scene.value?.parameters ?? []
@@ -53,7 +90,8 @@ const shownEntry = computed(() => {
 const kinds = computed(() => scene.value?.workpieces.kinds ?? [])
 const tests = computed(() => shown.value?.tests ?? [])
 const controls = computed(() => shown.value?.controls ?? [])
-const parts = computed(() => (selected.value ? [] : (entry.value?.contains ?? []).filter((c) => c.level === 'part')))
+// The kinds of workpiece a test takes, as the module says, or all of them.
+const kindsFor = (test: SceneTest) => (test.kinds?.length ? kinds.value.filter((k) => test.kinds?.includes(k.id)) : kinds.value)
 
 const hasConnectors = computed(() => (shown.value?.connectors ?? []).length > 0)
 
@@ -68,201 +106,71 @@ const startProject = () => current.value && newProject({ station: current.value.
 </script>
 
 <template>
-  <aside class="details" aria-label="Details">
-    <header v-if="current" class="head">
-      <button v-if="selected" class="back" @click="selection = parent && parent.id !== rootInstance?.id ? parent.id : null">‹ {{ parent?.name ?? entry?.name }}</button>
-      <p class="level">{{ LEVELS[level] ?? level }}<template v-if="group"> / {{ group }}</template><template v-if="collection"> · {{ collection }}</template></p>
-      <h2>{{ name }}</h2>
-      <p class="id mono">{{ shown?.module ?? current.id }}<template v-if="shown?.version"> · v{{ shown.version }}</template></p>
-      <p v-if="description" class="description">{{ description }}</p>
-      <div class="actions">
-        <button v-if="current.level === 'station'" @click="startProject">New project</button>
-        <button v-if="shownEntry" @click="$emit('open', shownEntry)">Open on its own</button>
-        <button @click="reset()">Reset</button>
+  <aside class="flex h-full min-h-0 flex-col bg-s1" aria-label="Details">
+    <header v-if="current" class="shrink-0 border-b border-line px-3 pt-2.5 pb-3">
+      <button
+        v-if="selected"
+        class="mb-1 -ml-1 flex cursor-default items-center gap-0.5 rounded-sm border-0 bg-transparent px-1 py-0 text-xs text-muted hover:text-fg"
+        @click="selection = parent && parent.id !== rootInstance?.id ? parent.id : null"
+      >
+        <IconUp class="size-3.5" />{{ parent?.name ?? entry?.name }}
+      </button>
+      <p class="m-0 text-xs text-muted">{{ LEVELS[level] ?? level }}<template v-if="group"> · {{ group }}</template><template v-if="collection"> · {{ collection }}</template></p>
+      <h2 class="m-0 mt-0.5 text-[15px] leading-snug font-semibold">{{ name }}</h2>
+      <p class="m-0 mt-0.5 font-mono text-[11px] text-muted">{{ shown?.module ?? current.id }}<template v-if="shown?.version"> · v{{ shown.version }}</template></p>
+      <p v-if="description" class="m-0 mt-1.5 text-muted">{{ description }}</p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <button v-if="current.level === 'station' && !selected" class="t-btn t-btn-primary" @click="startProject"><IconAdd class="size-4" />New project</button>
+        <button v-if="shownEntry" class="t-btn" @click="$emit('open', shownEntry)"><IconOpen class="size-4" />Open on its own</button>
+        <button v-if="!selected" class="t-btn" title="Put it back as it started" @click="reset()"><IconReset class="size-4" />Reset</button>
       </div>
     </header>
 
-    <div v-if="current" class="body">
-      <p v-if="entry?.error" class="section broken">{{ entry.error }}</p>
-      <p v-if="actionMessage" class="section broken" role="status">{{ actionMessage }}</p>
+    <div v-if="current" class="details-body min-h-0 flex-1 overflow-y-auto">
+      <p v-if="entry?.error" class="t-section m-0 flex items-start gap-2 text-danger"><IconWarning class="mt-0.5 size-4 shrink-0" />{{ entry.error }}</p>
+      <p v-if="actionMessage" class="t-section m-0 text-danger" role="status">{{ actionMessage }}</p>
 
-      <section v-if="inside.length" class="section">
-        <h3 class="section-title">Contains</h3>
-        <button v-for="item in inside" :key="item.id" class="link" @click="selection = item.id">
-          <span>{{ item.name }}</span>
-          <small class="mono">{{ item.module }}</small>
-        </button>
+      <section v-if="shown?.behaviour?.length" class="t-section">
+        <h3 class="t-section-title">How it behaves</h3>
+        <ul class="m-0 flex flex-col gap-1.5 pl-4 text-muted">
+          <li v-for="line in shown.behaviour" :key="line">{{ line }}</li>
+        </ul>
       </section>
 
-      <SettingsSection :parameters="parameters" :faults="shown?.faults ?? []" :values="[]" :named="!shown" />
+      <section v-if="inside.length" class="t-section">
+        <h3 class="t-section-title">Contains</h3>
+        <UiTree :items="inside" :label="`What ${name} holds`" class="-mx-1.5" @select="(id) => (selection = id)" @toggle="toggle" />
+      </section>
 
-      <section v-if="tests.length || controls.length" class="section">
-        <h3 class="section-title">Try it</h3>
-        <div v-for="test in tests" :key="test.place" class="test">
-          <span>{{ test.label }}</span>
-          <div class="kinds">
-            <button v-for="kind in kinds" :key="kind.id" :title="kind.label" @click="tryWorkpiece(test, kind.id)">
-              <span class="swatch" :style="{ background: kind.material.color }" />{{ kind.label }}
+      <section v-if="tests.length || controls.length" class="t-section">
+        <h3 class="t-section-title">Try it</h3>
+        <div v-for="test in tests" :key="test.place" class="mb-3 last:mb-0">
+          <p class="m-0 mb-1.5 text-muted">{{ test.label }}</p>
+          <div class="flex flex-wrap gap-1.5">
+            <button v-for="kind in kindsFor(test)" :key="kind.id" class="t-btn h-6 px-2 text-xs" :title="kind.label" @click="tryWorkpiece(test, kind.id)">
+              <span class="size-3 rounded-full shadow-[inset_0_0_0_1px_#ffffff2e]" :style="{ background: kind.material.color }" />{{ kind.label }}
             </button>
-            <button @click="runAction(test.clear)">Remove</button>
+            <button class="t-btn t-btn-ghost h-6 px-2 text-xs" @click="runAction(test.clear)">Remove</button>
           </div>
         </div>
         <WidgetList v-if="controls.length" :widgets="controls" />
       </section>
 
+      <SettingsSection :parameters="parameters" :faults="shown?.faults ?? []" :values="[]" :named="!shown" />
+
       <PlcSection v-if="shown?.isPlc" />
       <ConnectorsSection v-else-if="hasConnectors" :connectors="shown?.connectors ?? []" />
-
-      <section v-if="shown?.behaviour?.length" class="section">
-        <h3 class="section-title">How it behaves</h3>
-        <ul class="behaviour">
-          <li v-for="line in shown.behaviour" :key="line">{{ line }}</li>
-        </ul>
-      </section>
-
-      <section v-if="parts.length" class="section">
-        <h3 class="section-title">Built with</h3>
-        <button v-for="part in parts" :key="part.id" class="link" @click="$emit('open', part)">
-          <span>{{ part.name }}</span>
-          <small class="mono">{{ part.id }}</small>
-        </button>
-      </section>
     </div>
   </aside>
 </template>
 
 <style scoped>
-.details {
-  background: var(--panel);
-  border-left: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.head {
-  border-bottom: 1px solid var(--line);
+.details-body :deep(.section) {
+  border-bottom: 1px solid var(--t-line);
   padding: 12px;
 }
 
-.head h2 {
-  font-size: 15px;
-  margin: 4px 0 0;
-}
-
-.level {
-  color: var(--accent);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  margin: 0;
-  text-transform: uppercase;
-}
-
-.id {
-  color: var(--text-dim);
-  font-size: 11px;
-  margin: 2px 0 0;
-}
-
-.description {
-  color: var(--text-dim);
-  margin: 6px 0 0;
-}
-
-.back {
-  background: none;
-  border: 0;
-  color: var(--text-dim);
-  margin: 0 0 6px -2px;
-  padding: 0 2px;
-}
-
-.back:hover {
-  color: var(--text);
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.body :deep(.section) {
-  border-bottom: 1px solid var(--line);
-  padding: 12px;
-}
-
-.body :deep(.section:last-child) {
+.details-body :deep(.section:last-child) {
   border-bottom: 0;
-}
-
-.broken {
-  color: var(--danger);
-  margin: 0;
-}
-
-.link {
-  align-items: baseline;
-  background: none;
-  border: 0;
-  border-bottom: 1px solid #1a3a3f;
-  border-radius: 0;
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-  padding: 5px 2px;
-  text-align: left;
-  width: 100%;
-}
-
-.link:hover {
-  background: var(--panel-raised);
-}
-
-.link small {
-  color: var(--text-dim);
-  font-size: 11px;
-}
-
-.test {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
-.kinds {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.kinds button {
-  align-items: center;
-  display: flex;
-  gap: 5px;
-}
-
-.swatch {
-  border: 1px solid #0006;
-  border-radius: 50%;
-  height: 11px;
-  width: 11px;
-}
-
-.behaviour {
-  color: var(--text-dim);
-  margin: 0;
-  padding-left: 16px;
-}
-
-.behaviour li + li {
-  margin-top: 4px;
 }
 </style>

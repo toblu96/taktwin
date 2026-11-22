@@ -388,6 +388,20 @@ func (s *Service) editedStation() (string, []byte, error) {
 	return name, data, nil
 }
 
+// runningStation is the station the simulation runs: its file, as the project has it or its
+// collection, and the station as it was loaded and resolved, with what the project's exercise
+// set up, such as pins swapped.
+func (s *Service) runningStation() ([]byte, *model.Bundle, *model.Plan, error) {
+	s.mu.Lock()
+	name, b, bundle, e := s.proj.name, s.proj.def.Base, s.bundle, s.engine
+	s.mu.Unlock()
+	if name == "" || bundle == nil || e == nil {
+		return nil, nil, nil, errNoProject
+	}
+	data, err := projectLibrary(name, b).ReadFile(path.Join("stations", bundle.Station.ID, "station.json"))
+	return data, bundle, e.Plan(), err
+}
+
 // writeStation keeps a station built in a project as the project's own, while that project
 // is open.
 func (s *Service) writeStation(project string, data []byte) error {

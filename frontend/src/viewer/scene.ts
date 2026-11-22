@@ -32,6 +32,8 @@ const rad = (deg: number) => (deg * Math.PI) / 180
 
 export interface StationEvents {
   select(instance: string | null): void
+  // A workpiece clicked, by its id, where workpieces can be picked; null for a click beside it.
+  pickWorkpiece?(id: number | null): void
   control(name: string, down: boolean, toggle: boolean): void
   // The view changed, so anything anchored to the 3D model must follow.
   rendered(): void
@@ -328,6 +330,9 @@ export class StationScene {
   private workpieceInner = 0 // the radius of that inside
   private readonly beltBase = beltTexture()
   private selectionBox: THREE.Box3Helper | null = null
+  // The workpiece picked, outlined as it moves along, and its outline.
+  private picked: number | null = null
+  private pickedBox: THREE.Box3Helper | null = null
   private signature = ''
   private frame = 0
   private active = true
@@ -341,7 +346,7 @@ export class StationScene {
     private readonly canvas: HTMLCanvasElement,
     data: Scene,
     private readonly events: StationEvents,
-    private readonly options: { fit?: boolean; view?: CameraView; building?: boolean } = {},
+    private readonly options: { fit?: boolean; view?: CameraView; building?: boolean; workpieces?: boolean } = {},
   ) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -562,6 +567,7 @@ export class StationScene {
       let press: string | null = null
       let toggle = false
       for (let o: THREE.Object3D | null = hit.object; o; o = o.parent) {
+        if (o.userData.workpiece !== undefined) return { instance: null, press: null, toggle: false, workpiece: o.userData.workpiece as number }
         if (!press && o.userData.press) {
           press = o.userData.press
           toggle = !!o.userData.toggle
@@ -571,9 +577,9 @@ export class StationScene {
           break
         }
       }
-      if (instance) return { instance, press, toggle }
+      if (instance) return { instance, press, toggle, workpiece: null }
     }
-    return { instance: null, press: null, toggle: false }
+    return { instance: null, press: null, toggle: false, workpiece: null }
   }
 
   // Marks what a station check is about: a red box around each module and a dot at the spot.
@@ -623,7 +629,9 @@ export class StationScene {
     this.downAt = null
     if (this.build?.pointerUp(event, moved < DRAG_THRESHOLD)) return
     if (moved >= DRAG_THRESHOLD) return
-    this.events.select(this.pick(event).instance)
+    const { instance, workpiece } = this.pick(event)
+    this.events.pickWorkpiece?.(workpiece)
+    if (workpiece === null) this.events.select(instance)
   }
 
   private readonly onPointerMove = (event: PointerEvent) => {
@@ -633,10 +641,13 @@ export class StationScene {
     this.canvas.style.cursor = this.pick(event).press ? 'pointer' : ''
   }
 
+  // A double click frames a module, or a workpiece where they can be picked, from where the
+  // camera looks; beside them it goes back to the view of the whole station.
   private readonly onDoubleClick = (event: MouseEvent) => {
-    const { instance, press } = this.pick(event)
+    const { instance, press, workpiece } = this.pick(event)
     if (press) return
-    const box = instance ? this.moduleBox(instance) : null
+    const piece = workpiece === null ? undefined : this.workpieceMeshes.get(workpiece)
+    const box = piece ? new THREE.Box3().setFromObject(piece) : instance ? this.moduleBox(instance) : null
     if (!box) {
       this.home()
       this.invalidate()
@@ -734,7 +745,8 @@ export class StationScene {
   private newPiece(kind: string): THREE.Object3D {
     const template = this.workpieceTemplates.get(kind)
     const piece = template ? template.clone() : new THREE.Mesh(this.workpieceGeometry.get(kind), this.workpieceMaterials.get(kind))
-    piece.traverse((o) => (o.userData.noPick = true))
+    // Clicks go through workpieces to the modules, unless workpieces can be picked here.
+    if (!this.options.workpieces) piece.traverse((o) => (o.userData.noPick = true))
     piece.userData.kind = kind
     return piece
   }
@@ -748,6 +760,7 @@ export class StationScene {
       let mesh = this.workpieceMeshes.get(piece.id)
       if (!mesh) {
         mesh = this.newPiece(piece.kind)
+        mesh.userData.workpiece = piece.id
         this.workpieceMeshes.set(piece.id, mesh)
         this.root.add(mesh)
       }
@@ -768,6 +781,31 @@ export class StationScene {
         this.workpieceMeshes.delete(id)
       }
     }
+    this.outlinePicked()
+  }
+
+  // Marks the picked workpiece with a box like a module's selection, which follows it.
+  pickWorkpiece(id: number | null) {
+    this.picked = id
+    this.outlinePicked()
+    this.invalidate()
+  }
+
+  private outlinePicked() {
+    const mesh = this.picked === null ? undefined : this.workpieceMeshes.get(this.picked)
+    if (!mesh) {
+      if (this.pickedBox) {
+        this.scene.remove(this.pickedBox)
+        this.pickedBox.dispose()
+        this.pickedBox = null
+      }
+      return
+    }
+    if (!this.pickedBox) {
+      this.pickedBox = new THREE.Box3Helper(new THREE.Box3(), SELECTION_COLOR)
+      this.scene.add(this.pickedBox)
+    }
+    this.pickedBox.box.setFromObject(mesh)
   }
 
   // What was set onto a workpiece, where it was put, such as a cap or boxes on a pallet, and

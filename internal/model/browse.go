@@ -199,8 +199,8 @@ func (l *Library) Preview(level, id string) (*Bundle, error) {
 	}
 	b := &Bundle{Modules: map[string]*ModuleDef{}, Parts: map[string]*PartDef{}, Preview: true}
 	st := &b.Station
-	// A single module is tried out with the library's default workpieces.
-	st.Format, st.ID, st.Workpieces = StationFormat, id, l.DefaultWorkpieces()
+	// A single module is tried out with the workpieces of its own collection.
+	st.Format, st.ID, st.Workpieces = StationFormat, id, l.previewWorkpieces(level, id)
 	if level == LevelPart {
 		p := &PartDef{}
 		if err := l.read(path.Join("parts", id+".json"), p); err != nil {
@@ -230,6 +230,19 @@ func (l *Library) Preview(level, id string) (*Bundle, error) {
 		st.Modules[0].Params[p.ID] = Num{src: p.ID, set: true}
 	}
 	return b, nil
+}
+
+// previewWorkpieces is the workpiece set a module or part is tried out with: the one its own
+// collection names, so that a module meets what it was made for, else the library's default.
+func (l *Library) previewWorkpieces(level, id string) string {
+	from := l.ModuleCollection(id)
+	if level == LevelPart {
+		from = l.FileCollection(path.Join("parts", id+".json"))
+	}
+	if c, ok := l.Collection(from); ok && c.Workpieces != "" && slices.Contains(l.names("workpieces", jsonFiles), c.Workpieces) {
+		return c.Workpieces
+	}
+	return l.DefaultWorkpieces()
 }
 
 // previewParameter makes a module's parameter editable, with a range around its default.
@@ -274,6 +287,8 @@ type SceneTest struct {
 	Place string `json:"place"`           // action that takes the kind of workpiece
 	Clear string `json:"clear"`           // action that removes it again
 	Holds bool   `json:"holds,omitempty"` // one held in place, not a queue on a transport
+	// Kinds are the workpiece kinds that fit, all of them when it is nil.
+	Kinds []string `json:"kinds,omitempty"`
 }
 
 // addPreviewTests adds the ways to try out one module: a workpiece held in front of
@@ -284,18 +299,18 @@ func (r *resolver) addPreviewTests() {
 		return
 	}
 	radius := r.bundle.Workpieces.Diameter / 2
-	add := func(instance, id, label string, seg int, at float64, holds bool) {
+	add := func(instance, id, label string, seg int, at float64, holds bool, kinds []string) {
 		name := instance + "." + id
 		r.plan.Actions[name+".test"] = ActionPlan{Type: "placeWorkpiece", Segment: seg, At: at, BlockedBy: -1}
 		r.plan.Actions[name+".testClear"] = ActionPlan{Type: "clearTransport", Segment: seg, BlockedBy: -1}
-		r.tests[instance] = append(r.tests[instance], SceneTest{Label: label, Place: name + ".test", Clear: name + ".testClear", Holds: holds})
+		r.tests[instance] = append(r.tests[instance], SceneTest{Label: label, Place: name + ".test", Clear: name + ".testClear", Holds: holds, Kinds: kinds})
 	}
 	for _, in := range r.order {
 		for i := range in.mod.Transport {
 			name := in.def.ID + "." + in.mod.Transport[i].ID
 			if seg, ok := r.segs[name]; ok && !in.mod.Transport[i].Shared {
 				t := &in.mod.Transport[i]
-				add(in.def.ID, t.ID, "Place on "+cmp.Or(t.Label, t.ID), seg, min(radius, r.plan.Segments[seg].Length/2), false)
+				add(in.def.ID, t.ID, "Place on "+cmp.Or(t.Label, t.ID), seg, min(radius, r.plan.Segments[seg].Length/2), false, r.kindsFor(in.mod, t.ID))
 			}
 		}
 	}
@@ -310,8 +325,30 @@ func (r *resolver) addPreviewTests() {
 			Length: at + 1, Drive: -1, Reverse: -1, Factor: -1, FreeFrom: -1, Next: -1, Prev: -1, Travel: r.state(s.Name + ".test.travel"), Count: r.state(s.Name + ".test.count"), Before: r.state(s.Name + ".test.before"),
 		}
 		r.plan.Segments = append(r.plan.Segments, seg)
-		add(instance, id, "Hold in front of the sensor", len(r.plan.Segments)-1, at, true)
+		add(instance, id, "Hold in front of the sensor", len(r.plan.Segments)-1, at, true, nil)
 	}
+}
+
+// kindsFor are the workpiece kinds a module's transport takes, as its own placeWorkpiece
+// actions say by their family, such as cartons on a carton conveyor: nil when they do not say,
+// and then every kind fits. A family the set does not have leaves none.
+func (r *resolver) kindsFor(mod *ModuleDef, transport string) []string {
+	families := map[string]bool{}
+	for _, a := range mod.Actions {
+		if a.Type == "placeWorkpiece" && a.Transport == transport && a.Family != "" {
+			families[a.Family] = true
+		}
+	}
+	if len(families) == 0 {
+		return nil
+	}
+	kinds := []string{}
+	for _, k := range r.bundle.Workpieces.Kinds {
+		if families[k.Family] {
+			kinds = append(kinds, k.ID)
+		}
+	}
+	return kinds
 }
 
 func cutLast(s, sep string) (string, string, bool) {

@@ -1,196 +1,56 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { SceneCheck } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 import { useSim } from '../sim'
 import ConnectorsSection from './ConnectorsSection.vue'
-import ExerciseSection from './ExerciseSection.vue'
 import PlcSection from './PlcSection.vue'
-import SettingsSection from './SettingsSection.vue'
-import StationDock from './StationDock.vue'
 import WidgetList from './WidgetList.vue'
+import IoPanel from './IoPanel.vue'
+import IconDelete from '~icons/fluent/delete-16-regular'
 
-const { scene, selected, selection, highlight } = useSim()
-
-// Shows what a check is about in the 3D view, or nothing on a second click.
-function show(check: SceneCheck) {
-  const instances = check.instances ?? []
-  highlight.value = highlight.value?.instances.join() === instances.join() ? null : { instances, at: check.at ?? null }
-}
-
-// Guide rails and the like belong to another module, so they are not listed.
-const modules = computed(() => (scene.value?.instances ?? []).filter((i) => !i.selectAs))
-
-// The modules with what they contain, then the station's accessories.
-const groups = computed(() => {
-  const inside = (id: string) => modules.value.filter((i) => i.parent === id)
-  const top = modules.value.filter((i) => !i.parent)
-  return [
-    { title: 'Modules', modules: top.filter((i) => i.level === 'module').flatMap((i) => [i, ...inside(i.id)]) },
-    { title: 'Accessories', modules: top.filter((i) => i.level !== 'module') },
-  ].filter((g) => g.modules.length)
-})
-
-const contained = computed(() => (scene.value?.instances ?? []).filter((i) => i.parent === selected.value?.id && !i.selectAs))
-const parent = computed(() => (scene.value?.instances ?? []).find((i) => i.id === selected.value?.parent) ?? null)
-
+// The side bar on the right of a running station: the station's inputs and outputs with the I/O
+// test, or what was clicked in the 3D view: a workpiece, to take it off the station, or a module,
+// with what can be done with it while it runs: its
+// controls, and its I/O connectors with their live pins, or a PLC's program. Clicking beside it
+// in the 3D view goes back to the inputs and outputs; how it is built and how a PLC is connected
+// are for the other views.
+const { pickedWorkpiece, scene, selected, takeWorkpiece } = useSim()
+const kindName = (kind: string) => scene.value?.workpieces.kinds?.find((k) => k.id === kind)?.label ?? kind
 const panelWidgets = computed(() => (selected.value?.controls ?? []).filter((w) => w.show === 'panel'))
-
-const allFaults = computed(() => (scene.value?.instances ?? []).flatMap((i) => i.faults ?? []))
-const parameters = computed(() => {
-  const all = scene.value?.parameters ?? []
-  return selected.value ? all.filter((p) => p.module === selected.value?.id) : all
-})
 </script>
 
 <template>
-  <aside class="context">
-    <StationDock place="side" />
-    <template v-if="selected">
-      <header class="head">
-        <button class="back" @click="selection = parent?.id ?? null">‹ {{ parent?.name ?? scene?.name }}</button>
-        <h2>{{ selected.name }}</h2>
-        <p class="kind mono">{{ selected.level === 'module' ? 'Module' : 'Accessory' }} · {{ selected.module }} · v{{ selected.version }}</p>
-        <p class="description">{{ selected.description }}</p>
+  <aside class="flex h-full min-h-0 flex-col bg-s1" aria-label="Selected">
+    <template v-if="pickedWorkpiece">
+      <header class="flex h-11 shrink-0 items-center border-b border-line px-3">
+        <h2 class="m-0 truncate text-[15px] font-semibold">{{ kindName(pickedWorkpiece.kind) }}</h2>
       </header>
-      <div class="body">
-        <section v-if="contained.length" class="section">
-          <h3 class="section-title">Contains</h3>
-          <button v-for="module in contained" :key="module.id" class="module" @click="selection = module.id">
-            <span>{{ module.name }}</span>
-            <small class="mono">{{ module.module }}</small>
-          </button>
-        </section>
-        <section v-if="panelWidgets.length" class="section">
-          <h3 class="section-title">Controls</h3>
+      <section class="t-section flex flex-col gap-2">
+        <p v-if="pickedWorkpiece.loads?.length" class="m-0 text-muted">
+          With {{ pickedWorkpiece.loads.length === 1 ? kindName(pickedWorkpiece.loads[0].kind).toLowerCase() : `${pickedWorkpiece.loads.length} workpieces` }} on it, which go with
+          it.
+        </p>
+        <button class="t-btn self-start" @click="takeWorkpiece"><IconDelete class="size-4" />Take it off the station</button>
+        <p class="m-0 text-xs text-muted">Delete or Backspace does the same. Clicking beside it lets go of it.</p>
+      </section>
+    </template>
+    <template v-else-if="selected">
+      <header class="flex h-11 shrink-0 items-center border-b border-line px-3">
+        <h2 class="m-0 truncate text-[15px] font-semibold" :title="selected.description">{{ selected.name }}</h2>
+      </header>
+      <div class="min-h-0 flex-1 overflow-y-auto">
+        <section v-if="panelWidgets.length" class="t-section">
+          <h3 class="t-section-title">Controls</h3>
           <WidgetList :widgets="panelWidgets" />
         </section>
-        <PlcSection v-if="selected.isPlc" />
-        <ConnectorsSection v-else :connectors="selected.connectors ?? []" />
-        <SettingsSection :parameters="parameters" :faults="selected.faults ?? []" :values="selected.values ?? []" />
+        <PlcSection v-if="selected.isPlc" :signals="false" :connection="false" />
+        <ConnectorsSection v-else :connectors="(selected.connectors ?? []).filter((c) => c.type !== 'wires')" />
       </div>
     </template>
-
-    <template v-else-if="scene">
-      <header class="head">
-        <h2>{{ scene.name }}</h2>
-        <p class="description">{{ scene.description }}</p>
+    <template v-else>
+      <header class="flex h-11 shrink-0 items-center border-b border-line px-3">
+        <h2 class="m-0 truncate text-[15px] font-semibold">Inputs and outputs</h2>
       </header>
-      <div class="body">
-        <section v-if="scene.checks?.length" class="section">
-          <h3 class="section-title">Station checks</h3>
-          <button v-for="(check, index) in scene.checks" :key="index" class="check" title="Show it in the 3D view" @click="show(check)">
-            {{ check.text }}
-          </button>
-        </section>
-        <ExerciseSection />
-        <section v-for="group in groups" :key="group.title" class="section">
-          <h3 class="section-title">{{ group.title }}</h3>
-          <button v-for="module in group.modules" :key="module.id" class="module" :class="{ nested: module.parent }" @click="selection = module.id">
-            <span>{{ module.name }}</span>
-            <small class="mono">{{ module.module }}</small>
-          </button>
-        </section>
-        <SettingsSection :parameters="parameters" :faults="allFaults" :values="[]" named />
-      </div>
+      <IoPanel class="min-h-0 flex-1 overflow-y-auto" />
     </template>
   </aside>
 </template>
-
-<style scoped>
-.context {
-  background: var(--panel);
-  border-left: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.head {
-  border-bottom: 1px solid var(--line);
-  padding: 12px;
-}
-
-h2 {
-  font-size: 15px;
-  margin: 0;
-}
-
-.kind {
-  color: var(--text-dim);
-  font-size: 11px;
-  margin: 2px 0 0;
-}
-
-.description {
-  color: var(--text-dim);
-  margin: 6px 0 0;
-}
-
-.back {
-  background: none;
-  border: 0;
-  color: var(--text-dim);
-  margin: 0 0 6px -2px;
-  padding: 0 2px;
-}
-
-.back:hover {
-  color: var(--text);
-}
-
-.body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.body :deep(.section) {
-  border-bottom: 1px solid var(--line);
-  padding: 12px;
-}
-
-.body :deep(.section:last-child) {
-  border-bottom: 0;
-}
-
-.module {
-  align-items: baseline;
-  background: none;
-  border: 0;
-  border-bottom: 1px solid #1a3a3f;
-  border-radius: 0;
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-  padding: 5px 2px;
-  text-align: left;
-  width: 100%;
-}
-
-.check {
-  background: none;
-  border: 0;
-  border-left: 2px solid var(--danger);
-  border-radius: 0;
-  display: block;
-  text-align: left;
-  width: 100%;
-  font-size: 13px;
-  line-height: 1.4;
-  margin: 0 0 6px;
-  padding: 2px 0 2px 8px;
-}
-
-.module.nested {
-  padding-left: 14px;
-}
-
-.module:hover {
-  background: var(--panel-raised);
-}
-
-.module small {
-  color: var(--text-dim);
-  font-size: 11px;
-}
-</style>

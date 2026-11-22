@@ -1,10 +1,21 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import type { ProjectInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
+import UiMenu, { type MenuEntry } from '../ui/UiMenu.vue'
+import IconCube from '~icons/fluent/cube-16-regular'
+import IconTask from '~icons/fluent/clipboard-task-20-regular'
+import IconPassed from '~icons/fluent/checkmark-circle-16-filled'
+import IconFailed from '~icons/fluent/dismiss-circle-16-filled'
+import IconWarning from '~icons/fluent/warning-16-filled'
+import IconRename from '~icons/fluent/rename-20-regular'
+import IconCopy from '~icons/fluent/copy-20-regular'
+import IconFolder from '~icons/fluent/folder-20-regular'
+import IconExport from '~icons/fluent/arrow-export-20-regular'
+import IconShare from '~icons/fluent/share-20-regular'
+import IconDelete from '~icons/fluent/delete-20-regular'
 
-// A project on the projects page: a picture of its station, its name, what it is made from,
-// when it last changed and how its last check went. Clicking it opens it; its menu has the
-// rest.
+// A project on the projects page: a picture of its station, its name, what it is made from, when
+// it last changed and how its last check went. Clicking it opens it; its menu has the rest.
 const props = defineProps<{ project: ProjectInfo; busy?: boolean }>()
 const emit = defineEmits<{
   open: []
@@ -17,24 +28,6 @@ const emit = defineEmits<{
 }>()
 
 const p = computed(() => props.project)
-
-const menu = ref(false)
-function closeMenu() {
-  menu.value = false
-  window.removeEventListener('click', closeMenu)
-}
-function toggleMenu() {
-  if (menu.value) return closeMenu()
-  menu.value = true
-  // A click anywhere else closes it; this one is still on its way up.
-  setTimeout(() => window.addEventListener('click', closeMenu))
-}
-onUnmounted(closeMenu)
-
-function act(what: () => void) {
-  closeMenu()
-  what()
-}
 
 const renaming = ref(false)
 const newName = ref('')
@@ -51,6 +44,17 @@ function finishRename() {
   const to = newName.value.trim()
   if (to && to !== p.value.name) emit('rename', to)
 }
+
+const menu = computed<MenuEntry[]>(() => [
+  { label: 'Rename', icon: IconRename, run: startRename },
+  { label: 'Duplicate', icon: IconCopy, run: () => emit('duplicate') },
+  { label: 'Show in folder', icon: IconFolder, run: () => emit('reveal') },
+  {},
+  { label: 'Export…', icon: IconExport, run: () => emit('export') },
+  ...(p.value.exercise ? [{ label: 'Hand out as exercise…', icon: IconShare, run: () => emit('handout') }] : []),
+  {},
+  { label: 'Delete…', icon: IconDelete, danger: true, run: () => emit('remove') },
+])
 
 const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
 const units: [Intl.RelativeTimeFormatUnit, number][] = [
@@ -71,21 +75,25 @@ const exact = (iso?: string) => (iso ? new Date(iso).toLocaleString() : '')
 </script>
 
 <template>
-  <article class="card" :class="{ broken: p.problem, menu }">
-    <button class="open" :disabled="busy || !!p.problem" :title="p.problem || `Open ${p.name}`" @click="emit('open')">
-      <span class="picture">
-        <img v-if="p.thumbnail" :src="p.thumbnail" alt="" />
-        <img v-else class="placeholder" src="/logo.svg" alt="" />
-        <span v-if="p.exercise" class="kind">Exercise</span>
-      </span>
+  <article class="group flex flex-col overflow-hidden rounded-card border border-line bg-s1 hover:border-control" :class="p.problem ? 'opacity-70' : ''">
+    <button
+      class="relative block aspect-16/10 w-full cursor-default overflow-hidden border-0 bg-[#cfd7d8] p-0 focus-visible:outline-offset-[-3px]"
+      :disabled="busy || !!p.problem"
+      :aria-label="`Open ${p.name}${p.exercise ? ', Exercise' : ''}`"
+      :title="p.problem || `Open ${p.name}`"
+      @click="emit('open')"
+    >
+      <img v-if="p.thumbnail" :src="p.thumbnail" alt="" class="block size-full object-cover" :class="p.problem ? 'grayscale' : ''" />
+      <img v-else src="/logo.svg" alt="" class="absolute top-1/2 left-1/2 size-14 -translate-1/2 opacity-60" />
+      <span v-if="p.exercise" class="absolute top-2 left-2 rounded-sm bg-accent px-1.5 text-[11px] leading-4.5 font-semibold text-on-accent">Exercise</span>
     </button>
-    <div class="body">
-      <div class="title">
+    <div class="flex items-start gap-2 px-3 pt-2.5 pb-3">
+      <div class="min-w-0 flex-1">
         <input
           v-if="renaming"
           ref="input"
           v-model="newName"
-          class="rename"
+          class="t-input h-6 px-1.5 font-semibold"
           type="text"
           maxlength="80"
           aria-label="New name"
@@ -93,227 +101,28 @@ const exact = (iso?: string) => (iso ? new Date(iso).toLocaleString() : '')
           @keydown.esc="renaming = false"
           @blur="finishRename"
         />
-        <button v-else class="name" :disabled="busy || !!p.problem" @click="emit('open')">{{ p.name }}</button>
-        <button class="more" :aria-expanded="menu" aria-haspopup="menu" :aria-label="`More for ${p.name}`" @click.stop="toggleMenu">⋯</button>
+        <button
+          v-else
+          tabindex="-1"
+          class="block w-full cursor-default truncate border-0 bg-transparent p-0 text-left font-semibold text-fg"
+          :disabled="busy || !!p.problem"
+          @click="emit('open')"
+        >
+          {{ p.name }}
+        </button>
+        <p class="m-0 mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+          <component :is="p.exercise ? IconTask : IconCube" class="size-3.5 shrink-0" />
+          <span class="truncate">{{ p.exerciseName ? `${p.exerciseName} · ${p.stationName}` : p.stationName }}</span>
+        </p>
+        <p v-if="p.problem" class="m-0 mt-2 flex items-start gap-1.5 text-xs text-danger"><IconWarning class="mt-px size-3.5 shrink-0" />{{ p.problem }}</p>
+        <p v-else class="m-0 mt-2 flex items-center justify-between gap-2 text-xs text-faint">
+          <span :title="exact(p.modified)">{{ ago(p.modified) }}</span>
+          <span v-if="p.lastCheck" class="flex items-center gap-1 font-medium" :class="p.lastCheck.passed ? 'text-ok' : 'text-danger'" :title="`Checked ${exact(p.lastCheck.at)}`">
+            <component :is="p.lastCheck.passed ? IconPassed : IconFailed" class="size-3.5" />{{ p.lastCheck.passed ? 'Check passed' : 'Check failed' }}
+          </span>
+        </p>
       </div>
-      <p class="what">{{ p.exerciseName ? `${p.exerciseName} · ${p.stationName}` : p.stationName }}</p>
-      <p v-if="p.problem" class="problem">{{ p.problem }}</p>
-      <p v-else class="meta">
-        <span :title="exact(p.modified)">{{ ago(p.modified) }}</span>
-        <span v-if="p.lastCheck" class="check" :class="p.lastCheck.passed ? 'passed' : 'failed'" :title="`Checked ${exact(p.lastCheck.at)}`">
-          {{ p.lastCheck.passed ? '✓ Check passed' : '✗ Check failed' }}
-        </span>
-      </p>
-    </div>
-    <div v-if="menu" class="popup" role="menu" @click.stop>
-      <button role="menuitem" @click="act(startRename)">Rename</button>
-      <button role="menuitem" @click="act(() => emit('duplicate'))">Duplicate</button>
-      <button role="menuitem" @click="act(() => emit('reveal'))">Show in folder</button>
-      <button role="menuitem" @click="act(() => emit('export'))">Export…</button>
-      <button v-if="p.exercise" role="menuitem" title="One file for students, with the station, the exercise and what they need" @click="act(() => emit('handout'))">
-        Hand out as exercise…
-      </button>
-      <hr />
-      <button role="menuitem" class="danger" @click="act(() => emit('remove'))">Delete…</button>
+      <UiMenu :items="menu" :label="`More for ${p.name}`" class="-mr-1" />
     </div>
   </article>
 </template>
-
-<style scoped>
-.card {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  position: relative;
-  transition: border-color 0.12s;
-}
-
-.card:hover:not(.broken),
-.card.menu {
-  border-color: var(--text-dim);
-}
-
-.open {
-  background: none;
-  border: 0;
-  border-radius: 6px 6px 0 0;
-  padding: 0;
-}
-
-.picture {
-  align-items: center;
-  aspect-ratio: 16 / 10;
-  background: #c9d6d6;
-  border-bottom: 1px solid var(--line);
-  border-radius: 5px 5px 0 0;
-  display: flex;
-  justify-content: center;
-  overflow: hidden;
-  position: relative;
-}
-
-.picture img {
-  display: block;
-  height: 100%;
-  object-fit: cover;
-  width: 100%;
-}
-
-.picture .placeholder {
-  height: 56px;
-  opacity: 0.5;
-  width: 56px;
-}
-
-.kind {
-  background: var(--accent);
-  border-radius: 3px;
-  color: var(--bg);
-  font-size: 11px;
-  font-weight: 700;
-  left: 8px;
-  padding: 1px 6px;
-  position: absolute;
-  top: 8px;
-}
-
-.broken .picture {
-  filter: grayscale(1);
-  opacity: 0.5;
-}
-
-.body {
-  display: grid;
-  gap: 3px;
-  padding: 10px 12px 12px;
-}
-
-.title {
-  align-items: center;
-  display: flex;
-  gap: 6px;
-  min-width: 0;
-}
-
-.name {
-  background: none;
-  border: 0;
-  flex: 1;
-  font-size: 14px;
-  font-weight: 600;
-  min-width: 0;
-  overflow: hidden;
-  padding: 0;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.name:disabled {
-  opacity: 1;
-}
-
-.rename {
-  background: var(--bg);
-  border: 1px solid var(--accent);
-  color: var(--text);
-  flex: 1;
-  font-size: 14px;
-  min-width: 0;
-  padding: 1px 4px;
-}
-
-.more {
-  background: none;
-  border: 1px solid transparent;
-  color: var(--text-dim);
-  font-size: 16px;
-  line-height: 1;
-  padding: 1px 7px 5px;
-}
-
-.more:hover,
-.menu .more {
-  background: var(--panel-raised);
-  border-color: var(--line);
-  color: var(--text);
-}
-
-p {
-  margin: 0;
-}
-
-.what {
-  color: var(--text-dim);
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.meta {
-  align-items: center;
-  color: var(--text-dim);
-  display: flex;
-  font-size: 12px;
-  gap: 8px;
-  justify-content: space-between;
-}
-
-.check {
-  font-weight: 600;
-}
-
-.check.passed {
-  color: var(--signal);
-}
-
-.check.failed {
-  color: var(--danger);
-}
-
-.problem {
-  color: var(--danger);
-  font-size: 12px;
-}
-
-.popup {
-  background: var(--panel-raised);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 40%);
-  display: flex;
-  flex-direction: column;
-  min-width: 160px;
-  padding: 4px;
-  position: absolute;
-  right: 8px;
-  top: calc(100% - 44px);
-  z-index: 10;
-}
-
-.popup button {
-  background: none;
-  border: 0;
-  padding: 5px 10px;
-  text-align: left;
-}
-
-.popup button:hover {
-  background: var(--bg);
-}
-
-.popup .danger {
-  color: var(--danger);
-}
-
-hr {
-  border: 0;
-  border-top: 1px solid var(--line);
-  margin: 4px 0;
-  width: 100%;
-}
-</style>

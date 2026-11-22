@@ -1,274 +1,44 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ProgramService, Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import { bit, programming, simulation, useSim } from '../sim'
+import { ProgramService } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
+import { programming, simulation, useSim } from '../sim'
+import IoTable from './IoTable.vue'
 import PlcConnection from './PlcConnection.vue'
-import PlcTest from './PlcTest.vue'
+import IconCode from '~icons/fluent/code-16-regular'
+import IconWindow from '~icons/fluent/window-new-16-regular'
+
+// A PLC: in a running station its program, what runs and its step, and how it is connected; its
+// signals in the library. In an open project the panel below the 3D view shows the signals and
+// their test, so the PLC's own view leaves them out.
+withDefaults(defineProps<{ signals?: boolean; connection?: boolean }>(), { signals: true, connection: true })
 
 const sim = useSim()
-const { parameterValue, plcId, plcScene, plcView, scene } = sim
-
-const testing = computed(() => sim === simulation && !!plcView.value?.ioTest)
-const switchOutput = (variable: string, on: boolean) => void Service.SetTestOutputFor(plcId.value, variable, on)
-
-// The module behind an input, to teach its sensor right next to its live signal.
-// Pins name their PLC only where the station has several.
-const pinPlc = computed(() => ((scene.value?.plcs?.length ?? 0) > 1 ? (plcScene.value?.module ?? '') : ''))
-const instanceOf = (address: string) =>
-  scene.value?.instances?.find((i) => i.connectors?.some((c) => c.type === 'wires' && c.pins?.some((p) => p.address === address && (p.plc ?? '') === pinPlc.value)))
-const settingOf = (address: string) => {
-  const id = instanceOf(address)?.id
-  return id ? scene.value?.parameters?.find((p) => p.module === id) : undefined
-}
-const ownerOf = (address: string) => instanceOf(address)?.name
-
-function changeSetting(address: string, event: Event) {
-  const setting = settingOf(address)
-  const value = Number((event.target as HTMLInputElement).value)
-  if (setting && value >= setting.min && value <= setting.max) void sim.setParameter(setting.id, value)
-}
-
-// An analogue output set by hand during the I/O test, within its range.
-function setAnalog(address: string, range: number[], event: Event) {
-  const value = Number((event.target as HTMLInputElement).value)
-  if (Number.isFinite(value)) void Service.SetTestAnalogFor(plcId.value, address, Math.min(range[1], Math.max(range[0], value)))
-}
-
-const analogGroups = computed(() =>
-  [
-    { title: 'Analogue inputs', list: plcScene.value?.analog ?? [], outputs: false },
-    { title: 'Analogue outputs', list: plcScene.value?.analogOutputs ?? [], outputs: true },
-  ].filter((g) => g.list.length > 0),
-)
-
-const groups = computed(() => [
-  { title: 'Inputs', list: plcScene.value?.inputs ?? [], image: plcView.value?.inputs, outputs: false },
-  { title: 'Outputs', list: plcScene.value?.outputs ?? [], image: plcView.value?.outputs, outputs: true },
-])
+const { plcId, plcScene, plcView, scene } = sim
+const hasSignals = computed(() => {
+  const p = plcScene.value
+  return !!(p?.inputs?.length || p?.outputs?.length || p?.analog?.length || p?.analogOutputs?.length)
+})
 </script>
 
 <template>
-  <section v-if="sim === simulation" class="section">
-    <h3 class="section-title">Program</h3>
-    <p class="help">Write this PLC's program in Structured Text, run it in the app's soft PLC, and watch and force its variables.</p>
-    <div class="program-actions">
-      <button class="start" @click="programming = plcId">Edit program</button>
-      <button title="Beside the simulation, in a window of its own" @click="ProgramService.OpenWindow(plcId)">Open in window</button>
+  <section v-if="sim === simulation" class="t-section">
+    <h3 class="t-section-title">Program</h3>
+    <dl class="m-0 mb-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
+      <dt class="text-muted">Runs</dt>
+      <dd class="m-0 truncate">{{ plcView?.plc || 'No PLC' }}</dd>
+      <template v-if="plcView?.step">
+        <dt class="text-muted">Step</dt>
+        <dd class="m-0 truncate font-mono text-xs leading-5"><b class="font-semibold text-accent-ink">S{{ plcView.step.number }}</b> {{ plcView.step.label }}</dd>
+      </template>
+    </dl>
+    <p class="m-0 mb-2.5 text-xs text-muted">Write the program in Structured Text, run it in the app's soft PLC, and watch and force its variables.</p>
+    <div class="flex flex-wrap gap-2">
+      <button class="t-btn" @click="programming = plcId"><IconCode class="size-4" />Edit program</button>
+      <button class="t-btn" title="Beside the simulation, in a window of its own" @click="ProgramService.OpenWindow(plcId)"><IconWindow class="size-4" />Open in window</button>
     </div>
   </section>
-  <PlcConnection v-if="sim === simulation" :key="`${scene?.id}:${plcId}`" />
-  <PlcTest v-if="sim === simulation" />
-  <section class="section">
-    <p class="source">
-      <span class="section-title">Program</span>
-      <span>{{ plcView?.plc }}</span>
-    </p>
-    <p v-if="plcView?.step" class="source">
-      <span class="section-title">Step</span>
-      <span class="mono"><b>S{{ plcView.step.number }}</b> {{ plcView.step.label }}</span>
-    </p>
-  </section>
-  <section v-for="group in groups" :key="group.title" class="section">
-    <h3 class="section-title">{{ group.title }}</h3>
-    <table>
-      <tbody>
-        <tr v-for="signal in group.list" :key="signal.address" :title="signal.description">
-          <td class="dot-cell">
-            <button
-              v-if="testing && group.outputs"
-              class="force"
-              :aria-pressed="bit(group.image, signal.byte, signal.bit)"
-              :title="`Switch ${signal.name} ${bit(group.image, signal.byte, signal.bit) ? 'off' : 'on'}`"
-              @click="switchOutput(signal.address, !bit(group.image, signal.byte, signal.bit))"
-            >
-              <span class="dot" :class="{ on: bit(group.image, signal.byte, signal.bit) }" />
-            </button>
-            <span v-else class="dot" :class="{ on: bit(group.image, signal.byte, signal.bit) }" />
-          </td>
-          <td class="name">{{ signal.name }}</td>
-          <template v-if="testing">
-            <td class="what">{{ signal.description }}</td>
-            <td class="setting">
-              <label v-if="!group.outputs && settingOf(signal.address)" :title="`${settingOf(signal.address)?.label} of ${ownerOf(signal.address)}`">
-                <input
-                  type="number"
-                  :min="settingOf(signal.address)?.min"
-                  :max="settingOf(signal.address)?.max"
-                  :step="settingOf(signal.address)?.step || 1"
-                  :value="parameterValue(settingOf(signal.address)?.id ?? '', settingOf(signal.address)?.value ?? 0)"
-                  :aria-label="`${settingOf(signal.address)?.label} of ${signal.name}`"
-                  @change="changeSetting(signal.address, $event)"
-                />{{ settingOf(signal.address)?.unit }}
-              </label>
-            </td>
-          </template>
-          <template v-else>
-            <td class="mono variable">{{ signal.variable }}</td>
-            <td class="mono address" :title="signal.address">{{ signal.shown || signal.address }}</td>
-          </template>
-        </tr>
-      </tbody>
-    </table>
-  </section>
-  <section v-for="group in analogGroups" :key="group.title" class="section">
-    <h3 class="section-title">{{ group.title }}</h3>
-    <table>
-      <tbody>
-        <tr v-for="signal in group.list" :key="signal.address" :title="signal.description">
-          <td class="dot-cell volts mono">
-            <input
-              v-if="group.outputs && testing"
-              class="analog-set mono"
-              type="number"
-              :min="signal.range[0]"
-              :max="signal.range[1]"
-              :step="(signal.range[1] - signal.range[0]) / 100"
-              :value="(plcView?.analog?.[signal.address] ?? 0).toFixed(2)"
-              :aria-label="`Set ${signal.name}`"
-              @change="setAnalog(signal.address, signal.range, $event)"
-            />
-            <template v-else>{{ (plcView?.analog?.[signal.address] ?? 0).toFixed(2) }}</template>
-            {{ signal.unit }}
-          </td>
-          <td class="name">{{ signal.name }}</td>
-          <td class="mono address" :title="`${signal.address}, ${signal.type}`">{{ signal.shown || signal.address }}</td>
-        </tr>
-      </tbody>
-    </table>
+  <PlcConnection v-if="sim === simulation && connection" :key="`${scene?.id}:${plcId}`" />
+  <section v-if="signals && hasSignals" class="t-section">
+    <IoTable />
   </section>
 </template>
-
-<style scoped>
-.analog-set {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  color: var(--text);
-  padding: 1px 3px;
-  width: 58px;
-}
-
-.help {
-  color: var(--text-dim);
-  margin: 0 0 8px;
-}
-
-.program-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.program-actions .start {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #1b1405;
-  font-weight: 600;
-}
-
-.volts {
-  color: var(--signal);
-  white-space: nowrap;
-}
-
-.force {
-  background: none;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  display: grid;
-  height: 17px;
-  margin-left: -4px;
-  padding: 0;
-  place-items: center;
-  width: 17px;
-}
-
-.force:hover {
-  background: var(--panel-raised);
-  border-color: var(--text-dim);
-}
-
-.source {
-  align-items: baseline;
-  display: flex;
-  justify-content: space-between;
-  margin: 0 0 6px;
-}
-
-.source .section-title {
-  margin: 0;
-}
-
-b {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-td {
-  border-bottom: 1px solid #1a3a3f;
-  padding: 2px 6px 2px 0;
-}
-
-.dot-cell {
-  width: 18px;
-}
-
-.dot {
-  background: #24464b;
-  border-radius: 50%;
-  display: block;
-  height: 9px;
-  width: 9px;
-}
-
-.dot.on {
-  background: var(--signal);
-  box-shadow: 0 0 6px var(--signal);
-}
-
-.name {
-  font-weight: 600;
-  width: 66px;
-}
-
-.what {
-  color: var(--text-dim);
-  font-size: 12px;
-}
-
-.setting {
-  padding-right: 0;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.setting label {
-  color: var(--text-dim);
-  font-size: 11px;
-}
-
-.setting input {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  color: var(--text);
-  margin-right: 3px;
-  padding: 1px 3px;
-  text-align: right;
-  width: 42px;
-}
-
-.variable {
-  font-size: 12px;
-}
-
-.address {
-  color: var(--text-dim);
-  font-size: 11px;
-  padding-right: 0;
-  text-align: right;
-}
-</style>

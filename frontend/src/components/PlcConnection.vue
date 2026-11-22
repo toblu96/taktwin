@@ -3,8 +3,18 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { ConnectionInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { editingConnection, savedConnection, simulation } from '../sim'
+import UiSegmented from '../ui/UiSegmented.vue'
+import UiSelect from '../ui/UiSelect.vue'
+import UiSwitch from '../ui/UiSwitch.vue'
+import IconSearch from '~icons/fluent/search-16-regular'
+import IconBindings from '~icons/fluent/arrow-swap-16-regular'
 
-const { plcId, plcView } = simulation
+// How a PLC of the station is connected: none, the app's soft PLC, or a controller outside the
+// app through a connection, with that connection's form, and how the connection is doing. It is
+// the PLC given by its index, or else the one the selection picks.
+const props = defineProps<{ index?: number }>()
+const plcId = computed(() => (props.index === undefined ? simulation.plcId.value : props.index > 0 ? (simulation.scene.value?.plcs?.[props.index]?.module ?? '') : ''))
+const plcView = computed(() => (props.index === undefined ? simulation.plcView.value : (simulation.snapshot.value?.plcs?.[props.index] ?? null)))
 
 const MODES = [
   { id: 'none', label: 'None', help: 'No PLC: every output stays off. Switch them one by one with the I/O test, or connect a PLC.' },
@@ -124,7 +134,6 @@ const applied = ref({ mode: 'none', connection: '', values: '{}' })
 
 const chosen = computed(() => connections.value.find((c) => c.id === connection.value) ?? null)
 const fields = computed(() => fieldsOf(chosen.value?.vars ?? ''))
-const sources = computed(() => [...new Set(connections.value.map((c) => c.source))])
 
 async function loadConnections() {
   try {
@@ -198,12 +207,23 @@ const pending = computed(() => {
 
 const STATES: { [state: string]: string } = { connected: 'Connected', connecting: 'Connecting', failed: 'Not connected' }
 
-function setValue(f: Field, event: Event) {
-  const el = event.target as HTMLInputElement | HTMLSelectElement
-  let v: unknown = el.value
-  if (f.options) v = f.options[Number(el.value)]?.value
-  else if (f.type === 'boolean') v = (el as HTMLInputElement).checked
-  else if (f.type === 'integer' || f.type === 'number') v = el.value === '' ? undefined : Number(el.value)
+// A field of the form changed: typed, chosen from its list, or switched.
+function typed(f: Field, event: Event) {
+  const text = (event.target as HTMLInputElement).value
+  setValue(f, f.type === 'integer' || f.type === 'number' ? (text === '' ? undefined : Number(text)) : text)
+}
+const optionsOf = (f: Field) => (f.options ?? []).map((o, i) => ({ value: String(i), label: o.label }))
+const chosenOption = (f: Field) => {
+  const i = f.options?.findIndex((o) => o.value === values.value[f.name]) ?? -1
+  return i < 0 ? null : String(i)
+}
+const connectionOptions = computed(() => connections.value.map((c) => ({ value: c.id, label: c.name, hint: c.source })))
+watch(
+  () => mode.value === 'external',
+  (external) => external && void loadConnections(),
+)
+
+function setValue(f: Field, v: unknown) {
   const next = { ...values.value }
   if (v === undefined) delete next[f.name]
   else next[f.name] = v
@@ -228,37 +248,34 @@ async function apply() {
 </script>
 
 <template>
-  <section class="section connection">
-    <h3 class="section-title">PLC connection</h3>
-    <div class="modes" role="radiogroup" aria-label="PLC connection">
-      <button v-for="m in MODES" :key="m.id" role="radio" :aria-checked="mode === m.id" :class="{ active: mode === m.id }" @click="mode = m.id">
-        {{ m.label }}
-      </button>
-    </div>
-    <p class="help">{{ help }}</p>
-    <template v-if="mode === 'external'">
-      <label class="field">
-        <span>Connection</span>
-        <select v-model="connection" @focus="loadConnections">
-          <optgroup v-for="source in sources" :key="source" :label="source">
-            <option v-for="c in connections.filter((x) => x.source === source)" :key="c.id" :value="c.id">{{ c.name }}</option>
-          </optgroup>
-        </select>
-      </label>
-      <p v-if="chosen?.description" class="help">{{ chosen.description }}</p>
+  <section class="t-section">
+    <h3 class="t-section-title">Connection</h3>
+    <UiSegmented v-model="mode" label="PLC connection" :options="MODES.map((m) => ({ value: m.id, label: m.label }))" />
+    <p class="m-0 mt-2 text-xs text-muted">{{ help }}</p>
+
+    <div v-if="mode === 'external'" class="mt-3 flex flex-col gap-3">
+      <UiSelect v-model="connection" label="Connection" :options="connectionOptions" placeholder="Choose a connection" />
+      <p v-if="chosen?.description" class="m-0 -mt-1 text-xs text-muted">{{ chosen.description }}</p>
       <template v-for="f in fields" :key="`${connection}.${f.name}`">
-        <label v-if="f.type === 'boolean'" class="check">
-          <input type="checkbox" :checked="values[f.name] === true" :disabled="f.readOnly" @change="setValue(f, $event)" />
-          <span>{{ f.title }}</span>
-        </label>
-        <label v-else class="field" :title="f.description">
-          <span>{{ f.title }}<template v-if="f.required"> *</template></span>
-          <select v-if="f.options" :disabled="f.readOnly" @change="setValue(f, $event)">
-            <option v-for="(o, i) in f.options" :key="i" :value="i" :selected="o.value === values[f.name]">{{ o.label }}</option>
-          </select>
+        <UiSwitch
+          v-if="f.type === 'boolean'"
+          trailing
+          :label="f.title"
+          :disabled="f.readOnly"
+          :model-value="values[f.name] === true"
+          @update:model-value="(on: boolean) => setValue(f, on)"
+        />
+        <UiSelect
+          v-else-if="f.options"
+          :label="`${f.title}${f.required ? ' *' : ''}`"
+          :options="optionsOf(f)"
+          :model-value="chosenOption(f)"
+          @update:model-value="(i: string | null) => i !== null && setValue(f, f.options?.[Number(i)]?.value)"
+        />
+        <label v-else class="flex flex-col gap-1" :title="f.description">
+          <span class="t-label">{{ f.title }}<template v-if="f.required"> *</template></span>
           <input
-            v-else
-            class="mono"
+            class="t-input font-mono text-xs select-text"
             :type="f.secret ? 'password' : f.type === 'integer' || f.type === 'number' ? 'number' : 'text'"
             :value="values[f.name] ?? ''"
             :min="f.min"
@@ -268,201 +285,48 @@ async function apply() {
             :disabled="f.readOnly"
             spellcheck="false"
             autocomplete="off"
-            @change="setValue(f, $event)"
+            @change="typed(f, $event)"
           />
-          <small v-if="f.description" class="hint">{{ f.description }}</small>
+          <span v-if="f.description" class="text-xs text-muted">{{ f.description }}</span>
         </label>
       </template>
-      <div class="actions">
-        <button v-if="connection.startsWith('codesys')" :disabled="finding" title="Looks for the variable list on the server and fills in where it is" @click="find">
-          {{ finding ? 'Looking…' : 'Find on the server' }}
+      <div class="flex flex-wrap gap-2">
+        <button v-if="connection.startsWith('codesys')" class="t-btn" :disabled="finding" title="Look for the variable list on the server and fill in where it is" @click="find">
+          <IconSearch class="size-4" />{{ finding ? 'Looking…' : 'Find on the server' }}
         </button>
-        <button :disabled="!connection" title="Which node each signal is exchanged with" @click="editBindings">Edit bindings</button>
+        <button class="t-btn" :disabled="!connection" title="Which node each signal is exchanged with" @click="editBindings"><IconBindings class="size-4" />Edit bindings</button>
       </div>
-    </template>
-    <button v-if="pending" class="apply" :disabled="busy || (mode === 'external' && !connection)" @click="apply">
+    </div>
+
+    <button v-if="pending" class="t-btn t-btn-primary mt-3 w-full justify-center" :disabled="busy || (mode === 'external' && !connection)" @click="apply">
       {{ mode === 'none' ? 'Disconnect the PLC' : 'Connect' }} and restart the station
     </button>
-    <p v-if="message" class="error" role="alert">{{ message }}</p>
-    <div v-if="link && !pending" class="status" :class="link.state" role="status">
-      <p class="state">
-        <span class="lamp" />{{ STATES[link.state] ?? link.state }}
-        <span v-if="link.state === 'connected'" class="mono numbers">{{ link.variables }} signals · {{ link.roundTrip.toFixed(1) }} ms</span>
+    <p v-if="message" class="m-0 mt-2 text-danger" role="alert">{{ message }}</p>
+
+    <div v-if="link && !pending" class="mt-3 rounded-control border border-line bg-s0 px-2.5 py-2" role="status">
+      <p class="m-0 flex items-center gap-2">
+        <span class="size-2 shrink-0 rounded-full" :class="{ connected: 'bg-ok', connecting: 'bg-accent', failed: 'bg-danger' }[link.state] ?? 'bg-faint'" />
+        <span class="flex-1 font-medium">{{ STATES[link.state] ?? link.state }}</span>
+        <span v-if="link.state === 'connected'" class="font-mono text-[11px] text-muted">{{ link.variables }} signals · {{ link.roundTrip.toFixed(1) }} ms</span>
       </p>
-      <p class="mono address">{{ link.endpoint }}</p>
-      <p v-if="link.detail" class="detail">{{ link.detail }}</p>
-      <details v-if="link.problems?.length" class="problems" open>
-        <summary>{{ link.problems.length }} {{ link.problems.length === 1 ? 'signal' : 'signals' }} cannot be exchanged</summary>
-        <ul>
-          <li v-for="p in link.problems" :key="p" class="mono">{{ p }}</li>
+      <p class="m-0 mt-1 truncate font-mono text-[11px] text-muted" :title="link.endpoint">{{ link.endpoint }}</p>
+      <p v-if="link.detail" class="m-0 mt-1 text-xs" :class="link.state === 'failed' ? 'text-danger' : 'text-muted'">{{ link.detail }}</p>
+      <details v-if="link.problems?.length" class="mt-2" open>
+        <summary class="cursor-default text-xs font-medium text-danger">
+          {{ link.problems.length }} {{ link.problems.length === 1 ? 'signal' : 'signals' }} cannot be exchanged
+        </summary>
+        <ul class="m-0 mt-1 pl-4 font-mono text-[11px] text-muted">
+          <li v-for="p in link.problems" :key="p">{{ p }}</li>
         </ul>
       </details>
-      <details v-if="link.unbound?.length" class="problems unbound">
-        <summary>{{ link.unbound.length }} {{ link.unbound.length === 1 ? 'signal is' : 'signals are' }} not part of the connection</summary>
-        <ul>
-          <li v-for="u in link.unbound" :key="u" class="mono">{{ u }}</li>
+      <details v-if="link.unbound?.length" class="mt-2">
+        <summary class="cursor-default text-xs font-medium text-muted">
+          {{ link.unbound.length }} {{ link.unbound.length === 1 ? 'signal is' : 'signals are' }} not part of the connection
+        </summary>
+        <ul class="m-0 mt-1 pl-4 font-mono text-[11px] text-muted">
+          <li v-for="u in link.unbound" :key="u">{{ u }}</li>
         </ul>
       </details>
     </div>
   </section>
 </template>
-
-<style scoped>
-.modes {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  margin-bottom: 8px;
-}
-
-.modes button {
-  border-radius: 0;
-  margin-left: -1px;
-}
-
-.modes button:first-child {
-  margin-left: 0;
-}
-
-.modes .active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #1b1405;
-  font-weight: 600;
-  position: relative;
-}
-
-.help,
-.detail {
-  color: var(--text-dim);
-  margin: 0 0 8px;
-}
-
-.field {
-  display: grid;
-  gap: 3px;
-  margin-bottom: 8px;
-}
-
-.field span {
-  color: var(--text-dim);
-  font-size: 12px;
-}
-
-.field input,
-.field select {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  color: var(--text);
-  padding: 5px 7px;
-  width: 100%;
-}
-
-.apply {
-  margin-bottom: 8px;
-  width: 100%;
-}
-
-.error {
-  color: var(--danger);
-  margin: 0 0 8px;
-}
-
-.status {
-  border: 1px solid var(--line);
-  padding: 8px;
-}
-
-.status p {
-  margin: 0;
-}
-
-.state {
-  align-items: center;
-  display: flex;
-  font-weight: 600;
-  gap: 7px;
-}
-
-.numbers {
-  color: var(--text-dim);
-  font-weight: 400;
-  margin-left: auto;
-}
-
-.lamp {
-  background: var(--accent);
-  border-radius: 50%;
-  height: 9px;
-  width: 9px;
-}
-
-.connected .lamp {
-  background: #4ee67c;
-}
-
-.failed .lamp {
-  background: var(--danger);
-}
-
-.address {
-  color: var(--text-dim);
-  font-size: 11px;
-  margin-top: 3px;
-  overflow-wrap: anywhere;
-}
-
-.detail {
-  margin: 6px 0 0;
-}
-
-.failed .detail {
-  color: var(--danger);
-}
-
-.actions {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.actions button {
-  flex: 1;
-}
-
-.check {
-  align-items: center;
-  display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.hint {
-  color: var(--text-dim);
-  font-size: 11px;
-}
-
-.problems {
-  margin-top: 6px;
-}
-
-.problems summary {
-  color: var(--danger);
-  cursor: pointer;
-}
-
-.unbound summary {
-  color: var(--text-dim);
-}
-
-.problems ul {
-  margin: 4px 0 0;
-  padding-left: 16px;
-}
-
-.problems li {
-  font-size: 11px;
-  overflow-wrap: anywhere;
-}
-</style>

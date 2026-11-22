@@ -41,7 +41,7 @@ const emit = defineEmits<{
   addBeside: [side: number]
 }>()
 
-const { actionMessage, highlight, operate, scene: sceneData, selected, selection, snapshot } = useSim()
+const { actionMessage, highlight, operate, pickWorkpiece, scene: sceneData, selected, selection, service, snapshot, workpiece } = useSim()
 
 const host = ref<HTMLDivElement>()
 const canvas = ref<HTMLCanvasElement>()
@@ -69,6 +69,7 @@ function start() {
         select: (id) => {
           selection.value = id === props.root ? null : id
         },
+        pickWorkpiece: (id) => pickWorkpiece(id),
         control: (name, down, toggle) => operate(name, down, toggle),
         rendered: placePopup,
         build: {
@@ -79,7 +80,8 @@ function start() {
           addBeside: (side) => emit('addBeside', side),
         },
       },
-      { fit: props.preview, view, building: props.building },
+      // Workpieces are picked where they can be taken off, as in a running station.
+      { fit: props.preview, view, building: props.building, workpieces: !props.building && !!service.TakeWorkpiece },
     )
   } catch (error) {
     console.error(error)
@@ -104,6 +106,7 @@ function start() {
   scene.highlight(highlight.value?.instances ?? [], highlight.value?.at ?? null)
   if (snapshot.value) scene.update(snapshot.value)
   scene.select(selection.value)
+  scene.pickWorkpiece(workpiece.value)
   window.clearInterval(loadTimer)
   loadTimer = window.setInterval(() => {
     const stats = scene?.stats()
@@ -182,6 +185,7 @@ watch(
 watch(snapshot, (value) => {
   if (value) scene?.update(value)
 })
+watch(workpiece, (id) => scene?.pickWorkpiece(id))
 watch(selection, (id) => {
   scene?.select(id)
   void nextTick(placePopup)
