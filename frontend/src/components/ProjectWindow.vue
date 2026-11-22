@@ -2,7 +2,7 @@
 import { onMounted, onUnmounted } from 'vue'
 import { panelOpen } from '../project-view'
 import { useRoute } from 'vue-router'
-import { editingConnection, programming } from '../sim'
+import { editingConnection, programming, simulation } from '../sim'
 import { detailsWidth as details, panelHeight as panel, treeWidth as tree } from '../layout'
 import UiSash from '../ui/UiSash.vue'
 import ProgramIde from '../ide/ProgramIde.vue'
@@ -21,9 +21,17 @@ import SimulationSide from './SimulationSide.vue'
 const route = useRoute()
 const active = () => route.name === 'simulate'
 
-// ⌘J or Ctrl+J shows and hides the panel, as in VS Code.
+// ⌘J or Ctrl+J shows and hides the panel, as in VS Code. Delete or Backspace takes the picked
+// workpiece off the station, unless a field is being typed in.
 function key(e: KeyboardEvent) {
-  if (!active() || !(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'j') return
+  if (!active()) return
+  const typing = e.target instanceof HTMLElement && (e.target.isContentEditable || /^(input|textarea|select)$/i.test(e.target.tagName))
+  if ((e.key === 'Delete' || e.key === 'Backspace') && !typing && simulation.workpiece.value !== null) {
+    e.preventDefault()
+    void simulation.takeWorkpiece()
+    return
+  }
+  if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'j') return
   e.preventDefault()
   panelOpen.value = !panelOpen.value
 }

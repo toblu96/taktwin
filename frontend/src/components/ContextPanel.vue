@@ -5,19 +5,35 @@ import ConnectorsSection from './ConnectorsSection.vue'
 import PlcSection from './PlcSection.vue'
 import WidgetList from './WidgetList.vue'
 import IoPanel from './IoPanel.vue'
+import IconDelete from '~icons/fluent/delete-16-regular'
 
 // The side bar on the right of a running station: the station's inputs and outputs with the I/O
-// test, or the module clicked in the 3D view, with what can be done with it while it runs: its
+// test, or what was clicked in the 3D view: a workpiece, to take it off the station, or a module,
+// with what can be done with it while it runs: its
 // controls, and its I/O connectors with their live pins, or a PLC's program. Clicking beside it
 // in the 3D view goes back to the inputs and outputs; how it is built and how a PLC is connected
 // are for the other views.
-const { selected } = useSim()
+const { pickedWorkpiece, scene, selected, takeWorkpiece } = useSim()
+const kindName = (kind: string) => scene.value?.workpieces.kinds?.find((k) => k.id === kind)?.label ?? kind
 const panelWidgets = computed(() => (selected.value?.controls ?? []).filter((w) => w.show === 'panel'))
 </script>
 
 <template>
   <aside class="flex h-full min-h-0 flex-col bg-s1" aria-label="Selected">
-    <template v-if="selected">
+    <template v-if="pickedWorkpiece">
+      <header class="flex h-11 shrink-0 items-center border-b border-line px-3">
+        <h2 class="m-0 truncate text-[15px] font-semibold">{{ kindName(pickedWorkpiece.kind) }}</h2>
+      </header>
+      <section class="t-section flex flex-col gap-2">
+        <p v-if="pickedWorkpiece.loads?.length" class="m-0 text-muted">
+          With {{ pickedWorkpiece.loads.length === 1 ? kindName(pickedWorkpiece.loads[0].kind).toLowerCase() : `${pickedWorkpiece.loads.length} workpieces` }} on it, which go with
+          it.
+        </p>
+        <button class="t-btn self-start" @click="takeWorkpiece"><IconDelete class="size-4" />Take it off the station</button>
+        <p class="m-0 text-xs text-muted">Delete or Backspace does the same. Clicking beside it lets go of it.</p>
+      </section>
+    </template>
+    <template v-else-if="selected">
       <header class="flex h-11 shrink-0 items-center border-b border-line px-3">
         <h2 class="m-0 truncate text-[15px] font-semibold" :title="selected.description">{{ selected.name }}</h2>
       </header>

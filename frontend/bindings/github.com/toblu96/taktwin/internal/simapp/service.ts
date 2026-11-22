@@ -458,3 +458,11 @@ export function StopCheck(): $CancellablePromise<void> {
 export function TakeOpenedFile(): $CancellablePromise<string> {
     return $Call.ByID(3662972854);
 }
+
+/**
+ * TakeWorkpiece takes a workpiece off the station by hand, by its id, as someone lifts it away.
+ * A check that runs has the station to itself, so it is refused then.
+ */
+export function TakeWorkpiece(id: number): $CancellablePromise<void> {
+    return $Call.ByID(2634260378, id);
+}

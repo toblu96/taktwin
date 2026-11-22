@@ -4,6 +4,7 @@ package simapp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -321,6 +322,18 @@ func (s *Service) Snapshot() engine.Snapshot {
 // RunAction triggers a function of a module or the station.
 func (s *Service) RunAction(name string, args map[string]string) error {
 	return s.try(func(e *engine.Engine) error { return e.RunAction(name, args) })
+}
+
+// TakeWorkpiece takes a workpiece off the station by hand, by its id, as someone lifts it away.
+// A check that runs has the station to itself, so it is refused then.
+func (s *Service) TakeWorkpiece(id int) error {
+	s.check.mu.Lock()
+	checking := s.check.state.Running
+	s.check.mu.Unlock()
+	if checking {
+		return errors.New("the check is running: workpieces stay where they are until it ends")
+	}
+	return s.try(func(e *engine.Engine) error { return e.TakeWorkpiece(id) })
 }
 
 // SetControl presses or releases a button, or turns a key switch.

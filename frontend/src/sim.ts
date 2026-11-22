@@ -1,5 +1,5 @@
 import { Events } from '@wailsio/runtime'
-import { computed, inject, ref, shallowRef, type InjectionKey } from 'vue'
+import { computed, inject, ref, shallowRef, watch, type InjectionKey } from 'vue'
 import { Service } from '../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { ask, choose, tell } from './ask'
 import { openSettings, router } from './router'
@@ -15,6 +15,8 @@ export interface SimApi {
   SetFault(name: string, on: boolean): PromiseLike<unknown>
   SetParameter(id: string, value: number): PromiseLike<unknown>
   SetPin?(state: number, on: boolean): PromiseLike<unknown>
+  // Taking a workpiece off by hand; the library has no such thing, so workpieces are not picked.
+  TakeWorkpiece?(id: number): PromiseLike<unknown>
 }
 
 export function createSim(api: SimApi) {
@@ -31,6 +33,34 @@ export function createSim(api: SimApi) {
   const highlight = shallowRef<{ instances: string[]; at: { x: number; y: number; z: number } | null } | null>(null)
 
   const selected = computed<SceneInstance | null>(() => scene.value?.instances?.find((i) => i.id === selection.value) ?? null)
+
+  // The workpiece picked in the 3D view, by its id, or null. A module selected lets go of it,
+  // and a workpiece picked lets go of the module.
+  const workpiece = ref<number | null>(null)
+  watch(
+    selection,
+    (id) => {
+      if (id !== null) workpiece.value = null
+    },
+    { flush: 'sync' },
+  )
+  function pickWorkpiece(id: number | null) {
+    if (id !== null) selection.value = null
+    workpiece.value = id
+  }
+  const pickedWorkpiece = computed(() => (workpiece.value === null ? null : (snapshot.value?.workpieces?.find((w) => w.id === workpiece.value) ?? null)))
+
+  // Takes the picked workpiece off the station, saying why if it may not be.
+  async function takeWorkpiece() {
+    const id = workpiece.value
+    if (id === null || !api.TakeWorkpiece) return
+    try {
+      await api.TakeWorkpiece(id)
+      workpiece.value = null
+    } catch (error) {
+      showMessage((error as Error).message)
+    }
+  }
 
   const stateOn = (state: number) => state >= 0 && (snapshot.value?.states?.[state] ?? 0) >= 0.5
 
@@ -89,6 +119,10 @@ export function createSim(api: SimApi) {
     snapshot,
     selection,
     selected,
+    workpiece,
+    pickedWorkpiece,
+    pickWorkpiece,
+    takeWorkpiece,
     highlight,
     stateOn,
     operate,
