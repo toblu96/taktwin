@@ -347,8 +347,7 @@ const counts = computed(() => {
           <table class="w-full table-fixed border-collapse">
             <colgroup>
               <col class="w-7" />
-              <col class="w-24" />
-              <col class="w-28" />
+              <col class="w-[42%]" />
               <col />
               <col class="w-28" />
               <col class="w-10" />
@@ -356,8 +355,7 @@ const counts = computed(() => {
             <thead>
               <tr class="text-left text-[11px] font-semibold tracking-wide text-muted uppercase">
                 <th class="pb-1.5 font-semibold" />
-                <th class="pb-1.5 font-semibold">Address</th>
-                <th class="pb-1.5 font-semibold">Symbol</th>
+                <th class="pb-1.5 font-semibold">Signal</th>
                 <th class="pb-1.5 font-semibold">Node</th>
                 <th class="pb-1.5 font-semibold">Follows</th>
                 <th class="pb-1.5 font-semibold" title="Exchanged the other way round">Not</th>
@@ -367,8 +365,9 @@ const counts = computed(() => {
               <tr
                 v-for="s in signals"
                 :key="s.address"
-                class="border-0 border-t border-solid border-line"
+                class="group border-0 border-t border-solid border-line"
                 :class="s.address === selected ? 'bg-highlight' : ''"
+                :data-selected="s.address === selected || undefined"
                 :title="s.description"
                 @click="selected = s.address"
               >
@@ -380,8 +379,13 @@ const counts = computed(() => {
                     :aria-label="s.input ? 'Taktwin writes it' : 'Taktwin reads it'"
                   />
                 </td>
-                <td class="truncate py-1 pr-2 font-mono text-xs" :title="s.address">{{ s.shown }}<span v-if="s.analog" class="text-muted"> ~</span></td>
-                <td class="truncate py-1 pr-2 font-mono text-xs">{{ s.symbol }}</td>
+                <td class="py-1 pr-3 leading-tight">
+                  <span class="flex items-baseline gap-2">
+                    <span v-if="s.symbol" class="font-mono text-xs font-semibold">{{ s.symbol }}</span>
+                    <span class="font-mono text-[11px] text-muted group-data-selected:text-fg/80" :title="s.address">{{ s.shown }}<template v-if="s.analog"> ~</template></span>
+                  </span>
+                  <span class="block truncate text-xs text-muted group-data-selected:text-fg/80">{{ s.description || 'Not used' }}</span>
+                </td>
                 <td class="py-1 pr-2">
                   <input
                     class="t-input h-6 px-1.5 font-mono text-xs select-text"

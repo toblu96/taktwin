@@ -40,6 +40,13 @@ function side(box: WiringBox, c: WiringConnector) {
   return index.value.boxes.some((b) => b.kind === 'plc' && (b.connectors ?? []).some((x) => x.type === c.type)) ? 'left' : 'right'
 }
 
+// A box's connectors by the side their cables leave from, each side a column of its own: an
+// interface has both, side by side, the PLC and a terminal one.
+function sides(box: WiringBox) {
+  const all = box.connectors ?? []
+  return (['left', 'right'] as const).map((which) => ({ side: which, connectors: all.filter((c) => side(box, c) === which) })).filter((s) => s.connectors.length)
+}
+
 const pinsOf = (c: WiringConnector) => {
   const pins = c.pins ?? []
   const inputs = pins.filter((p) => !p.output).length
@@ -134,64 +141,67 @@ onBeforeUnmount(() => sizes?.disconnect())
             <article
               v-for="box in col.boxes"
               :key="box.id"
-              class="rounded-card border bg-s1"
-              :class="selected === box.id ? 'border-focus shadow-[0_0_0_1px_var(--t-focus)]' : 'border-line'"
+              class="cursor-default rounded-card border bg-s1"
+              :class="selected === box.id ? 'border-focus shadow-[0_0_0_1px_var(--t-focus)]' : 'border-line hover:border-control'"
+              @click="emit('select', box.id)"
             >
               <button
                 class="flex w-full cursor-default flex-col items-start rounded-t-card border-0 bg-transparent px-3 pt-2 pb-1.5 text-left text-fg hover:bg-hover focus-visible:-outline-offset-2"
                 :aria-pressed="selected === box.id"
-                @click="emit('select', box.id)"
+                @click.stop="emit('select', box.id)"
               >
                 <span class="font-semibold">{{ box.name }}</span>
                 <span class="text-xs text-muted">{{ KINDS[box.kind] ?? box.kind }}<template v-if="box.of"> of {{ box.of }}</template></span>
               </button>
-              <ul class="m-0 flex list-none flex-col gap-0.5 px-2 pt-0.5 pb-2">
-                <li
-                  v-for="c in box.connectors ?? []"
-                  :key="c.ref"
-                  class="flex items-center gap-2 rounded-[5px] px-1 py-0.5"
-                  :class="side(box, c) === 'right' ? 'flex-row-reverse text-right' : ''"
-                >
-                  <button
-                    v-if="editable"
-                    class="grid size-6 shrink-0 cursor-default place-items-center rounded-full border-0 bg-transparent p-0 hover:bg-hover disabled:opacity-45"
-                    :data-ref="c.ref"
-                    :data-side="side(box, c)"
-                    :data-type="c.type"
-                    :aria-label="`${c.id}, ${c.label}${partner(c.ref) ? `, cabled to ${index.name.get(partner(c.ref))}` : ', free'}`"
-                    :disabled="busy"
-                    @click="clickConnector(c)"
+              <div class="grid gap-x-2 px-2 pt-0.5 pb-2" :class="sides(box).length > 1 ? 'grid-cols-2' : 'grid-cols-1'">
+                <ul v-for="list in sides(box)" :key="list.side" class="m-0 flex min-w-0 list-none flex-col gap-0.5 p-0">
+                  <li
+                    v-for="c in list.connectors"
+                    :key="c.ref"
+                    class="flex items-center gap-2 rounded-[5px] px-1 py-0.5"
+                    :class="side(box, c) === 'right' ? 'flex-row-reverse text-right' : ''"
                   >
-                    <span
-                      class="block size-4 rounded-full border-[3px] border-solid"
-                      :style="{ borderColor: color(c.type), background: partner(c.ref) ? color(c.type) : 'var(--t-s1)' }"
-                      :class="
-                        picked?.ref === c.ref
-                          ? 'shadow-[0_0_0_2px_var(--t-s1),0_0_0_4px_var(--t-accent)]'
-                          : picked && picked.type === c.type
-                            ? 'shadow-[0_0_0_2px_var(--t-s1),0_0_0_4px_var(--t-focus)]'
-                            : ''
-                      "
-                    />
-                  </button>
-                  <span
-                    v-else
-                    class="size-4 shrink-0 rounded-full border-[3px] border-solid"
-                    :style="{ borderColor: color(c.type), background: partner(c.ref) ? color(c.type) : 'var(--t-s1)' }"
-                    :data-ref="c.ref"
-                    :data-side="side(box, c)"
-                    :data-type="c.type"
-                  />
-                  <span class="min-w-0 flex-1 leading-tight">
-                    <span class="font-mono text-xs font-semibold">{{ c.id }}</span>
-                    <span class="ml-1.5 text-[11px] text-muted"
-                      >{{ c.label.split(',')[0] }}<template v-if="c.byte !== undefined && c.byte !== null"> · byte {{ c.byte }}</template></span
+                    <button
+                      v-if="editable"
+                      class="grid size-6 shrink-0 cursor-default place-items-center rounded-full border-0 bg-transparent p-0 hover:bg-hover disabled:opacity-45"
+                      :data-ref="c.ref"
+                      :data-side="side(box, c)"
+                      :data-type="c.type"
+                      :aria-label="`${c.id}, ${c.label}${partner(c.ref) ? `, cabled to ${index.name.get(partner(c.ref))}` : ', free'}`"
+                      :disabled="busy"
+                      @click="clickConnector(c)"
                     >
-                    <span v-if="pinsOf(c)" class="block text-[11px] text-faint">{{ pinsOf(c) }}</span>
-                    <span v-else-if="!partner(c.ref)" class="block text-[11px] text-faint">free</span>
-                  </span>
-                </li>
-              </ul>
+                      <span
+                        class="block size-4 rounded-full border-[3px] border-solid"
+                        :style="{ borderColor: color(c.type), background: partner(c.ref) ? color(c.type) : 'var(--t-s1)' }"
+                        :class="
+                          picked?.ref === c.ref
+                            ? 'shadow-[0_0_0_2px_var(--t-s1),0_0_0_4px_var(--t-accent)]'
+                            : picked && picked.type === c.type
+                              ? 'shadow-[0_0_0_2px_var(--t-s1),0_0_0_4px_var(--t-focus)]'
+                              : ''
+                        "
+                      />
+                    </button>
+                    <span
+                      v-else
+                      class="size-4 shrink-0 rounded-full border-[3px] border-solid"
+                      :style="{ borderColor: color(c.type), background: partner(c.ref) ? color(c.type) : 'var(--t-s1)' }"
+                      :data-ref="c.ref"
+                      :data-side="side(box, c)"
+                      :data-type="c.type"
+                    />
+                    <span class="min-w-0 flex-1 leading-tight">
+                      <span class="font-mono text-xs font-semibold">{{ c.id }}</span>
+                      <span class="ml-1.5 text-[11px] text-muted"
+                        >{{ c.label.split(',')[0] }}<template v-if="c.byte !== undefined && c.byte !== null"> · byte {{ c.byte }}</template></span
+                      >
+                      <span v-if="pinsOf(c)" class="block text-[11px] text-faint">{{ pinsOf(c) }}</span>
+                      <span v-else-if="!partner(c.ref)" class="block text-[11px] text-faint">free</span>
+                    </span>
+                  </li>
+                </ul>
+              </div>
             </article>
           </div>
         </div>

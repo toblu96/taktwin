@@ -8,6 +8,7 @@ import UiSelect from '../ui/UiSelect.vue'
 import UiSwitch from '../ui/UiSwitch.vue'
 import IconSearch from '~icons/fluent/search-16-regular'
 import IconBindings from '~icons/fluent/arrow-swap-16-regular'
+import IconDisconnect from '~icons/fluent/plug-disconnected-16-regular'
 
 // How a PLC of the station is connected: none, the app's soft PLC, or a controller outside the
 // app through a connection, with that connection's form, and how the connection is doing. It is
@@ -230,6 +231,21 @@ function setValue(f: Field, v: unknown) {
   values.value = next
 }
 
+// Lets go of the PLC that runs, also one that cannot be reached, and keeps its form filled in,
+// so that Connect brings it back.
+async function disconnect() {
+  busy.value = true
+  message.value = ''
+  try {
+    await Service.DisconnectPLCFor(plcId.value)
+    applied.value = { mode: 'none', connection: '', values: '{}' }
+  } catch (error) {
+    message.value = (error as Error).message
+  } finally {
+    busy.value = false
+  }
+}
+
 async function apply() {
   busy.value = true
   message.value = ''
@@ -328,5 +344,8 @@ async function apply() {
         </ul>
       </details>
     </div>
+    <button v-if="applied.mode !== 'none' && !pending" class="t-btn mt-3" :disabled="busy" title="Let go of the PLC, keeping its form to connect again" @click="disconnect">
+      <IconDisconnect class="size-4" />Disconnect
+    </button>
   </section>
 </template>

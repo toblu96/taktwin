@@ -4,7 +4,7 @@ import type { BuilderModule } from '../../bindings/github.com/toblu96/taktwin/in
 import type { Entry } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 import { built, busy, pending, pick, selected, setStation, state } from '../builder'
 import { grouped } from '../collections'
-import UiSegmented from '../ui/UiSegmented.vue'
+import UiTabs from '../ui/UiTabs.vue'
 import UiSelect from '../ui/UiSelect.vue'
 import UiTree, { type TreeHeading, type TreeRow } from '../ui/UiTree.vue'
 import IconStand from '~icons/fluent/grid-16-regular'
@@ -34,7 +34,7 @@ function rename() {
   if (station && (name.value !== station.name || description.value !== station.description)) void setStation(name.value, description.value)
 }
 
-const tab = ref<'station' | 'add'>('station')
+const tab = ref('station')
 watch(pending, (p) => p && (tab.value = 'add'))
 const levelOf = (m: BuilderModule) => props.entries.find((e) => e.id === m.module && e.level !== 'station')?.level
 
@@ -143,35 +143,30 @@ function add(id: string) {
       </label>
     </section>
 
-    <div class="shrink-0 px-3 pt-3 pb-2">
-      <UiSegmented
-        v-model="tab"
-        label="Modules"
-        :options="[
-          { value: 'station', label: 'In the station', count: state?.modules?.length ?? 0 },
-          { value: 'add', label: 'Add' },
-        ]"
-      />
-    </div>
-
-    <UiTree
-      v-if="tab === 'station'"
-      :items="tree"
-      label="Modules in the station"
-      class="min-h-0 flex-1 overflow-auto px-1.5 pb-2"
-      @select="(id) => (built.selection.value = id)"
-      @toggle="toggle"
-    />
-    <template v-else>
-      <div class="flex shrink-0 flex-col gap-2 px-3 pb-2">
-        <UiSelect v-if="collections.length > 1" v-model="collection" label="Collection" hide-label :options="[...collections, { value: ALL, label: 'All collections' }]" />
-        <div class="relative">
-          <IconSearch class="pointer-events-none absolute top-1.5 left-2 size-4 text-faint" />
-          <input v-model="search" class="t-input pl-8" type="search" placeholder="Search what to add" aria-label="Search what to add" @keydown.esc="search = ''" />
+    <UiTabs
+      v-model="tab"
+      label="Modules"
+      flush
+      class="min-h-0 flex-1"
+      :tabs="[
+        { value: 'station', label: 'In the station', count: state?.modules?.length ?? 0 },
+        { value: 'add', label: 'Add' },
+      ]"
+    >
+      <template #station>
+        <UiTree :items="tree" label="Modules in the station" class="px-1.5 py-2" @select="(id) => (built.selection.value = id)" @toggle="toggle" />
+      </template>
+      <template #add>
+        <div class="flex flex-col gap-2 px-3 pt-3 pb-2">
+          <UiSelect v-if="collections.length > 1" v-model="collection" label="Collection" hide-label :options="[...collections, { value: ALL, label: 'All collections' }]" />
+          <div class="relative">
+            <IconSearch class="pointer-events-none absolute top-1.5 left-2 size-4 text-faint" />
+            <input v-model="search" class="t-input pl-8" type="search" placeholder="Search what to add" aria-label="Search what to add" @keydown.esc="search = ''" />
+          </div>
+          <p class="m-0 text-xs text-muted">Pick one, then point at a line in the 3D view and click to put it down.</p>
         </div>
-        <p class="m-0 text-xs text-muted">Pick one, then point at a line in the 3D view and click to put it down.</p>
-      </div>
-      <UiTree :items="palette" label="What can be added" class="min-h-0 flex-1 overflow-auto px-1.5 pb-2" @select="add" />
-    </template>
+        <UiTree :items="palette" label="What can be added" class="px-1.5 pb-2" @select="add" />
+      </template>
+    </UiTabs>
   </aside>
 </template>

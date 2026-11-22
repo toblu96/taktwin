@@ -154,3 +154,37 @@ func TestTheSoftPLCIsReachedThroughItsServer(t *testing.T) {
 		t.Errorf("every signal of the station is exchanged: %+v", l)
 	}
 }
+
+// A PLC connected to a controller that cannot be reached can be let go of: the link ends and the
+// station runs without it, while the project keeps the connection and its values, ready to
+// connect again.
+func TestAConnectionThatCannotBeReachedIsLetGoOf(t *testing.T) {
+	s, home := newService(t)
+	dir := filepath.Join(home, ConnectionsFolder)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file := `{"id": "far", "name": "Far away", "driver": "opcua",
+  "vars": { "type": "object", "properties": { "endpoint": { "type": "string" } } },
+  "settings": { "endpoint": "{endpoint}" }, "bindings": []}`
+	if err := os.WriteFile(filepath.Join(dir, "far.json"), []byte(file), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	far := PLCConfig{Mode: PLCExternal, Connection: "far", Values: map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}}
+	if err := s.SetPLCFor("", far); err != nil {
+		t.Fatal(err)
+	}
+	if linkOf(s) == nil {
+		t.Fatal("it tries to connect")
+	}
+	if err := s.DisconnectPLCFor(""); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the link to end", func() bool { return linkOf(s) == nil })
+	if got := s.PLCFor(""); got.Mode != PLCNone {
+		t.Errorf("no PLC runs: %+v", got)
+	}
+	if got := s.PlannedPLC(""); got.Connection != "far" || got.Values["endpoint"] != "opc.tcp://127.0.0.1:1" {
+		t.Errorf("the project keeps the connection to connect again: %+v", got)
+	}
+}
