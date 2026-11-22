@@ -32,6 +32,7 @@
   --t-on-accent: #1d1503;
   --t-accent-soft: #f5b83d24;
   --t-accent-ink: #f5b83d;
+  --t-accent-ring: #f5b83d;
   --t-focus: #4ec5b2;
   --t-select: #4ec5b229;
   --t-highlight: #1f4a44;
@@ -58,6 +59,7 @@
   --t-on-accent: #2a1d00;
   --t-accent-soft: #ffc84738;
   --t-accent-ink: #7a5200;
+  --t-accent-ring: #a87400;
   --t-focus: #0b7f6f;
   --t-select: #0b7f6f1f;
   --t-highlight: #cdeee8;
@@ -115,10 +117,11 @@
   }
   /*
     The focus ring: a second border floating 2px off what has focus, so that it never touches a
-    coloured control. It shows when the keyboard brings focus somewhere, and on a text field while
-    it is typed in, but not on a click. It is an outline, which the browser paints after the
-    content around it, so neighbours do not cover it; only an ancestor that clips or scrolls can
-    cut it, so such a box keeps --t-ring of space inside, or its children draw the ring inside.
+    coloured control. It is teal, or amber around an amber control (--t-ring-color). It shows when
+    the keyboard brings focus somewhere, and on a text field while it is typed in, but not on a
+    click. It is an outline, which the browser paints after the content around it, so neighbours
+    do not cover it; only an ancestor that clips or scrolls can cut it, so such a box keeps
+    --t-ring of space inside, or its children draw the ring inside.
   */
   :root {
     --t-ring-width: 2px;
@@ -126,7 +129,7 @@
     --t-ring: calc(var(--t-ring-width) + var(--t-ring-gap));
   }
   :focus-visible {
-    outline: var(--t-ring-width) solid var(--t-focus);
+    outline: var(--t-ring-width) solid var(--t-ring-color, var(--t-focus));
     outline-offset: var(--t-ring-gap);
   }
 }
@@ -137,6 +140,7 @@
     @apply inline-flex h-7 cursor-default items-center gap-1.5 rounded-control border border-control bg-s2 px-2.5 text-[13px] font-medium whitespace-nowrap text-fg select-none hover:bg-s3 disabled:opacity-45;
   }
   .t-btn-primary {
+    --t-ring-color: var(--t-accent-ring);
     @apply border-transparent bg-accent text-on-accent hover:bg-accent hover:brightness-105;
   }
   .t-btn-ghost {
