@@ -5,7 +5,8 @@ import IconGrip from '~icons/fluent/re-order-dots-vertical-20-regular'
 
 // The PLC's inputs in the order of its I/O list, which people rearrange to match a program
 // written for another wiring: dragged, or moved with Space, the arrows and Space. Built from UI
-// SDK's reorder behaviour in a component of our own (io-list.ts).
+// SDK's reorder behaviour in a component of our own (io-list.ts). A row picked up, by the keyboard
+// or the pointer, has a solid tint, a teal edge and a ring around it, so it reads as lifted.
 export type Signal = { key: string; address: string; name: string; description: string; locked?: boolean }
 const props = defineProps<{ signals: Signal[] }>()
 const order = defineModel<string[]>({ required: true })
@@ -19,7 +20,7 @@ const byKey = (key: string) => props.signals.find((s) => s.key === key)!
       v-for="(key, i) in state.order"
       :key="key"
       :value="key"
-      class="group flex h-9 items-center gap-2 rounded-control border border-line bg-s1 pr-2 pl-1 select-none data-dragging:z-10 data-dragging:translate-x-(--drag-x) data-dragging:translate-y-(--drag-y) data-dragging:shadow-pop data-moving:border-focus data-moving:bg-select"
+      class="group flex h-9 items-center gap-2 rounded-control border border-line bg-s1 pr-2 pl-1 select-none data-dragging:z-10 data-dragging:translate-x-(--drag-x) data-dragging:translate-y-(--drag-y) data-dragging:shadow-[0_0_0_2px_var(--t-s0),0_0_0_4px_var(--t-focus),var(--t-shadow)] data-moving:border-focus data-moving:bg-[color-mix(in_oklab,var(--t-focus)_16%,var(--t-s1))] data-moving:shadow-[0_0_0_2px_var(--t-s0),0_0_0_4px_var(--t-focus)]"
     >
       <IconGrip class="size-4 cursor-grab text-faint group-hover:text-muted" />
       <span class="w-16 font-mono text-xs text-muted">%IX0.{{ i }}</span>

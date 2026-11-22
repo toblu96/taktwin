@@ -75,19 +75,17 @@ const exact = (iso?: string) => (iso ? new Date(iso).toLocaleString() : '')
 </script>
 
 <template>
-  <article
-    class="group flex flex-col overflow-hidden rounded-card border border-line bg-s1 transition-[border-color,translate] hover:-translate-y-px hover:border-control"
-    :class="p.problem ? 'opacity-70' : ''"
-  >
+  <article class="group flex flex-col overflow-hidden rounded-card border border-line bg-s1 hover:border-control" :class="p.problem ? 'opacity-70' : ''">
     <button
-      class="relative block aspect-16/10 w-full cursor-default overflow-hidden border-0 bg-[#cfd7d8] p-0"
+      class="relative block aspect-16/10 w-full cursor-default overflow-hidden border-0 bg-[#cfd7d8] p-0 focus-visible:outline-offset-[-3px]"
       :disabled="busy || !!p.problem"
-      :aria-label="`Open ${p.name}`"
+      :aria-label="`Open ${p.name}${p.exercise ? ', Exercise' : ''}`"
       :title="p.problem || `Open ${p.name}`"
       @click="emit('open')"
     >
       <img v-if="p.thumbnail" :src="p.thumbnail" alt="" class="block size-full object-cover" :class="p.problem ? 'grayscale' : ''" />
       <img v-else src="/logo.svg" alt="" class="absolute top-1/2 left-1/2 size-14 -translate-1/2 opacity-60" />
+      <span v-if="p.exercise" class="absolute top-2 left-2 rounded-sm bg-accent px-1.5 text-[11px] leading-[18px] font-semibold text-on-accent">Exercise</span>
     </button>
     <div class="flex items-start gap-2 px-3 pt-2.5 pb-3">
       <div class="min-w-0 flex-1">

@@ -55,6 +55,8 @@ The frontend's TypeScript bindings in `frontend/bindings/` are generated from th
 The app is moving to a new look, page by page. New and reworked UI follows these rules:
 
 - **Components:** `frontend/src/ui/` has the shared ones (`UiDialog`, `UiMenu`, `UiSelect`, `UiSegmented`, `UiTabs`, `UiIoList`…) on [UI SDK](https://ui-sdk.dev)'s headless Vue parts. Pages use these, never UI SDK directly, so a part can change library in one place. Add a new shared control there.
+- **No UI SDK styles:** never import `@ui-sdk/core/web.css`. It is a full default theme whose rules (positions, focus rings, transitions) mix with ours; every style is our own.
+- **Immediate states:** hover, focus and selection change at once, with no colour transitions. The focus ring stands 2px off the control, so that it never touches a coloured one; inside a frame or a clipping box it is drawn inside.
 - **Styling:** Tailwind utilities with the tokens of `frontend/src/ui/theme.css`: `bg-s0`…`bg-s3` for surfaces, `text-fg`, `text-muted`, `border-line`, `border-control` for the edges of controls, `bg-accent` for the one main action, `text-focus` and `bg-highlight` for focus and selection, and the classes `t-btn`, `t-input`, `t-item`. No raw colours: every token has a dark and a light value.
 - **Contrast:** every token pair people read or press meets WCAG 2.2 AA (text 4.5:1, control edges and focus 3:1). Check a changed page with axe-core in the browser.
 - **No Tailwind reset yet:** buttons, lists and headings keep the browser's defaults, so components set margins, padding and line height themselves. Older pages' styles sit in the CSS layer `legacy`, below Tailwind, and map their colours onto the tokens.

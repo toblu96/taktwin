@@ -36,6 +36,7 @@
   --t-select: #4ec5b229;
   --t-highlight: #1f4a44;
   --t-danger: #f2766b;
+  --t-on-danger: #1a0605;
   --t-ok: #5cd29a;
   --t-shadow: 0 8px 24px #00000073, 0 0 0 1px #ffffff0a;
 }
@@ -61,6 +62,7 @@
   --t-select: #0b7f6f1f;
   --t-highlight: #cdeee8;
   --t-danger: #c0352b;
+  --t-on-danger: #ffffff;
   --t-ok: #1a7f50;
   --t-shadow: 0 8px 24px #1b1f2324, 0 0 0 1px #1b1f2312;
 }
@@ -86,6 +88,7 @@
   --color-select: var(--t-select);
   --color-highlight: var(--t-highlight);
   --color-danger: var(--t-danger);
+  --color-on-danger: var(--t-on-danger);
   --color-ok: var(--t-ok);
   --shadow-pop: var(--t-shadow);
   --radius-control: 6px;
@@ -110,16 +113,17 @@
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
   }
+  /* The focus ring stands 2px off what it marks, so that it never touches a coloured control. */
   :focus-visible {
     outline: 2px solid var(--t-focus);
-    outline-offset: 1px;
+    outline-offset: 2px;
   }
 }
 
 /* What the components share. Interactive controls carry the control edge, which keeps 3:1. */
 @layer components {
   .t-btn {
-    @apply inline-flex h-7 cursor-default items-center gap-1.5 rounded-control border border-control bg-s2 px-2.5 text-[13px] font-medium whitespace-nowrap text-fg transition-colors select-none hover:bg-s3 disabled:opacity-45;
+    @apply inline-flex h-7 cursor-default items-center gap-1.5 rounded-control border border-control bg-s2 px-2.5 text-[13px] font-medium whitespace-nowrap text-fg select-none hover:bg-s3 disabled:opacity-45;
   }
   .t-btn-primary {
     @apply border-transparent bg-accent text-on-accent hover:bg-accent hover:brightness-105;

@@ -41,7 +41,7 @@ const items = computed<Item[]>(() => {
   <nav class="flex w-12 shrink-0 flex-col items-center gap-1 border-r border-line bg-s1 py-2" aria-label="Views">
     <template v-for="item in items" :key="item.id">
       <button
-        class="relative flex size-9 cursor-default items-center justify-center rounded-control border-0 bg-transparent p-0 text-muted transition-colors hover:bg-hover hover:text-fg disabled:opacity-40 disabled:hover:bg-transparent"
+        class="relative flex size-9 cursor-default items-center justify-center rounded-control border-0 bg-transparent p-0 text-muted hover:bg-hover hover:text-fg disabled:opacity-40 disabled:hover:bg-transparent"
         :class="item.active ? 'bg-press text-fg' : ''"
         :aria-current="item.active ? 'page' : undefined"
         :aria-label="item.disabled ?? item.label"

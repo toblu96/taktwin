@@ -17,8 +17,8 @@ defineProps<{ items: MenuEntry[]; label: string }>()
     <MenuContent class="t-popup">
       <template v-for="(item, i) in items" :key="i">
         <MenuSeparator v-if="!item.label" class="mx-1 my-1 h-px bg-line" />
-        <MenuItem v-else class="t-item group" :class="item.danger ? 'text-danger' : ''" @select="item.run?.()">
-          <component :is="item.icon" v-if="item.icon" class="size-4 text-muted group-data-highlighted:text-fg/80" :class="item.danger ? 'text-danger' : ''" />
+        <MenuItem v-else class="t-item group" :class="item.danger ? 'text-danger data-highlighted:bg-danger data-highlighted:text-on-danger' : ''" @select="item.run?.()">
+          <component :is="item.icon" v-if="item.icon" class="size-4" :class="item.danger ? 'text-current' : 'text-muted group-data-highlighted:text-fg/80'" />
           <span class="flex-1">{{ item.label }}</span>
           <MenuShortcut v-if="item.shortcut" class="text-xs text-faint group-data-highlighted:text-fg/80">{{ item.shortcut }}</MenuShortcut>
         </MenuItem>

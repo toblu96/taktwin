@@ -15,7 +15,7 @@ const model = defineModel<string>({ required: true })
         v-for="t in tabs"
         :key="t.value"
         :value="t.value"
-        class="relative -mb-px flex h-8 cursor-default items-center gap-1.5 overflow-hidden rounded-t-[7px] border border-b-0 border-transparent px-3 text-muted select-none hover:bg-hover hover:text-fg data-selected:border-line data-selected:bg-s0 data-selected:text-fg data-selected:before:absolute data-selected:before:inset-x-0 data-selected:before:top-0 data-selected:before:h-0.5 data-selected:before:bg-accent"
+        class="relative -mb-px flex h-8 cursor-default items-center gap-1.5 overflow-hidden rounded-t-[7px] border border-b-0 border-transparent bg-transparent px-3 text-muted select-none hover:bg-hover hover:text-fg data-selected:border-line data-selected:bg-s0 data-selected:text-fg data-selected:before:absolute data-selected:before:inset-x-0 data-selected:before:top-0 data-selected:before:h-0.5 data-selected:before:bg-accent"
       >
         {{ t.label }}
         <span v-if="t.count" class="rounded-full bg-s3 px-1.5 text-[11px] leading-4 text-muted">{{ t.count }}</span>

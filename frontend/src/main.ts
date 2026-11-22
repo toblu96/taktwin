@@ -1,7 +1,6 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import IdeWindow from './ide/IdeWindow.vue'
-import '@ui-sdk/core/web.css'
 import './ui/theme.css'
 import './styles.css'
 
