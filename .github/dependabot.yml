@@ -1,11 +1,15 @@
 # Weekly pull requests for outdated dependencies, titled as conventional commits so that they
 # pass the title check and show in the changelog.
+# Versions published less than 7 days ago are left out, as frontend/.npmrc says for installs:
+# a release only days old is where a compromised package shows up.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: ci
     groups:
@@ -15,6 +19,8 @@ updates:
     directories: [/, /st]
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: chore
       include: scope
@@ -25,6 +31,8 @@ updates:
     directory: /frontend
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     ignore:
       # vue-tsc, which type-checks the Vue files, does not run on TypeScript 7 (the native
       # compiler) yet: it needs TypeScript's JavaScript API. Take TypeScript 7 once it does.
