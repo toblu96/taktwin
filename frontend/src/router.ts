@@ -22,8 +22,6 @@ declare module 'vue-router' {
   }
 }
 
-const builder = () => import('./components/BuilderPage.vue')
-
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
@@ -31,9 +29,9 @@ export const router = createRouter({
     { path: '/project', redirect: { name: 'simulate' } },
     { path: '/project/build', redirect: { name: 'build' } },
     { path: '/project/simulation', name: 'simulate', component: () => import('./components/ProjectWindow.vue'), meta: { project: true, view: 'simulation' } },
-    { path: '/project/simulation/edit', name: 'build', component: builder, meta: { project: true, view: 'simulation', edit: true } },
+    { path: '/project/simulation/edit', name: 'build', component: () => import('./components/BuilderPage.vue'), meta: { project: true, view: 'simulation', edit: true } },
     { path: '/project/wiring', name: 'wiring', component: () => import('./components/WiringPage.vue'), meta: { project: true, view: 'wiring' } },
-    { path: '/project/wiring/edit', name: 'rewire', component: builder, meta: { project: true, view: 'wiring', edit: true } },
+    { path: '/project/wiring/edit', name: 'rewire', component: () => import('./components/WiringPage.vue'), meta: { project: true, view: 'wiring', edit: true } },
     { path: '/project/exercise', name: 'exercise', component: () => import('./components/ExercisePage.vue'), meta: { project: true, view: 'exercise' } },
     { path: '/library/:level(station|module|accessory|part)?/:id?', name: 'library', component: () => import('./components/LibraryPage.vue') },
     { path: '/settings/:tab(general|collections|updates|about)?', name: 'settings', component: () => import('./components/SettingsPage.vue') },
@@ -71,7 +69,9 @@ router.beforeEach(async (to, from) => {
   if (to.meta.project && !p) return { name: 'projects' }
   if (to.name === 'projects' && p) return { name: 'simulate' }
   if (to.meta.edit && (!expert.value || p?.exercise || !p?.own)) return projectRoute(to.meta.view ?? 'simulation', false)
-  if (from.meta.edit && !to.meta.edit && edits.value) built = true
+  // Changes made while editing, also in one view and then another, load the station again
+  // once it runs.
+  if (from.meta.edit && edits.value) built = true
   if (to.meta.project && !to.meta.edit && built) {
     built = false
     viewProblem.value = ''

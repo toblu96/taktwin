@@ -2,6 +2,7 @@ package simapp
 
 import (
 	"cmp"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -83,6 +84,26 @@ func (s *BuilderService) Wiring() (WiringState, error) {
 		return WiringState{}, errors.New("no station is being built")
 	}
 	return s.wiring(), nil
+}
+
+// StationWiring returns the wiring of the station that runs in the open project, to look at and
+// not to change: whether or not the project has a station of its own, with its cables as its
+// file has them and its pins as they run, with what an exercise set up. It builds on nothing
+// and keeps nothing; changing the wiring is Edit's.
+func (s *BuilderService) StationWiring() (WiringState, error) {
+	if s.sim == nil {
+		return WiringState{}, errNoProject
+	}
+	data, bundle, plan, err := s.sim.runningStation()
+	if err != nil {
+		return WiringState{}, err
+	}
+	d := &draft{}
+	if err := json.Unmarshal(data, d); err != nil {
+		return WiringState{}, fmt.Errorf("%s: %w", StationFile, err)
+	}
+	view := &BuilderService{lib: Library(), draft: d, bundle: bundle, plan: plan}
+	return view.wiring(), nil
 }
 
 func (s *BuilderService) wiring() WiringState {

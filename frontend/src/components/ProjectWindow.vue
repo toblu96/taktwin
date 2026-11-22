@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { editingConnection, programming, simulation } from '../sim'
+import { programming, simulation } from '../sim'
 import { detailsWidth as details, treeWidth as tree } from '../layout'
 import UiSash from '../ui/UiSash.vue'
 import ProgramIde from '../ide/ProgramIde.vue'
@@ -9,7 +9,6 @@ import StationViewer from '../viewer/StationViewer.vue'
 import PagePanel from './PagePanel.vue'
 import EventsPanel from './EventsPanel.vue'
 import { events } from '../events'
-import ConnectionEditor from './ConnectionEditor.vue'
 import ContextPanel from './ContextPanel.vue'
 import StageAlerts from './StageAlerts.vue'
 import SimulationSide from './SimulationSide.vue'
@@ -48,11 +47,10 @@ onUnmounted(() => window.removeEventListener('keydown', key))
         <StationViewer :active="active()" />
         <StageAlerts />
       </div>
-      <PagePanel :tabs="[{ value: 'events', label: 'Events', count: events.filter((e) => e.kind !== 'restart').length }]" :covered="programming !== null || !!editingConnection">
+      <PagePanel :tabs="[{ value: 'events', label: 'Events', count: events.filter((e) => e.kind !== 'restart').length }]" :covered="programming !== null">
         <template #events><EventsPanel /></template>
       </PagePanel>
       <ProgramIde v-if="programming !== null" :plc="programming" @close="programming = null" />
-      <ConnectionEditor v-if="editingConnection" :key="editingConnection.id" v-bind="editingConnection" @close="editingConnection = null" />
     </div>
 
     <div class="relative shrink-0 border-l border-line" :style="{ width: `${details}px` }">

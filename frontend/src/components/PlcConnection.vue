@@ -9,9 +9,12 @@ import UiSwitch from '../ui/UiSwitch.vue'
 import IconSearch from '~icons/fluent/search-16-regular'
 import IconBindings from '~icons/fluent/arrow-swap-16-regular'
 
-// How the station's PLC is connected: none, the app's soft PLC, or a controller outside the app
-// through a connection, with that connection's form, and how the connection is doing.
-const { plcId, plcView } = simulation
+// How a PLC of the station is connected: none, the app's soft PLC, or a controller outside the
+// app through a connection, with that connection's form, and how the connection is doing. It is
+// the PLC given by its index, or else the one the selection picks.
+const props = defineProps<{ index?: number }>()
+const plcId = computed(() => (props.index === undefined ? simulation.plcId.value : props.index > 0 ? (simulation.scene.value?.plcs?.[props.index]?.module ?? '') : ''))
+const plcView = computed(() => (props.index === undefined ? simulation.plcView.value : (simulation.snapshot.value?.plcs?.[props.index] ?? null)))
 
 const MODES = [
   { id: 'none', label: 'None', help: 'No PLC: every output stays off. Switch them one by one with the I/O test, or connect a PLC.' },

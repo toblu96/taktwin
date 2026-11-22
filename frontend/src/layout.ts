@@ -5,3 +5,6 @@ import { stored } from './ui/stored'
 export const treeWidth = stored('layout.tree', 240)
 export const detailsWidth = stored('layout.details', 320)
 export const panelHeight = stored('layout.panel', 240)
+
+// The wiring's details are wider: they hold a PLC's connection and a terminal's pins.
+export const wiringDetailsWidth = stored('layout.wiringDetails', 440)

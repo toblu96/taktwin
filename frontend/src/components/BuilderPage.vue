@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import BuilderSetting from './BuilderSetting.vue'
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
 import { LibraryService } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { Entry } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 import type { BuilderModule } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
@@ -43,7 +42,6 @@ import {
 import { grouped } from '../collections'
 import { simKey } from '../sim'
 import StationViewer from '../viewer/StationViewer.vue'
-import WiringView from './WiringView.vue'
 import PagePanel from './PagePanel.vue'
 import ProblemsPanel from './ProblemsPanel.vue'
 
@@ -54,17 +52,6 @@ const entries = ref<Entry[]>([])
 const loadEntries = async () => {
   entries.value = (await LibraryService.Entries()) ?? []
 }
-// The activity bar picks building in 3D or the wiring, which the address says.
-const route = useRoute()
-watch(
-  () => route.meta.view,
-  (view) => {
-    mode.value = view === 'wiring' ? 'wire' : 'build'
-    if (mode.value === 'wire') cancelPlacing()
-  },
-  { immediate: true },
-)
-
 onMounted(async () => {
   window.addEventListener('keydown', onKey)
   await enter()
@@ -292,9 +279,7 @@ const hint = computed(() =>
     </aside>
 
     <div class="stage">
-      <WiringView v-if="mode === 'wire'" class="min-h-0" />
       <StationViewer
-        v-else
         building
         :hint="hint"
         :overlay="overlay"
