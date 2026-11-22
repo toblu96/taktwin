@@ -584,6 +584,18 @@ func (s *Service) Examples() []Example {
 		seen[c.Station] = true
 		out = append(out, Example{Station: c.Station, StationName: cmpOr(lib.StationName(c.Station), c.Station), Collection: cmpOr(c.Name, c.ID), Description: c.Description})
 	}
+	// The app's own comes first, as it is the one to start with, unless it is hidden.
+	if first := defaultStation(lib); first != "" {
+		slices.SortStableFunc(out, func(a, b Example) int {
+			switch {
+			case a.Station == first && b.Station != first:
+				return -1
+			case b.Station == first && a.Station != first:
+				return 1
+			}
+			return 0
+		})
+	}
 	return out
 }
 
