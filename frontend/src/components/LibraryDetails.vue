@@ -71,14 +71,9 @@ const startProject = () => current.value && newProject({ station: current.value.
   <aside class="details" aria-label="Details">
     <header v-if="current" class="head">
       <button v-if="selected" class="back" @click="selection = parent && parent.id !== rootInstance?.id ? parent.id : null">‹ {{ parent?.name ?? entry?.name }}</button>
-      <p class="level">
-        {{ LEVELS[level] ?? level }}<template v-if="group"> / {{ group }}</template
-        ><template v-if="collection"> · {{ collection }}</template>
-      </p>
+      <p class="level">{{ LEVELS[level] ?? level }}<template v-if="group"> / {{ group }}</template><template v-if="collection"> · {{ collection }}</template></p>
       <h2>{{ name }}</h2>
-      <p class="id mono">
-        {{ shown?.module ?? current.id }}<template v-if="shown?.version"> · v{{ shown.version }}</template>
-      </p>
+      <p class="id mono">{{ shown?.module ?? current.id }}<template v-if="shown?.version"> · v{{ shown.version }}</template></p>
       <p v-if="description" class="description">{{ description }}</p>
       <div class="actions">
         <button v-if="current.level === 'station'" @click="startProject">New project</button>

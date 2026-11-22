@@ -164,9 +164,7 @@ async function reload() {
           </div>
           <p v-if="status" class="hint">{{ status }}</p>
           <p v-if="failed" class="problem">{{ failed }}</p>
-          <p v-for="p in problems" :key="p.name" class="problem">
-            <strong>{{ p.name }}</strong> {{ p.error }}
-          </p>
+          <p v-for="p in problems" :key="p.name" class="problem"><strong>{{ p.name }}</strong> {{ p.error }}</p>
         </section>
         <section v-if="settingsTab === 'collections'" class="block">
           <p class="hint">

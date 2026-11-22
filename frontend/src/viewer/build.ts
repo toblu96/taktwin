@@ -552,6 +552,7 @@ function plusMaterial() {
 }
 
 function clear(group: THREE.Object3D) {
+  // oxlint-disable-next-line unicorn/no-useless-spread -- a copy, as the loop removes children from the list
   for (const child of [...group.children]) {
     group.remove(child)
     child.traverse((o) => {

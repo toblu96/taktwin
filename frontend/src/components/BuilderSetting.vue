@@ -35,9 +35,7 @@ const limits = computed(() => {
       </select>
       <input v-else :value="param.value" :placeholder="param.default" :title="limits" :disabled="busy" @change="emit('set', ($event.target as HTMLInputElement).value)" />
     </label>
-    <p v-if="param.description" class="about">
-      {{ param.description }}<template v-if="limits && !pickable"> From {{ limits }}.</template>
-    </p>
+    <p v-if="param.description" class="about">{{ param.description }}<template v-if="limits && !pickable"> From {{ limits }}.</template></p>
   </div>
 </template>
 

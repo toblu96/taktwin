@@ -31,13 +31,14 @@ Download the latest release for your system:
 > [!NOTE]
 > Taktwin is not signed yet, so Windows and macOS warn when you first start it. The [release notes](https://github.com/toblu96/taktwin/releases/latest) say how to open it anyway.
 
-Taktwin opens with a pallet loading line. Open the PLC panel, choose **Edit program**, load the example program, **Download** and **Run** it, and press Start on the operator console.
+Taktwin opens on your projects. Click the **Pallet loading** example to make a project of it, open the PLC panel, choose **Edit program**, load the example program, **Download** and **Run** it, and press Start on the operator console.
 
 ## 📖 Documentation
 
-- [User guide](docs/user-guide.md): stations and collections, the builder, the I/O test, connecting a PLC, the soft PLC and updates.
+- [User guide](docs/user-guide.md): projects, stations and collections, building, exercises, the I/O test, connecting a PLC, the soft PLC and updates.
 - [Collection format](catalog/README.md): how stations, modules and workpieces are described, next to the [JSON Schemas](schema).
-- [Development](docs/development.md): building the app, running the tests, how the code is organised and how releases are made.
+- [Making collections, modules, stations and exercises](docs/authoring.md): step by step, with the reference collection as the example.
+- [Development](docs/development.md): building the app, running the tests, how the code is organised and how releases are made. [AGENTS.md](AGENTS.md) sums up the rules for coding agents.
 
 > [!NOTE]
 > Taktwin is a personal project, developed for a small circle. Issues and pull requests are not open for now.

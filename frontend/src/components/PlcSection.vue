@@ -65,9 +65,7 @@ const groups = computed(() => [
     </p>
     <p v-if="plcView?.step" class="source">
       <span class="section-title">Step</span>
-      <span class="mono"
-        ><b>S{{ plcView.step.number }}</b> {{ plcView.step.label }}</span
-      >
+      <span class="mono"><b>S{{ plcView.step.number }}</b> {{ plcView.step.label }}</span>
     </p>
   </section>
   <section v-for="group in groups" :key="group.title" class="section">

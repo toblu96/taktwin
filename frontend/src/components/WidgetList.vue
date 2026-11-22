@@ -70,19 +70,12 @@ const setKey = (widget: SceneWidget, on: boolean) => {
         </p>
       </div>
 
-      <button
-        v-else-if="widget.type === 'button'"
-        class="action"
-        :disabled="stateOn(widget.disabledWhen)"
-        @click="runAction(widget.action ?? '', widget.args)"
-      >
+      <button v-else-if="widget.type === 'button'" class="action" :disabled="stateOn(widget.disabledWhen)" @click="runAction(widget.action ?? '', widget.args)">
         <span v-if="widget.swatch" class="swatch" :style="{ background: widget.swatch }" />{{ widget.label }}
       </button>
 
       <section v-else-if="widget.type === 'group'" class="group">
-        <h3 class="section-title">
-          {{ widget.label }} <span v-if="widget.tag" class="tag">{{ widget.tag }}</span>
-        </h3>
+        <h3 class="section-title">{{ widget.label }} <span v-if="widget.tag" class="tag">{{ widget.tag }}</span></h3>
         <WidgetList :widgets="widget.widgets ?? []" />
       </section>
     </template>
