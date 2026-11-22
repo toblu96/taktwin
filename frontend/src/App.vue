@@ -27,7 +27,7 @@ onMounted(() => {
       <ActivityBar />
       <div class="flex min-w-0 flex-1 flex-col">
         <TopBar v-if="route.meta.project" />
-        <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]">
+        <div class="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)]">
           <!-- The project's window is kept while the settings or the builder show, with its 3D view and panel as they were. -->
           <RouterView v-slot="{ Component }">
             <KeepAlive include="ProjectWindow"><component :is="Component" /></KeepAlive>
