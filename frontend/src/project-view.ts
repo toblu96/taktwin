@@ -38,7 +38,7 @@ export async function setEditing(on: boolean) {
 
 // The panel below the 3D view, as VS Code has one: open or not, and which of its tabs shows.
 // Whether it is open is kept between starts; ⌘J or Ctrl+J and the status bar switch it.
-export type PanelTab = 'io' | 'problems'
+export type PanelTab = 'io' | 'events'
 export const panelOpen = stored('panel.open', true)
 export const panelTab = ref<PanelTab>('io')
 export function showPanel(tab: PanelTab) {

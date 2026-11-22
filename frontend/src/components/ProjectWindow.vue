@@ -11,11 +11,11 @@ import BottomPanel from './BottomPanel.vue'
 import ConnectionEditor from './ConnectionEditor.vue'
 import ContextPanel from './ContextPanel.vue'
 import StageAlerts from './StageAlerts.vue'
-import StationDock from './StationDock.vue'
-import StationTree from './StationTree.vue'
+import SimulationSide from './SimulationSide.vue'
 
-// An open project, laid out as VS Code lays out a folder: the station's tree on the left, the
-// 3D view in the middle with the panel below it, and what is selected on the right. Each edge
+// The simulation of an open project as it runs, laid out as VS Code lays out a folder: the
+// station's PLCs and controls on the left, the 3D view in the middle with the panel below it,
+// and the module selected on the right. Each edge
 // between them can be dragged, and the sizes are kept. The program and a connection's editor
 // take the middle while they are open.
 const route = useRoute()
@@ -41,8 +41,8 @@ onUnmounted(() => window.removeEventListener('keydown', key))
 <template>
   <div class="flex h-full min-h-0">
     <div class="relative shrink-0 border-r border-line" :style="{ width: `${tree}px` }">
-      <StationTree />
-      <UiSash v-model="tree" side="left" :min="180" :max="480" label="Width of the station's tree" />
+      <SimulationSide />
+      <UiSash v-model="tree" side="left" :min="180" :max="480" label="Width of the station's side bar" />
     </div>
 
     <div class="relative flex min-w-0 flex-1 flex-col">
@@ -50,7 +50,6 @@ onUnmounted(() => window.removeEventListener('keydown', key))
         <StationViewer :active="active()" />
         <StageAlerts />
       </div>
-      <StationDock place="bottom" />
       <div v-if="panelOpen" class="relative max-h-[70%] shrink-0 border-t border-line" :style="{ height: `${panel}px` }">
         <UiSash v-if="programming === null && !editingConnection" v-model="panel" side="bottom" :min="120" :max="720" label="Height of the panel" />
         <BottomPanel />

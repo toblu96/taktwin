@@ -367,7 +367,7 @@ A PLC bit the station does not name gets the name of the module pin it reaches, 
 
 Loading checks every reference, address, node and material. It refuses a signal with two sources, a device input wired to something other than the PLC, and links between transports more than 8 mm apart. A mistake gives an error naming the file instead of a station that misbehaves.
 
-Some things load but do not fit together. The app checks each station when it starts and shows what it finds under Problems, in the panel below the 3D view: a module that lacks what it `needs`, a `handsOver` transport leading nowhere, a pusher pushing to where no transport is, a gripper coming down at a place without one, an actuator that no PLC output reaches, a sensor that reaches no PLC input, and a part that runs into a fixed part of the station with only one PLC output on.
+Some things load but do not fit together. The app checks each station when it starts and shows what it finds under Checks while the station is edited: a module that lacks what it `needs`, a `handsOver` transport leading nowhere, a pusher pushing to where no transport is, a gripper coming down at a place without one, an actuator that no PLC output reaches, a sensor that reaches no PLC input, and a part that runs into a fixed part of the station with only one PLC output on.
 
 ## exercise.json
 

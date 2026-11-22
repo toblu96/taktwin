@@ -6,12 +6,14 @@ import StatusBar from './components/StatusBar.vue'
 import ActivityBar from './components/ActivityBar.vue'
 import { connect, loadError } from './sim'
 import { connectUpdates } from './update'
+import { trackEvents } from './events'
 
 const route = useRoute()
 
 onMounted(() => {
   connect()
   connectUpdates()
+  trackEvents()
 })
 </script>
 
