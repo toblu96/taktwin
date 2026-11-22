@@ -20,7 +20,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <p v-if="loadError" class="error">Could not load the station: {{ loadError }}</p>
+  <p v-if="loadError" class="m-0 p-6 text-danger" role="alert">Could not load the station: {{ loadError }}</p>
   <!-- The frame: the activity bar along the left, the open project's bar on top, the page, and the status bar along the bottom. -->
   <div v-else class="flex h-full flex-col">
     <div class="flex min-h-0 flex-1">
@@ -38,10 +38,3 @@ onMounted(() => {
     <StatusBar />
   </div>
 </template>
-
-<style scoped>
-.error {
-  color: var(--danger);
-  padding: 24px;
-}
-</style>

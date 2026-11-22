@@ -54,7 +54,7 @@ The frontend's TypeScript bindings in `frontend/bindings/` are generated from th
 
 The app is moving to a new look, page by page. New and reworked UI follows these rules:
 
-- **Components:** `frontend/src/ui/` has the shared ones (`UiDialog`, `UiMenu`, `UiSelect`, `UiSegmented`, `UiTabs`, `UiIoList`…) on [UI SDK](https://ui-sdk.dev)'s headless Vue parts. Pages use these, never UI SDK directly, so a part can change library in one place. Add a new shared control there.
+- **Components:** `frontend/src/ui/` has the shared ones (`UiDialog`, `UiMenu`, `UiSelect`, `UiSegmented`, `UiTabs`, `UiSwitch`, `UiCheckbox`, `UiModeToggle`, `UiTree`, `UiSash`, `UiLamp`, `UiIoList`) on [UI SDK](https://ui-sdk.dev)'s headless Vue parts. Pages use these, never UI SDK directly, so a part can change library in one place. Add a new shared control there.
 - **No UI SDK styles:** never import `@ui-sdk/core/web.css`. It is a full default theme whose rules (positions, focus rings, transitions) mix with ours; every style is our own.
 - **Immediate states:** hover, focus and selection change at once, with no colour transitions. A control's look never changes its size: no bolder text for the selected item, which would shift its neighbours.
 - **The focus ring:** `:focus-visible` draws one for every control, an outline 2px wide that stands 2px off it, so it never touches a coloured one. It is teal, and amber around an amber control (`--t-ring-color`), as `t-btn-primary` sets it. A button shows it only when reached with the keyboard; a text field shows it whenever it is being typed in. An outline is drawn over neighbouring elements, so only an ancestor that clips or scrolls can cut it: give the controls inside one `--t-ring` (4px) of room, or draw their ring inside them (`focus-visible:outline-offset-[-2px]`).
@@ -63,7 +63,7 @@ The app is moving to a new look, page by page. New and reworked UI follows these
 - **Contrast:** every token pair people read or press meets WCAG 2.2 AA (text 4.5:1, control edges and focus 3:1). Check a changed page with axe-core in the browser.
 - **No Tailwind reset yet:** buttons, lists and headings keep the browser's defaults, so components set margins, padding and line height themselves. Older pages' styles sit in the CSS layer `legacy`, below Tailwind, and map their colours onto the tokens.
 - **Icons:** [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons) (MIT), imported as `~icons/fluent/<name>-20-regular` and compiled in, never fetched.
-- **The lab:** `npm run dev`, then `/lab.html`, shows every component and the layouts in dark and light.
+- **The lab:** `npm run dev`, then `/lab.html`, shows every shared control in dark and light (`?theme=light`); a new one goes in there too.
 
 ## Seeing a UI change in the real app
 

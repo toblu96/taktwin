@@ -340,7 +340,8 @@ const counts = computed(() => {
       <div class="min-w-0 flex-1 overflow-auto">
         <section class="t-section">
           <p class="m-0 mb-3 text-xs text-muted">
-            Select a signal, then pick its node on the controller in the side bar, or type its NodeId. A binding follows the signal's symbol when it moves to another pin, or stays with the address.
+            Select a signal, then pick its node on the controller in the side bar, or type its NodeId. A binding follows the signal's symbol when it moves to another pin, or stays
+            with the address.
             <span class="font-medium text-fg">{{ counts }}.</span>
           </p>
           <table class="w-full table-fixed border-collapse">
