@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { Service } from '../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { ask } from './ask'
 import { edits } from './builder'
+import { stored } from './ui/stored'
 import { closeSettings, openSettings, page, project, refreshProject, reloadStation, view } from './sim'
 
 // What an open project shows, Simulate or Build, and going between them, for the activity bar.
@@ -48,3 +49,13 @@ export async function showSimulate() {
 
 // The gear shows the settings, and a second click goes back to where the app was.
 export const toggleSettings = () => (page.value === 'settings' ? closeSettings() : openSettings())
+
+// The panel below the 3D view, as VS Code has one: open or not, and which of its tabs shows.
+// Whether it is open is kept between starts; ⌘J or Ctrl+J and the status bar switch it.
+export type PanelTab = 'check' | 'io' | 'problems'
+export const panelOpen = stored('panel.open', true)
+export const panelTab = ref<PanelTab>('io')
+export function showPanel(tab: PanelTab) {
+  panelTab.value = tab
+  panelOpen.value = true
+}

@@ -20,34 +20,46 @@ const widgets = computed(() => (scene.value?.docks ?? []).filter((d) => d.place 
 
 <style scoped>
 .dock {
-  background: var(--panel);
+  background: var(--t-s1);
 }
 
+/* Below the 3D view the dock is a strip: each group's controls in a row under its title, the
+   groups side by side as far as they fit, and on a further line when they do not. */
 .bottom {
-  border-top: 1px solid var(--line);
-  display: grid;
-  grid-auto-columns: minmax(150px, 1fr);
-  grid-auto-flow: column;
+  border-top: 1px solid var(--t-line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 28px;
+  padding: 6px 12px 8px;
 }
 
 .bottom .cell {
-  border-right: 1px solid var(--line);
+  flex: 0 1 auto;
   min-width: 0;
-  padding: 10px 12px;
 }
 
-.bottom .cell:last-child {
-  border-right: 0;
-}
-
-.bottom .cell :deep(.group > .widgets) {
-  align-items: flex-start;
+.bottom :deep(.widgets) {
+  align-items: center;
   flex-flow: row wrap;
-  justify-content: space-between;
+  gap: 6px;
+}
+
+.bottom :deep(.group .section-title) {
+  margin-bottom: 4px;
+}
+
+.bottom :deep(.fill) {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+}
+
+.bottom :deep(.fill .note) {
+  margin: 0;
 }
 
 .side {
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--t-line);
 }
 
 .side .cell {
