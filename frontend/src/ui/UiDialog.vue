@@ -2,7 +2,8 @@
 import { Dialog, DialogBackdrop, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@ui-sdk/vue/dialog'
 import IconDismiss from '~icons/fluent/dismiss-20-regular'
 
-// A dialog over the page: a title, what it is about, its content, and its buttons at the foot.
+// A dialog over the page, with UI SDK's dialog: a title, what it is about, its content, and its
+// buttons at the foot. Esc closes it, and focus goes back to what opened it.
 defineProps<{ title: string; description?: string }>()
 const open = defineModel<boolean>('open', { required: true })
 </script>
@@ -15,8 +16,8 @@ const open = defineModel<boolean>('open', { required: true })
     >
       <header class="flex items-start gap-3 px-5 pt-4 pb-2">
         <div class="flex-1">
-          <DialogTitle class="text-[15px] font-semibold">{{ title }}</DialogTitle>
-          <DialogDescription v-if="description" class="mt-0.5 text-muted">{{ description }}</DialogDescription>
+          <DialogTitle class="m-0 text-[15px] font-semibold">{{ title }}</DialogTitle>
+          <DialogDescription v-if="description" class="m-0 mt-0.5 text-muted">{{ description }}</DialogDescription>
         </div>
         <DialogClose class="t-icon-btn -mr-2" aria-label="Close"><IconDismiss class="size-4.5" /></DialogClose>
       </header>

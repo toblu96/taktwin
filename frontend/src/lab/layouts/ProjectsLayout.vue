@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import UiSegmented from '../../ui/UiSegmented.vue'
+import UiMenu from '../../ui/UiMenu.vue'
+import UiDialog from '../../ui/UiDialog.vue'
+import UiSelect from '../../ui/UiSelect.vue'
 import { computed, ref } from 'vue'
-import { useKit } from '../kit'
 import { projects } from '../data'
 import ActivityBar from './ActivityBar.vue'
 import StatusBar from './StatusBar.vue'
@@ -22,7 +25,6 @@ import IconDelete from '~icons/fluent/delete-20-regular'
 import IconWrench from '~icons/fluent/wrench-20-regular'
 
 // The start page in the new look: projects as cards, the way to start one, and the examples.
-const kit = useKit()
 const view = ref('home')
 const filter = ref('all')
 const query = ref('')
@@ -72,8 +74,7 @@ const menu = (exercise: boolean) => [
               <IconSearch class="pointer-events-none absolute top-1.5 left-2 size-4 text-faint" />
               <input v-model="query" class="t-input pl-8" placeholder="Search projects" aria-label="Search projects" />
             </label>
-            <component
-              :is="kit.Segmented"
+            <UiSegmented
               v-model="filter"
               label="Show"
               :options="[
@@ -88,7 +89,7 @@ const menu = (exercise: boolean) => [
             <article
               v-for="p in shown"
               :key="p.name"
-              class="group overflow-hidden rounded-card border border-line bg-s1 transition-[border-color,translate] hover:-translate-y-px hover:border-line-strong"
+              class="group hover:border-line-strong overflow-hidden rounded-card border border-line bg-s1 transition-[border-color,translate] hover:-translate-y-px"
             >
               <button class="block aspect-[16/10] w-full overflow-hidden bg-[#cfd7d8]" :aria-label="`Open ${p.name}`">
                 <img :src="p.picture" alt="" class="size-full object-cover" />
@@ -107,21 +108,21 @@ const menu = (exercise: boolean) => [
                     </span>
                   </p>
                 </div>
-                <component :is="kit.Menu" :items="menu(p.exercise)" :label="`More for ${p.name}`" class="-mr-1" />
+                <UiMenu :items="menu(p.exercise)" :label="`More for ${p.name}`" class="-mr-1" />
               </div>
             </article>
           </div>
 
           <h2 class="mt-9 mb-3 text-[13px] font-semibold text-muted">Start from</h2>
           <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
-            <button class="flex items-center gap-3 rounded-card border border-dashed border-line-strong p-3 text-left hover:bg-hover">
+            <button class="border-line-strong flex items-center gap-3 rounded-card border border-dashed p-3 text-left hover:bg-hover">
               <img src="/lab/station.jpg" alt="" class="h-12 w-[76px] rounded-[5px] object-cover" />
               <span>
                 <span class="block font-semibold">Pallet loading</span>
                 <span class="text-xs text-muted">Example · Taktwin</span>
               </span>
             </button>
-            <button class="flex items-center gap-3 rounded-card border border-dashed border-line-strong p-3 text-left hover:bg-hover" @click="creating = true">
+            <button class="border-line-strong flex items-center gap-3 rounded-card border border-dashed p-3 text-left hover:bg-hover" @click="creating = true">
               <span class="flex h-12 w-[76px] items-center justify-center rounded-[5px] bg-s3 text-muted"><IconWrench class="size-5" /></span>
               <span>
                 <span class="block font-semibold">Build your own</span>
@@ -134,10 +135,9 @@ const menu = (exercise: boolean) => [
     </div>
     <StatusBar><span class="flex-1" /><span class="px-1.5">4 projects</span></StatusBar>
 
-    <component :is="kit.Dialog" v-model:open="creating" title="New project" description="Start from a station, an exercise, or an empty station to build.">
+    <UiDialog v-model:open="creating" title="New project" description="Start from a station, an exercise, or an empty station to build.">
       <div class="flex flex-col gap-4">
-        <component
-          :is="kit.Segmented"
+        <UiSegmented
           v-model="from"
           label="Start from"
           :options="[
@@ -146,8 +146,7 @@ const menu = (exercise: boolean) => [
             { value: 'empty', label: 'Empty', icon: IconWrench },
           ]"
         />
-        <component
-          :is="kit.Select"
+        <UiSelect
           v-model="station"
           label="Station"
           placeholder="Choose a station"
@@ -165,6 +164,6 @@ const menu = (exercise: boolean) => [
         <button class="t-btn" @click="creating = false">Cancel</button>
         <button class="t-btn t-btn-primary" @click="creating = false">Create</button>
       </template>
-    </component>
+    </UiDialog>
   </div>
 </template>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import UiSegmented from '../../ui/UiSegmented.vue'
+import UiTabs from '../../ui/UiTabs.vue'
+import UiIoList from '../../ui/UiIoList.vue'
 import { ref } from 'vue'
-import { useKit } from '../kit'
 import { checks, modules, signals } from '../data'
 import ActivityBar from './ActivityBar.vue'
 import StatusBar from './StatusBar.vue'
@@ -23,7 +25,6 @@ import IconPanel from '~icons/fluent/panel-bottom-20-regular'
 // middle, its parts at the side, and what runs and how a check went in a panel below. The top
 // bar keeps only the project and how the simulation runs; warnings that need an answer sit on
 // the 3D view.
-const kit = useKit()
 const view = ref('simulate')
 const speed = ref('1')
 const panel = ref('check')
@@ -90,8 +91,7 @@ const selected = ref('B2 Pallet at the stop')
           <span class="rounded-[4px] bg-accent-soft px-1.5 text-[11px] leading-[18px] font-medium text-accent-ink">Exercise</span>
           <span class="flex-1" />
           <span class="font-mono text-xs text-muted">00:42.3</span>
-          <component
-            :is="kit.Segmented"
+          <UiSegmented
             v-model="speed"
             label="Speed"
             :options="[
@@ -114,8 +114,7 @@ const selected = ref('B2 Pallet at the stop')
         </main>
 
         <section class="flex h-60 shrink-0 flex-col border-t border-line bg-s0">
-          <component
-            :is="kit.Tabs"
+          <UiTabs
             v-model="panel"
             label="Panel"
             :tabs="[
@@ -133,10 +132,10 @@ const selected = ref('B2 Pallet at the stop')
               </ol>
             </template>
             <template #io>
-              <component :is="kit.IoList" v-model="order" :signals="signals" class="max-w-2xl" />
+              <UiIoList v-model="order" :signals="signals" class="max-w-2xl" />
             </template>
             <template #output><p class="font-mono text-xs text-muted">Downloaded to the soft PLC · 3 POUs · built in 42 ms</p></template>
-          </component>
+          </UiTabs>
         </section>
       </div>
     </div>

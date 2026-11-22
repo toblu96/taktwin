@@ -4,6 +4,6 @@
   "semi": false,
   "printWidth": 180,
   "sortTailwindcss": {
-    "stylesheet": "./src/lab/theme.css"
+    "stylesheet": "./src/ui/theme.css"
   }
 }

@@ -1,7 +1,7 @@
-// The UI lab: Taktwin's new look tried out on its own page, apart from the app, with the same
-// components on UI SDK and on Reka UI to compare.
+// The UI lab: the app's components from src/ui on their own, and layouts in the new look tried
+// out before they reach the app, in dark and light.
 import '@ui-sdk/core/web.css'
-import './theme.css'
+import '../ui/theme.css'
 import { createApp } from 'vue'
 import Lab from './Lab.vue'
 

@@ -1,4 +1,4 @@
-import type { Signal } from './sdk/SdkIoList.vue'
+import type { Signal } from '../ui/UiIoList.vue'
 
 // Made-up data for the lab's layouts, shaped like the app's.
 export const signals: Signal[] = [

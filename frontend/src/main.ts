@@ -1,7 +1,12 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import IdeWindow from './ide/IdeWindow.vue'
+import '@ui-sdk/core/web.css'
+import './ui/theme.css'
 import './styles.css'
+
+// Dark until every page has moved to the new look; the older ones still have dark colours of their own.
+document.documentElement.dataset.theme = 'dark'
 
 // A window opened for a PLC's programming tool shows only that.
 const plc = new URLSearchParams(location.search).get('ide')

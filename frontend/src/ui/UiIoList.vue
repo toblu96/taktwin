@@ -4,7 +4,8 @@ import { ioList } from './io-list'
 import IconGrip from '~icons/fluent/re-order-dots-vertical-20-regular'
 
 // The PLC's inputs in the order of its I/O list, which people rearrange to match a program
-// written for another wiring. Built from UI SDK's reorder behaviour in a component of our own.
+// written for another wiring: dragged, or moved with Space, the arrows and Space. Built from UI
+// SDK's reorder behaviour in a component of our own (io-list.ts).
 export type Signal = { key: string; address: string; name: string; description: string; locked?: boolean }
 const props = defineProps<{ signals: Signal[] }>()
 const order = defineModel<string[]>({ required: true })
@@ -13,7 +14,7 @@ const byKey = (key: string) => props.signals.find((s) => s.key === key)!
 </script>
 
 <template>
-  <IoListRoot v-slot="{ state }" v-model:value="order" class="flex flex-col gap-1" aria-label="Inputs of the PLC">
+  <IoListRoot v-slot="{ state }" v-model:value="order" class="m-0 flex list-none flex-col gap-1 p-0" aria-label="Inputs of the PLC">
     <IoListItem
       v-for="(key, i) in state.order"
       :key="key"

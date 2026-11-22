@@ -60,7 +60,7 @@ const setKey = (widget: SceneWidget, on: boolean) => {
 
       <div v-else-if="widget.type === 'fill'" class="fill" :class="{ bad: fill(widget).wrong }">
         <span v-if="widget.label" class="fill-label">{{ widget.label }}</span>
-        <div class="pips" :aria-label="`${fill(widget).pieces.length} of ${widget.capacity}`">
+        <div class="pips" role="img" :aria-label="`${fill(widget).pieces.length} of ${widget.capacity}`">
           <span v-for="(k, i) in fill(widget).pieces" :key="i" class="swatch" :style="{ background: kind(k)?.material.color }" />
           <span v-for="i in fill(widget).free" :key="`free-${i}`" class="swatch free" />
         </div>
