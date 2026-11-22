@@ -3,7 +3,12 @@ import { computed, ref, watch } from 'vue'
 import { Service as service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { useRoute } from 'vue-router'
 import { closeProject, project, simulation } from '../sim'
-import { viewProblem } from '../project-view'
+import { expert } from '../expert'
+import { setEditing } from '../project-view'
+import { editing, viewProblem } from '../router'
+import UiModeToggle from '../ui/UiModeToggle.vue'
+import IconRun from '~icons/fluent/play-16-regular'
+import IconEdit from '~icons/fluent/edit-16-regular'
 import UiSegmented from '../ui/UiSegmented.vue'
 import IconChevron from '~icons/fluent/chevron-right-16-regular'
 import IconPause from '~icons/fluent/pause-20-filled'
@@ -11,12 +16,20 @@ import IconPlay from '~icons/fluent/play-20-filled'
 import IconRestart from '~icons/fluent/arrow-counterclockwise-20-regular'
 import IconWarning from '~icons/fluent/warning-16-filled'
 
-// The bar above an open project: where it is, and how its station runs. The activity bar has the
-// ways to go elsewhere; warnings that need an answer sit on the 3D view.
+// The bar above an open project: where it is, how its station runs, and in expert mode the switch
+// between running its views and editing them. The activity bar has the ways to go elsewhere;
+// warnings that need an answer sit on the 3D view.
 const { snapshot } = simulation
 
 const route = useRoute()
 const running = computed(() => route.name === 'simulate')
+
+// Why the switch to editing is off, if it is: an exercise's station stays as the exercise has
+// it, and writing exercises comes later.
+const noEdit = computed(() =>
+  project.value?.exercise ? 'The station of an exercise stays as the exercise has it' : route.meta.view === 'exercise' ? 'Writing exercises comes in a later version' : '',
+)
+const edit = computed({ get: () => editing.value && !noEdit.value, set: (on: boolean) => void setEditing(on) })
 const paused = computed(() => snapshot.value?.paused ?? false)
 const time = computed(() => {
   const total = snapshot.value?.time ?? 0
@@ -64,6 +77,17 @@ const speeds = computed(() =>
       <button class="t-icon-btn" title="Restart the station and its PLC" aria-label="Restart" @click="service.Reset()">
         <IconRestart class="size-4.5" />
       </button>
+    </template>
+    <template v-if="expert">
+      <span class="mx-1 h-4 w-px bg-line" />
+      <UiModeToggle
+        v-model="edit"
+        label="Edit"
+        :off="{ icon: IconRun, label: 'Running' }"
+        :on="{ icon: IconEdit, label: 'Editing' }"
+        :disabled="!!noEdit"
+        :title="noEdit || undefined"
+      />
     </template>
   </header>
 </template>

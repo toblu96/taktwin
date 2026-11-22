@@ -7,6 +7,7 @@ import type { CollectionInfo } from '../../bindings/github.com/toblu96/taktwin/i
 import { closeSettings, lastSettingsTab, type SettingsTab } from '../router'
 import { reloadCollections, reloadFiles } from '../sim'
 import UiSwitch from '../ui/UiSwitch.vue'
+import { expert, setExpert } from '../expert'
 import IconGeneral from '~icons/fluent/options-20-regular'
 import IconCollections from '~icons/fluent/box-multiple-20-regular'
 import IconUpdates from '~icons/fluent/arrow-sync-20-regular'
@@ -203,6 +204,14 @@ async function reload() {
                   <IconWarning class="mt-0.5 size-4 shrink-0" /><span><strong>{{ p.name }}</strong> {{ p.error }}</span>
                 </li>
               </ul>
+            </section>
+            <section class="mt-8 flex flex-col gap-2 border-0 border-t border-solid border-line pt-6">
+              <h3 class="m-0 text-[13px] font-semibold">Experimental</h3>
+              <UiSwitch :model-value="expert" trailing label="Expert mode" @update:model-value="(on: boolean) => void setExpert(on)" />
+              <p class="m-0 text-xs text-muted">
+                For teachers: a switch in an open project's top bar edits the station and its wiring, and a project can start from an empty station. It shows more, but locks
+                nothing away from students.
+              </p>
             </section>
           </template>
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { expert } from '../expert'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { LibraryService, Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { ExerciseInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
@@ -60,7 +61,8 @@ const current = computed(() => choices.value.find((c) => c.id === chosen.value[f
 const kinds = computed(() => [
   { value: 'station', label: 'Station', icon: IconCube },
   { value: 'exercise', label: 'Exercise', icon: IconTask, disabled: !exercises.value.length },
-  { value: 'empty', label: 'Empty', icon: IconWrench, disabled: !empties.value.length },
+  // Building a station of your own is for expert mode.
+  ...(expert.value ? [{ value: 'empty', label: 'Empty', icon: IconWrench, disabled: !empties.value.length }] : []),
 ])
 
 async function create() {

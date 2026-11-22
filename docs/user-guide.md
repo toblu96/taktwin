@@ -1,8 +1,8 @@
 # User guide
 
-Taktwin starts on **Projects**, which lists your projects. Beside it, **Library** browses the collections and previews any module on its own, without a PLC. An open project shows its station: **Simulate** runs it with its PLC, and **Build** puts it together; the bar along the left edge goes between them and back to your projects. The gear at its foot opens **Settings**: **General** for your folder, **Collections**, **Updates** and **About**. A second click on the gear, or Esc, goes back.
+Taktwin starts on **Projects**, which lists your projects. Beside it, **Library** browses the collections and previews any module on its own, without a PLC. An open project has three views in the bar along the left edge: **Simulation** runs its station with its PLC, **Wiring** shows how the station's signals reach the PLC, and **Exercise** says what the exercise asks for, with its check. The bar also goes back to your projects. The gear at its foot opens **Settings**: **General** for your folder, **Collections**, **Updates** and **About**. A second click on the gear, or Esc, goes back.
 
-In **Simulate**, the station's modules are listed as a tree on the left, with its PLCs below them: a lamp for how each runs, and **Program** to write its program. Selecting a module, in the tree or in the 3D view, shows it on the right: its controls, its connections or its PLC, and its settings and faults. The panel below the 3D view has the exercise and its check (**Exercise**, or **Exercises** in a station's project), the PLC's **Inputs and outputs** with the I/O test, and the station's **Problems**. ⌘J or Ctrl+J, or **Panel** in the status bar, shows and hides it. Every edge between these parts can be dragged, and the app keeps the sizes.
+In **Simulation**, the station's modules are listed as a tree on the left, with its PLCs below them: a lamp for how each runs, and **Program** to write its program. Selecting a module, in the tree or in the 3D view, shows it on the right: its controls, its connections or its PLC, and its settings and faults. The panel below the 3D view has the PLC's **Inputs and outputs** with the I/O test, and the station's **Problems**. ⌘J or Ctrl+J, or **Panel** in the status bar, shows and hides it. Every edge between these parts can be dragged, and the app keeps the sizes.
 
 The top bar shows the open project, the simulated time and speed, pause and restart. The status bar along the bottom shows the app's version, with a dot when an update is ready; a click opens **Updates**. While a station runs it shows its PLC and connection, an I/O test with **End**, and the PLC's step; a click on the PLC shows it. On the right, **✓ Saved** shows the project's folder. What needs acknowledging, such as a collision or a workpiece that fell off, shows over the 3D view.
 
@@ -14,7 +14,7 @@ The app also reads stations from a `Taktwin` folder in your documents folder, wh
 
 ## The builder
 
-**Build**, in the top bar of an open project, puts its station together without editing files. A project made from an empty station opens there. A project on a collection's station builds on a copy of it that the project keeps, after asking, and no longer follows the collection's updates. The station of an exercise stays as the exercise has it. Then:
+**Expert mode**, for teachers, is switched on in **Settings › General › Experimental**. It adds a switch to the top bar of an open project between running its views and editing them: edited, **Simulation** builds the station and **Wiring** rewires it. It shows more, but locks nothing away from students. Building puts a station together without editing files. A project made from an empty station opens there. A project on a collection's station builds on a copy of it that the project keeps, after asking, and no longer follows the collection's updates. The station of an exercise stays as the exercise has it. Then:
 
 - Click a module on the left to pick it: every place it fits shows as a line, and a see-through copy follows the pointer, on the 5 mm grid or in whole mm with Shift. It is green where it fits and red where it does not, with the reason. A click puts it down, R turns it, Esc puts it back.
 - A selected module shows arrows to move it along its rail or to the next one; what is screwed onto it goes along. **Fit** moves it to where the station has the fewest problems. Backspace removes it, with everything screwed onto it.
@@ -24,7 +24,7 @@ The app also reads stations from a `Taktwin` folder in your documents folder, wh
 - The station checks have their own tab and update with every change.
 - A selected stand shows a **+** on each side where there is room, to put another stand beside it, so that a station grows into a line, each stand with its own PLC.
 - **Wiring** shows the PLCs, consoles, interfaces and I/O terminals with the cables between them. Click a connector, then another of its kind, to move its cable; click a pin to move what it carries. Each pin shows the PLC address it reaches, as the PLC module shows them, and the name the PLC knows it by, which can be changed.
-- The project keeps every change, as `station.json` in its folder. **Simulate** runs the station as it is built; when it was changed, its PLCs are disconnected, as on a restart.
+- The project keeps every change, as `station.json` in its folder. Switching editing off runs the station as it is built; when it was changed, its PLCs are disconnected, as on a restart.
 
 ## Projects
 

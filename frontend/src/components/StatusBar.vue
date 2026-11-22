@@ -17,7 +17,7 @@ const { scene, snapshot } = simulation
 
 const route = useRoute()
 const running = computed(() => !!project.value && route.name === 'simulate')
-const building = computed(() => !!project.value && route.name === 'build')
+const building = computed(() => !!project.value && !!route.meta.edit)
 
 const link = computed(() => snapshot.value?.link?.state ?? '')
 const linkText: Record<string, string> = { connected: 'connected', failed: 'not connected', connecting: 'connecting' }

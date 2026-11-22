@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { expert } from '../expert'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { Example, ProjectInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
@@ -166,6 +167,7 @@ onUnmounted(() => window.removeEventListener('keydown', key))
           </span>
         </button>
         <button
+          v-if="expert"
           class="flex cursor-default items-center gap-3 rounded-card border border-dashed border-control bg-transparent p-3 text-left text-fg hover:bg-hover"
           :disabled="busy"
           @click="create('empty')"

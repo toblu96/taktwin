@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import BuilderSetting from './BuilderSetting.vue'
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { LibraryService } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { Entry, SceneCheck } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 import type { BuilderModule } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
@@ -51,6 +52,17 @@ const entries = ref<Entry[]>([])
 const loadEntries = async () => {
   entries.value = (await LibraryService.Entries()) ?? []
 }
+// The activity bar picks building in 3D or the wiring, which the address says.
+const route = useRoute()
+watch(
+  () => route.meta.view,
+  (view) => {
+    mode.value = view === 'wiring' ? 'wire' : 'build'
+    if (mode.value === 'wire') cancelPlacing()
+  },
+  { immediate: true },
+)
+
 onMounted(async () => {
   window.addEventListener('keydown', onKey)
   await enter()
@@ -287,10 +299,6 @@ const hint = computed(() =>
     </aside>
 
     <div class="stage">
-      <nav class="modes" role="tablist" aria-label="Builder view">
-        <button role="tab" :class="{ active: mode === 'build' }" :aria-selected="mode === 'build'" @click="mode = 'build'">Build in 3D</button>
-        <button role="tab" :class="{ active: mode === 'wire' }" :aria-selected="mode === 'wire'" @click="((mode = 'wire'), cancelPlacing())">Wiring</button>
-      </nav>
       <WiringView v-if="mode === 'wire'" />
       <StationViewer
         v-else
@@ -427,7 +435,7 @@ const hint = computed(() =>
             <span>Description</span>
             <textarea v-model="description" rows="2" @change="rename" />
           </label>
-          <p class="hint">The project keeps every change. <strong>Simulate</strong> runs the station as it is built.</p>
+          <p class="hint">The project keeps every change. Switching editing off runs the station as it is built.</p>
         </section>
       </template>
 
@@ -485,31 +493,9 @@ const hint = computed(() =>
 
 .stage {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
-}
-
-.modes {
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  gap: 4px;
-  padding: 4px 8px;
-}
-
-.modes button {
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  color: var(--text-dim);
-  padding: 4px 12px;
-}
-
-.modes button.active {
-  background: var(--panel-raised);
-  border-color: var(--accent);
-  color: var(--text);
 }
 
 .item.station span {

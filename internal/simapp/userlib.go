@@ -37,6 +37,9 @@ type settings struct {
 	Hidden []string `json:"hiddenCollections,omitempty"`
 	// CheckUpdates says whether the app looks for an update when it starts; on when unset.
 	CheckUpdates *bool `json:"checkUpdates,omitempty"`
+	// Expert says whether the app offers what a teacher needs: building stations and writing
+	// exercises. It only shows more; it secures nothing.
+	Expert bool `json:"expertMode,omitempty"`
 }
 
 // settingsFile is where the settings are kept. TAKTWIN_CONFIG overrides its folder.

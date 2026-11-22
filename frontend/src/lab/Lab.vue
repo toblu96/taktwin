@@ -9,6 +9,9 @@ import UiMenu from '../ui/UiMenu.vue'
 import UiSegmented from '../ui/UiSegmented.vue'
 import UiSelect from '../ui/UiSelect.vue'
 import UiSwitch from '../ui/UiSwitch.vue'
+import UiModeToggle from '../ui/UiModeToggle.vue'
+import IconRun from '~icons/fluent/play-16-regular'
+import IconEdit from '~icons/fluent/edit-16-regular'
 import UiTabs from '../ui/UiTabs.vue'
 import UiTree, { type TreeHeading, type TreeRow } from '../ui/UiTree.vue'
 import IconCube from '~icons/fluent/cube-16-regular'
@@ -37,6 +40,7 @@ const tab = ref('check')
 const station = ref<string | null>(null)
 const open = ref(false)
 const on = ref(true)
+const editMode = ref(false)
 const treeOpen = ref(true)
 const picked = ref('b2')
 const tree = computed<(TreeRow | TreeHeading)[]>(() => [
@@ -89,6 +93,7 @@ const menu = [{ label: 'Rename', icon: IconRename, shortcut: 'F2' }, {}, { label
           <button class="t-btn t-btn-ghost">Ghost</button>
           <input class="t-input w-56" placeholder="An input" aria-label="An input" />
           <UiSwitch v-model="on" label="A switch" />
+          <UiModeToggle v-model="editMode" label="Edit" :off="{ icon: IconRun, label: 'Running' }" :on="{ icon: IconEdit, label: 'Editing' }" />
         </section>
         <section class="w-72">
           <UiSelect

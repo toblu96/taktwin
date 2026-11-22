@@ -1,39 +1,78 @@
 import { ref } from 'vue'
 import { createRouter, createWebHashHistory, type RouteLocationRaw } from 'vue-router'
 import { edits } from './builder'
-import { viewProblem } from './project-view'
+import { expert, expertRead } from './expert'
 import { project, ready, reloadStation } from './sim'
 
-// Where the app is: its projects, an open project being simulated or built, the library, or
-// the settings. The address lives after the # of the window's page, so a reload of the window
-// stays where it was and needs nothing from the server that serves the page.
+// Where the app is: its projects, an open project, the library, or the settings. The address
+// lives after the # of the window's page, so a reload of the window stays where it was and
+// needs nothing from the server that serves the page.
+//
+// An open project has three views: the simulation, the wiring and the exercise. Each runs, as a
+// student uses it, or, in expert mode, is edited: the simulation's edit is the builder, the
+// wiring's is rewiring. Writing an exercise comes later, so the exercise only runs.
 export type SettingsTab = 'general' | 'collections' | 'updates' | 'about'
+export type ProjectView = 'simulation' | 'wiring' | 'exercise'
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    project?: boolean
+    view?: ProjectView
+    edit?: boolean
+  }
+}
+
+const builder = () => import('./components/BuilderPage.vue')
 
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     { path: '/', name: 'projects', component: () => import('./components/ProjectsPage.vue') },
-    { path: '/project', name: 'simulate', component: () => import('./components/ProjectWindow.vue'), meta: { project: true } },
-    { path: '/project/build', name: 'build', component: () => import('./components/BuilderPage.vue'), meta: { project: true } },
+    { path: '/project', redirect: { name: 'simulate' } },
+    { path: '/project/build', redirect: { name: 'build' } },
+    { path: '/project/simulation', name: 'simulate', component: () => import('./components/ProjectWindow.vue'), meta: { project: true, view: 'simulation' } },
+    { path: '/project/simulation/edit', name: 'build', component: builder, meta: { project: true, view: 'simulation', edit: true } },
+    { path: '/project/wiring', name: 'wiring', component: () => import('./components/WiringPage.vue'), meta: { project: true, view: 'wiring' } },
+    { path: '/project/wiring/edit', name: 'rewire', component: builder, meta: { project: true, view: 'wiring', edit: true } },
+    { path: '/project/exercise', name: 'exercise', component: () => import('./components/ExercisePage.vue'), meta: { project: true, view: 'exercise' } },
     { path: '/library/:level(station|module|accessory|part)?/:id?', name: 'library', component: () => import('./components/LibraryPage.vue') },
     { path: '/settings/:tab(general|collections|updates|about)?', name: 'settings', component: () => import('./components/SettingsPage.vue') },
     { path: '/:rest(.*)*', redirect: '/' },
   ],
 })
 
-// The pages of a project need one open, and the projects page shows only while none is. An
-// exercise's station is not built on, and a station from a collection only once it is the
-// project's own copy, which the activity bar asks for.
+// What went wrong on the way to a view of the open project, for the top bar to show.
+export const viewProblem = ref('')
+
+// Whether the views are edited, which the switch in the top bar sets and the address shows. It
+// stays while going between views, so the simulation and the wiring are both edited until it is
+// switched off; the exercise only runs so far.
+export const editing = ref(false)
+router.afterEach((to) => {
+  if (to.meta.project && to.meta.view !== 'exercise') editing.value = !!to.meta.edit
+  if (!to.meta.project && to.name !== 'settings') editing.value = false
+})
+
+// The address of a view of the open project, run or edited.
+export function projectRoute(view: ProjectView, edit: boolean) {
+  if (view === 'exercise') return { name: 'exercise' }
+  if (view === 'wiring') return { name: edit ? 'rewire' : 'wiring' }
+  return { name: edit ? 'build' : 'simulate' }
+}
+
+// The pages of a project need one open, and the projects page shows only while none is. Only
+// expert mode edits, never an exercise's station, and a station from a collection only once it
+// is the project's own copy, which the switch in the top bar asks for. After editing, the
+// station loads again as it was built.
 let built = false
 router.beforeEach(async (to, from) => {
-  await ready
+  await Promise.all([ready, expertRead])
   const p = project.value
   if (to.meta.project && !p) return { name: 'projects' }
   if (to.name === 'projects' && p) return { name: 'simulate' }
-  if (to.name === 'build' && (p?.exercise || !p?.own)) return { name: 'simulate' }
-  // Back from building, the simulation runs the station as it was built.
-  if (from.name === 'build' && edits.value) built = true
-  if (to.name === 'simulate' && built) {
+  if (to.meta.edit && (!expert.value || p?.exercise || !p?.own)) return projectRoute(to.meta.view ?? 'simulation', false)
+  if (from.meta.edit && !to.meta.edit && edits.value) built = true
+  if (to.meta.project && !to.meta.edit && built) {
     built = false
     viewProblem.value = ''
     try {

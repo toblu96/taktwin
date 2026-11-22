@@ -21,10 +21,10 @@ import StationTree from './StationTree.vue'
 const route = useRoute()
 const active = () => route.name === 'simulate'
 
-// An exercise opens on what it asks for, a station on its signals.
+// A project opens on its signals.
 watch(
   () => project.value?.name,
-  () => (panelTab.value = project.value?.exercise ? 'check' : 'io'),
+  () => (panelTab.value = 'io'),
   { immediate: true },
 )
 

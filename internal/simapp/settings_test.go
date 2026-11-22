@@ -41,3 +41,21 @@ func TestChangingTheUserFolder(t *testing.T) {
 		t.Error("TAKTWIN_HOME fixes the folder")
 	}
 }
+
+// Expert mode is off until it is switched on, and the settings keep it between runs.
+func TestExpertModeIsKeptBetweenRuns(t *testing.T) {
+	t.Setenv("TAKTWIN_CONFIG", t.TempDir())
+	var s SettingsService
+	if s.ExpertMode() {
+		t.Fatal("it starts off")
+	}
+	if err := s.SetExpertMode(true); err != nil {
+		t.Fatal(err)
+	}
+	if !s.ExpertMode() || !readSettings().Expert {
+		t.Error("the settings keep it on")
+	}
+	if err := s.SetExpertMode(false); err != nil || s.ExpertMode() {
+		t.Errorf("it switches off again: %v", err)
+	}
+}
