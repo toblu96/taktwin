@@ -5,7 +5,8 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from
 // that slides to it. Each option is a button of its own, pressed or not, so Tab reaches every one
 // of them, rather than the one stop with arrow keys of a radio group. The frame is drawn as an
 // inset shadow rather than a border, so that the indicator lines up with the items to the pixel.
-const props = defineProps<{ options: { value: string; label: string; icon?: Component; disabled?: boolean; title?: string }[]; label: string }>()
+const props = // An option may count what it shows, as a badge after its label.
+  defineProps<{ options: { value: string; label: string; icon?: Component; disabled?: boolean; title?: string; count?: number }[]; label: string }>()
 const model = defineModel<string>({ required: true })
 
 // Where the indicator sits: under the pressed button, measured whenever it or the sizes change.
@@ -44,6 +45,9 @@ watch([model, () => props.options], () => nextTick(measure), { deep: true })
     >
       <component :is="o.icon" v-if="o.icon" class="size-4" />
       {{ o.label }}
+      <span v-if="o.count !== undefined" class="rounded-full px-1.5 text-[11px] leading-4 font-medium" :class="model === o.value ? 'bg-s0 text-fg' : 'bg-s3 text-muted'">{{
+        o.count
+      }}</span>
     </button>
   </div>
 </template>

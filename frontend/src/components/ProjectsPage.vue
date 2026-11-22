@@ -84,9 +84,9 @@ const counts = computed(() => ({
 const shown = computed(() => projects.value.filter((p) => (kind.value === 'all' || (kind.value === 'exercise') === !!p.exercise) && matches(p.name, p.stationName, p.exerciseName)))
 const shownExamples = computed(() => (kind.value === 'exercise' ? [] : examples.value.filter((e) => matches(e.stationName, e.collection, e.description))))
 const kinds = computed(() => [
-  { value: 'all', label: `All ${counts.value.all}` },
-  { value: 'station', label: `Stations ${counts.value.station}` },
-  { value: 'exercise', label: `Exercises ${counts.value.exercise}` },
+  { value: 'all', label: 'All', count: counts.value.all },
+  { value: 'station', label: 'Stations', count: counts.value.station },
+  { value: 'exercise', label: 'Exercises', count: counts.value.exercise },
 ])
 watch(counts, (c) => {
   if (!c.station || !c.exercise) kind.value = 'all'

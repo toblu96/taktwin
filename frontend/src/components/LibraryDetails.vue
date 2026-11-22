@@ -120,9 +120,9 @@ const startProject = () => current.value && newProject({ station: current.value.
       <p class="m-0 mt-0.5 font-mono text-[11px] text-muted">{{ shown?.module ?? current.id }}<template v-if="shown?.version"> · v{{ shown.version }}</template></p>
       <p v-if="description" class="m-0 mt-1.5 text-muted">{{ description }}</p>
       <div class="mt-3 flex flex-wrap gap-2">
-        <button v-if="current.level === 'station'" class="t-btn t-btn-primary" @click="startProject"><IconAdd class="size-4" />New project</button>
+        <button v-if="current.level === 'station' && !selected" class="t-btn t-btn-primary" @click="startProject"><IconAdd class="size-4" />New project</button>
         <button v-if="shownEntry" class="t-btn" @click="$emit('open', shownEntry)"><IconOpen class="size-4" />Open on its own</button>
-        <button class="t-btn" title="Put it back as it started" @click="reset()"><IconReset class="size-4" />Reset</button>
+        <button v-if="!selected" class="t-btn" title="Put it back as it started" @click="reset()"><IconReset class="size-4" />Reset</button>
       </div>
     </header>
 
