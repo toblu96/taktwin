@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
-import { panelOpen } from '../project-view'
 import { useRoute } from 'vue-router'
 import { editingConnection, programming, simulation } from '../sim'
-import { detailsWidth as details, panelHeight as panel, treeWidth as tree } from '../layout'
+import { detailsWidth as details, treeWidth as tree } from '../layout'
 import UiSash from '../ui/UiSash.vue'
 import ProgramIde from '../ide/ProgramIde.vue'
 import StationViewer from '../viewer/StationViewer.vue'
-import BottomPanel from './BottomPanel.vue'
+import PagePanel from './PagePanel.vue'
+import EventsPanel from './EventsPanel.vue'
+import { events } from '../events'
 import ConnectionEditor from './ConnectionEditor.vue'
 import ContextPanel from './ContextPanel.vue'
 import StageAlerts from './StageAlerts.vue'
@@ -21,19 +22,15 @@ import SimulationSide from './SimulationSide.vue'
 const route = useRoute()
 const active = () => route.name === 'simulate'
 
-// ⌘J or Ctrl+J shows and hides the panel, as in VS Code. Delete or Backspace takes the picked
-// workpiece off the station, unless a field is being typed in.
+// Delete or Backspace takes the picked workpiece off the station, unless a field is being typed
+// in. ⌘J or Ctrl+J for the panel is the app's (panel.ts).
 function key(e: KeyboardEvent) {
   if (!active()) return
   const typing = e.target instanceof HTMLElement && (e.target.isContentEditable || /^(input|textarea|select)$/i.test(e.target.tagName))
   if ((e.key === 'Delete' || e.key === 'Backspace') && !typing && simulation.workpiece.value !== null) {
     e.preventDefault()
     void simulation.takeWorkpiece()
-    return
   }
-  if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'j') return
-  e.preventDefault()
-  panelOpen.value = !panelOpen.value
 }
 onMounted(() => window.addEventListener('keydown', key))
 onUnmounted(() => window.removeEventListener('keydown', key))
@@ -51,10 +48,9 @@ onUnmounted(() => window.removeEventListener('keydown', key))
         <StationViewer :active="active()" />
         <StageAlerts />
       </div>
-      <div v-if="panelOpen" class="relative max-h-[70%] shrink-0 border-t border-line" :style="{ height: `${panel}px` }">
-        <UiSash v-if="programming === null && !editingConnection" v-model="panel" side="bottom" :min="120" :max="720" label="Height of the panel" />
-        <BottomPanel />
-      </div>
+      <PagePanel :tabs="[{ value: 'events', label: 'Events', count: events.filter((e) => e.kind !== 'restart').length }]" :covered="programming !== null || !!editingConnection">
+        <template #events><EventsPanel /></template>
+      </PagePanel>
       <ProgramIde v-if="programming !== null" :plc="programming" @close="programming = null" />
       <ConnectionEditor v-if="editingConnection" :key="editingConnection.id" v-bind="editingConnection" @close="editingConnection = null" />
     </div>

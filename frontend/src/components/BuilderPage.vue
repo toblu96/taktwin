@@ -3,7 +3,7 @@ import BuilderSetting from './BuilderSetting.vue'
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { LibraryService } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import type { Entry, SceneCheck } from '../../bindings/github.com/toblu96/taktwin/internal/model'
+import type { Entry } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 import type { BuilderModule } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import {
   addStand,
@@ -44,6 +44,8 @@ import { grouped } from '../collections'
 import { simKey } from '../sim'
 import StationViewer from '../viewer/StationViewer.vue'
 import WiringView from './WiringView.vue'
+import PagePanel from './PagePanel.vue'
+import ProblemsPanel from './ProblemsPanel.vue'
 
 // The components below show the station being built, not the running simulation.
 provide(simKey, built)
@@ -224,9 +226,8 @@ const tree = computed(() => {
   return out
 })
 
-// The right side shows the settings, or the station checks on their own tab.
-const panelTab = ref<'settings' | 'checks'>('settings')
-const checkCount = computed(() => state.value?.scene.checks?.length ?? 0)
+// What is wrong with how the station is built, in the panel below the middle.
+const checks = computed(() => state.value?.scene.checks ?? [])
 // The left side adds modules, or lists those in the station.
 const paletteTab = ref<'add' | 'modules'>('add')
 const paletteVisible = computed(() => placeable.value.filter((e) => paletteCollection.value === ALL || (e.collection ?? '') === paletteCollection.value))
@@ -235,14 +236,6 @@ const removable = computed(() => {
   const m = selected.value
   return !!m && (m.parent ? m.optional : onFloor.value ? m.optional : !!m.place)
 })
-
-// Shows what a check is about in the 3D view, or nothing on a second click.
-function show(check: SceneCheck) {
-  const current = built.highlight.value
-  const instances = check.instances ?? []
-  const same = current && current.instances.join() === instances.join() && JSON.stringify(current.at) === JSON.stringify(check.at ?? null)
-  built.highlight.value = same ? null : { instances, at: check.at ?? null }
-}
 
 const hint = computed(() =>
   pending.value
@@ -299,7 +292,7 @@ const hint = computed(() =>
     </aside>
 
     <div class="stage">
-      <WiringView v-if="mode === 'wire'" />
+      <WiringView v-if="mode === 'wire'" class="min-h-0" />
       <StationViewer
         v-else
         building
@@ -315,145 +308,121 @@ const hint = computed(() =>
         @nudge="(axis, sign) => step(axis, sign)"
         @add-beside="addStand"
       />
+      <PagePanel :tabs="[{ value: 'problems', label: 'Problems', count: checks.length }]">
+        <template #problems><ProblemsPanel :checks="checks" /></template>
+      </PagePanel>
     </div>
 
     <aside class="panel">
-      <nav class="tabs" role="tablist">
-        <button role="tab" :class="{ active: panelTab === 'settings' }" :aria-selected="panelTab === 'settings'" @click="panelTab = 'settings'">Settings</button>
-        <button role="tab" :class="{ active: panelTab === 'checks' }" :aria-selected="panelTab === 'checks'" @click="panelTab = 'checks'">
-          Checks
-          <span class="count" :class="{ bad: checkCount > 0 }">{{ checkCount }}</span>
-        </button>
-      </nav>
-
       <p v-if="problem" class="problem" role="alert">{{ problem }}</p>
 
-      <template v-if="panelTab === 'settings'">
-        <section v-if="pending" class="block">
-          <h3 class="section-title">Adding: {{ pending.name }}</h3>
-          <p v-if="!hovered" class="hint">Point at one of the lines in the 3D view: that is where it can be screwed on.</p>
+      <section v-if="pending" class="block">
+        <h3 class="section-title">Adding: {{ pending.name }}</h3>
+        <p v-if="!hovered" class="hint">Point at one of the lines in the 3D view: that is where it can be screwed on.</p>
+        <template v-else>
+          <p class="hint mono">{{ hovered.key.split('#')[0] }} · {{ hovered.along }} mm</p>
+          <p v-if="!check" class="hint">Checking…</p>
+          <p v-else-if="check.ok" class="fits">Fits here.</p>
           <template v-else>
-            <p class="hint mono">{{ hovered.key.split('#')[0] }} · {{ hovered.along }} mm</p>
-            <p v-if="!check" class="hint">Checking…</p>
-            <p v-else-if="check.ok" class="fits">Fits here.</p>
-            <template v-else>
-              <p class="problem">{{ check.reason }}</p>
-              <button v-if="check.fix" :disabled="busy" @click="putDown(true)">{{ check.fix }} and put it here</button>
-            </template>
-            <div class="row">
-              <button v-if="confirmPlace || check?.ok" :disabled="busy || !check?.ok" @click="putDown(false)">Put it here</button>
-              <button :disabled="busy" title="R" @click="rotate">Turn 90°</button>
-              <button @click="cancelPlacing">Cancel</button>
-            </div>
+            <p class="problem">{{ check.reason }}</p>
+            <button v-if="check.fix" :disabled="busy" @click="putDown(true)">{{ check.fix }} and put it here</button>
           </template>
-        </section>
+          <div class="row">
+            <button v-if="confirmPlace || check?.ok" :disabled="busy || !check?.ok" @click="putDown(false)">Put it here</button>
+            <button :disabled="busy" title="R" @click="rotate">Turn 90°</button>
+            <button @click="cancelPlacing">Cancel</button>
+          </div>
+        </template>
+      </section>
 
-        <section v-if="selected" class="block">
-          <h3 class="section-title">{{ selected.name }}</h3>
-          <p class="hint mono">{{ selected.id }} · {{ selected.module }}</p>
-          <p v-if="selected.parent" class="hint">Part of {{ parentName }}</p>
+      <section v-if="selected" class="block">
+        <h3 class="section-title">{{ selected.name }}</h3>
+        <p class="hint mono">{{ selected.id }} · {{ selected.module }}</p>
+        <p v-if="selected.parent" class="hint">Part of {{ parentName }}</p>
 
-          <template v-if="buildSettings.length">
-            <h4 class="sub">Build settings</h4>
-            <BuilderSetting v-for="p in buildSettings" :key="p.id" :param="p" :busy="busy" @set="(value) => change(p.id, value)" />
-          </template>
+        <template v-if="buildSettings.length">
+          <h4 class="sub">Build settings</h4>
+          <BuilderSetting v-for="p in buildSettings" :key="p.id" :param="p" :busy="busy" @set="(value) => change(p.id, value)" />
+        </template>
 
-          <template v-if="selected.place">
-            <h4 class="sub">Place</h4>
-            <p class="hint">
-              On
-              <span class="mono">{{ onFloor ? 'the floor' : selected.place.on }}</span>
-            </p>
-            <label v-if="slots > 1" class="field">
-              <span>{{ onFloor ? 'Line across, 50 mm apart' : 'Slot' }}</span>
-              <input type="number" min="0" :max="slots - 1" :value="selected.place.slot" @change="setSlot" />
-            </label>
-            <label class="field">
-              <span>Along, mm</span>
-              <input type="number" step="1" :value="shownAt" @change="setAt" />
-            </label>
-            <div class="row nudges">
-              <button
-                v-for="d in [-10, -1, 1, 10]"
-                :key="d"
-                :disabled="busy"
-                @click="
-                  move(selected, {
-                    ...selected.place,
-                    at: Math.round(selected.place.at + d),
-                  })
-                "
-              >
-                {{ d > 0 ? '+' : '' }}{{ d }}
-              </button>
-            </div>
-            <div v-if="!onFloor" class="row nudges">
-              <span class="hint">Turn</span>
-              <button v-for="t in [0, 90, 180, 270]" :key="t" :class="{ active: selected.place.turn === t }" :disabled="busy" @click="turn(t)">{{ t }}°</button>
-            </div>
-            <div class="row">
-              <button v-if="!onFloor" :disabled="busy" title="Moves it along its line to where it fits best with the rest" @click="fit(selected.id)">Fit</button>
-              <button v-if="removable" class="danger" :disabled="busy" title="Backspace" @click="remove(selected)">Remove</button>
-            </div>
-          </template>
-          <template v-else>
-            <p class="hint">
-              {{ selected.parent ? `Part of ${parentName}, where it stays.` : 'Stands at a fixed position.' }}
-            </p>
-            <div v-if="removable" class="row">
-              <button class="danger" :disabled="busy" title="Backspace" @click="remove(selected)">Remove</button>
-            </div>
-          </template>
-          <template v-if="selected.removed?.length">
-            <h4 class="sub">Taken off</h4>
-            <div v-for="part in selected.removed" :key="part.id" class="row taken">
-              <span class="hint">{{ part.name }}</span>
-              <button :disabled="busy" @click="putBack(part.id)">Put back</button>
-            </div>
-          </template>
-          <template v-if="selectedMarks.length">
-            <h4 class="sub">Lines up with</h4>
-            <p v-for="(m, index) in selectedMarks" :key="index" class="hint mark">
-              {{ m.label }}
-              <span class="mono">({{ m.at.x.toFixed(1) }}, {{ m.at.y.toFixed(1) }})</span>
-            </p>
-          </template>
-          <details v-if="physicsSettings.length">
-            <summary class="sub">Physics</summary>
-            <p class="hint">How it moves and senses. The simulation can change some of these while it runs.</p>
-            <BuilderSetting v-for="p in physicsSettings" :key="p.id" :param="p" :busy="busy" @set="(value) => change(p.id, value)" />
-          </details>
-        </section>
-
-        <section class="block">
-          <h3 class="section-title">Station</h3>
-          <label class="field">
-            <span>Name</span>
-            <input v-model="name" @change="rename" />
+        <template v-if="selected.place">
+          <h4 class="sub">Place</h4>
+          <p class="hint">
+            On
+            <span class="mono">{{ onFloor ? 'the floor' : selected.place.on }}</span>
+          </p>
+          <label v-if="slots > 1" class="field">
+            <span>{{ onFloor ? 'Line across, 50 mm apart' : 'Slot' }}</span>
+            <input type="number" min="0" :max="slots - 1" :value="selected.place.slot" @change="setSlot" />
           </label>
           <label class="field">
-            <span>Description</span>
-            <textarea v-model="description" rows="2" @change="rename" />
+            <span>Along, mm</span>
+            <input type="number" step="1" :value="shownAt" @change="setAt" />
           </label>
-          <p class="hint">The project keeps every change. Switching editing off runs the station as it is built.</p>
-        </section>
-      </template>
+          <div class="row nudges">
+            <button
+              v-for="d in [-10, -1, 1, 10]"
+              :key="d"
+              :disabled="busy"
+              @click="
+                move(selected, {
+                  ...selected.place,
+                  at: Math.round(selected.place.at + d),
+                })
+              "
+            >
+              {{ d > 0 ? '+' : '' }}{{ d }}
+            </button>
+          </div>
+          <div v-if="!onFloor" class="row nudges">
+            <span class="hint">Turn</span>
+            <button v-for="t in [0, 90, 180, 270]" :key="t" :class="{ active: selected.place.turn === t }" :disabled="busy" @click="turn(t)">{{ t }}°</button>
+          </div>
+          <div class="row">
+            <button v-if="!onFloor" :disabled="busy" title="Moves it along its line to where it fits best with the rest" @click="fit(selected.id)">Fit</button>
+            <button v-if="removable" class="danger" :disabled="busy" title="Backspace" @click="remove(selected)">Remove</button>
+          </div>
+        </template>
+        <template v-else>
+          <p class="hint">
+            {{ selected.parent ? `Part of ${parentName}, where it stays.` : 'Stands at a fixed position.' }}
+          </p>
+          <div v-if="removable" class="row">
+            <button class="danger" :disabled="busy" title="Backspace" @click="remove(selected)">Remove</button>
+          </div>
+        </template>
+        <template v-if="selected.removed?.length">
+          <h4 class="sub">Taken off</h4>
+          <div v-for="part in selected.removed" :key="part.id" class="row taken">
+            <span class="hint">{{ part.name }}</span>
+            <button :disabled="busy" @click="putBack(part.id)">Put back</button>
+          </div>
+        </template>
+        <template v-if="selectedMarks.length">
+          <h4 class="sub">Lines up with</h4>
+          <p v-for="(m, index) in selectedMarks" :key="index" class="hint mark">
+            {{ m.label }}
+            <span class="mono">({{ m.at.x.toFixed(1) }}, {{ m.at.y.toFixed(1) }})</span>
+          </p>
+        </template>
+        <details v-if="physicsSettings.length">
+          <summary class="sub">Physics</summary>
+          <p class="hint">How it moves and senses. The simulation can change some of these while it runs.</p>
+          <BuilderSetting v-for="p in physicsSettings" :key="p.id" :param="p" :busy="busy" @set="(value) => change(p.id, value)" />
+        </details>
+      </section>
 
-      <section v-else class="block">
-        <p v-if="!checkCount" class="hint">Nothing found: the station is built so that it can work.</p>
-        <p v-else class="hint">Click one to show it in the 3D view.</p>
-        <button
-          v-for="(check, index) in state?.scene.checks ?? []"
-          :key="index"
-          class="check"
-          :class="{
-            active: built.highlight.value?.instances.join() === (check.instances ?? []).join(),
-          }"
-          title="Show it in the 3D view"
-          @click="show(check)"
-        >
-          {{ check.text }}
-        </button>
+      <section class="block">
+        <h3 class="section-title">Station</h3>
+        <label class="field">
+          <span>Name</span>
+          <input v-model="name" @change="rename" />
+        </label>
+        <label class="field">
+          <span>Description</span>
+          <textarea v-model="description" rows="2" @change="rename" />
+        </label>
+        <p class="hint">The project keeps every change. Switching editing off runs the station as it is built.</p>
       </section>
     </aside>
   </main>

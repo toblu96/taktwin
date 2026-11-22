@@ -7,6 +7,7 @@ import ActivityBar from './components/ActivityBar.vue'
 import { connect, loadError } from './sim'
 import { connectUpdates } from './update'
 import { trackEvents } from './events'
+import { panelKeys } from './panel'
 
 const route = useRoute()
 
@@ -14,6 +15,7 @@ onMounted(() => {
   connect()
   connectUpdates()
   trackEvents()
+  panelKeys()
 })
 </script>
 

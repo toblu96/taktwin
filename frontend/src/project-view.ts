@@ -1,7 +1,5 @@
-import { ref } from 'vue'
 import { Service } from '../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { ask } from './ask'
-import { stored } from './ui/stored'
 import { editing, projectRoute, router, viewProblem, type ProjectView } from './router'
 import { project, refreshProject } from './sim'
 
@@ -34,14 +32,4 @@ export async function setEditing(on: boolean) {
   }
   editing.value = true
   await router.push(projectRoute(view, true))
-}
-
-// The panel below the 3D view, as VS Code has one: open or not, and which of its tabs shows.
-// Whether it is open is kept between starts; ⌘J or Ctrl+J and the status bar switch it.
-export type PanelTab = 'events'
-export const panelOpen = stored('panel.open', true)
-export const panelTab = ref<PanelTab>('events')
-export function showPanel(tab: PanelTab) {
-  panelTab.value = tab
-  panelOpen.value = true
 }

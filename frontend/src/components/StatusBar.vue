@@ -8,7 +8,7 @@ import { project, simulation } from '../sim'
 import { update, updateAvailable } from '../update'
 import IconSaved from '~icons/fluent/checkmark-16-regular'
 import IconPanel from '~icons/fluent/panel-bottom-20-regular'
-import { panelOpen } from '../project-view'
+import { panelHere, panelOpen, togglePanel } from '../panel'
 
 // The status bar, quiet as VS Code's is now: the app and its version on the left, then how the
 // open project's station runs, and on the right where the project is kept. Each item shows a
@@ -69,7 +69,7 @@ const button = `${item} hover:bg-hover hover:text-fg focus-visible:-outline-offs
 
     <span class="flex-1" />
     <span v-if="problem" :class="item" class="text-danger">{{ problem }}</span>
-    <button v-if="running" :class="button" :aria-pressed="panelOpen" title="Show or hide the panel below the 3D view" @click="panelOpen = !panelOpen">
+    <button v-if="panelHere" :class="button" :aria-pressed="panelOpen" title="Show or hide the panel (⌘J or Ctrl+J)" @click="togglePanel">
       <IconPanel class="size-3.5" />Panel
     </button>
     <button v-if="project" :class="button" :title="`Kept as it changes, in ${project.folder}: click to show the folder`" @click="reveal">

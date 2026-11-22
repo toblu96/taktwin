@@ -69,7 +69,7 @@ If the engine has no primitive for what the module does, a module can bring a co
 The easiest way is the app itself:
 
 1. Switch on **Settings › General › Experimental › Expert mode**. **Projects › New project › Empty** then opens an empty station of a collection, edited. Or start a project on a station that is close to what you want, and switch the top bar to editing, which makes a copy that the project keeps.
-2. Pick modules on the left and put them down on the lines that light up. Move them with the arrows, and set their settings on the right. **Checks** lists what does not fit together.
+2. Pick modules on the left and put them down on the lines that light up. Move them with the arrows, and set their settings on the right. **Problems**, in the panel below, lists what does not fit together.
 3. **Wiring** shows the cables from the PLC to the I/O terminals, and the name the PLC knows each signal by.
 4. Switching editing off runs it. **I/O test** in the PLC panel switches outputs by hand.
 
@@ -98,7 +98,7 @@ To hand it out:
 
 ## Before sharing
 
-- `taktwin-cli -validate` passes, and **Checks** is empty while the station is edited.
+- `taktwin-cli -validate` passes, and **Problems** is empty while the station is edited.
 - Every check passes with a good program.
 - `version` in `collection.json` is raised.
 - Files for this repository name no particular vendor's training system: `catalog/public_test.go` refuses them. Such stations belong in a collection of their own.
