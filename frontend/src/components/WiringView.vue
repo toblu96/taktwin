@@ -218,9 +218,7 @@ const hint = computed(() => {
                   />
                   <span class="conn-name">
                     {{ c.id }}
-                    <small
-                      >{{ c.label.split(',')[0] }}<template v-if="c.byte !== undefined && c.byte !== null"> · byte {{ c.byte }}</template></small
-                    >
+                    <small>{{ c.label.split(',')[0] }}<template v-if="c.byte !== undefined && c.byte !== null"> · byte {{ c.byte }}</template></small>
                   </span>
                   <small class="to" :title="names.get(partner(c.ref)) ?? ''">{{ partner(c.ref) ? '↔ ' + (names.get(partner(c.ref)) ?? partner(c.ref)) : 'free' }}</small>
                 </div>
@@ -237,9 +235,7 @@ const hint = computed(() => {
                       </button>
                     </td>
                     <td class="what" :title="pin.source ? `${pin.function} · ${pin.source}` : pin.function">
-                      <template v-if="pin.source || pin.function">
-                        {{ pin.function || 'signal' }}<small v-if="pin.source"> · {{ pin.source }}</small>
-                      </template>
+                      <template v-if="pin.source || pin.function"> {{ pin.function || 'signal' }}<small v-if="pin.source"> · {{ pin.source }}</small> </template>
                       <span v-else class="spare">spare</span>
                     </td>
                     <td class="addr mono" :title="pin.address">{{ pin.shown || pin.address }}</td>

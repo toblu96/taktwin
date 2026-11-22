@@ -108,9 +108,7 @@ const hint = computed(() =>
             <span class="fold mono">{{ collapsed.has(c.id) && !search ? '+' : '−' }}</span>{{ c.name }}<span class="mono">{{ c.count }}</span>
           </button>
           <section v-for="level in collapsed.has(c.id) && !search ? [] : c.levels" :key="c.id + level.level">
-            <h3 class="band">
-              {{ level.title }}<span class="mono">{{ level.count }}</span>
-            </h3>
+            <h3 class="band">{{ level.title }}<span class="mono">{{ level.count }}</span></h3>
             <template v-for="group in level.groups" :key="group.name">
               <h4 v-if="group.name" class="group">{{ group.name }}</h4>
               <button

@@ -22,7 +22,8 @@ The app's own package embeds the built frontend, so `go test ./...` from the roo
 cd frontend
 npx vue-tsc --noEmit                              # types
 npx vite build                                    # frontend/dist
-npx prettier --check src                          # formatting, as .prettierrc.json says
+npm run fmt:check                                 # formatting with oxfmt, as .oxfmtrc.json says (npm run fmt fixes it)
+npm run lint                                      # oxlint; warnings fail it
 ```
 
 After changing the methods or types of a Go service, regenerate the frontend's bindings with `wails3 generate bindings -clean=true -ts -i` and commit them with the change. After changing the Go types of a file format, run `go run ./cmd/taktwin-schema` and commit `schema/`.

@@ -578,6 +578,7 @@ export class StationScene {
 
   // Marks what a station check is about: a red box around each module and a dot at the spot.
   highlight(instances: string[], at: { x: number; y: number; z: number } | null) {
+    // oxlint-disable-next-line unicorn/no-useless-spread -- a copy, as the loop removes children from the list
     for (const child of [...this.marks.children]) {
       this.marks.remove(child)
       if (child instanceof THREE.Box3Helper) child.dispose()
@@ -772,6 +773,7 @@ export class StationScene {
   // What was set onto a workpiece, where it was put, such as a cap or boxes on a pallet, and
   // what processes left on it: a filling that rises inside it, and holes into its top.
   private dressWorkpiece(mesh: THREE.Object3D, piece: WorkpieceView) {
+    // oxlint-disable-next-line unicorn/no-useless-spread -- a copy, as the loop removes children from the list
     for (const child of [...mesh.children]) {
       if (!child.userData.dressing) continue
       mesh.remove(child)

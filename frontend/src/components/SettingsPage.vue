@@ -164,9 +164,7 @@ async function reload() {
           </div>
           <p v-if="status" class="hint">{{ status }}</p>
           <p v-if="failed" class="problem">{{ failed }}</p>
-          <p v-for="p in problems" :key="p.name" class="problem">
-            <strong>{{ p.name }}</strong> {{ p.error }}
-          </p>
+          <p v-for="p in problems" :key="p.name" class="problem"><strong>{{ p.name }}</strong> {{ p.error }}</p>
         </section>
         <section v-if="settingsTab === 'collections'" class="block">
           <p class="hint">
@@ -231,9 +229,7 @@ async function reload() {
           <p class="about">
             <img src="/logo.svg" alt="" width="40" height="40" />
             <span>
-              <span
-                ><strong>Taktwin</strong> <span class="mono version">{{ update?.version ?? '' }}</span></span
-              >
+              <span><strong>Taktwin</strong> <span class="mono version">{{ update?.version ?? '' }}</span></span>
               <span class="hint">A PLC training simulator with a 3D digital twin of production stations. Apache License 2.0.</span>
             </span>
           </p>

@@ -34,9 +34,7 @@ function switchPin(pin: ScenePin) {
 <template>
   <PlcTest v-if="sim === simulation && hasOutputs" compact :plc="plc" />
   <section v-for="connector in connectors" :key="connector.id" class="section">
-    <h3 class="section-title">
-      {{ connector.type === 'wires' ? 'Signals' : connector.id }} <span class="kind">{{ connector.type === 'wires' ? '' : connector.label }}</span>
-    </h3>
+    <h3 class="section-title">{{ connector.type === 'wires' ? 'Signals' : connector.id }} <span class="kind">{{ connector.type === 'wires' ? '' : connector.label }}</span></h3>
     <table>
       <tbody>
         <tr v-for="pin in connector.pins" :key="pin.pin" :class="{ unused: !pin.wired }">
@@ -62,9 +60,7 @@ function switchPin(pin: ScenePin) {
           </td>
           <td class="wire mono" :title="pin.invert ? 'Inverted at the source' : ''">
             <span v-if="pin.analog && pin.wired" class="volts">{{ (snapshot?.states?.[pin.state] ?? 0).toFixed(2) }} V</span>
-            <template v-if="pin.plcName"
-              >{{ pin.invert ? '¬' : '' }}{{ pin.plcName }}<br /><small :title="pin.address">{{ pin.shown || pin.address }}</small></template
-            >
+            <template v-if="pin.plcName">{{ pin.invert ? '¬' : '' }}{{ pin.plcName }}<br /><small :title="pin.address">{{ pin.shown || pin.address }}</small></template>
             <small v-else-if="pin.wired && !pin.address && !service.SetPin && !pin.analog">not wired to PLC</small>
           </td>
         </tr>

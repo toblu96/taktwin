@@ -39,9 +39,7 @@ const setFault = (name: string, event: Event) => void service.SetFault(name, (ev
       <h3 class="section-title">{{ group.title }}</h3>
       <div v-for="parameter in group.list" :key="parameter.id" class="setting">
         <label class="row">
-          <span
-            >{{ parameter.label }}<small v-if="owner(parameter)" class="owner">{{ owner(parameter) }}</small></span
-          >
+          <span>{{ parameter.label }}<small v-if="owner(parameter)" class="owner">{{ owner(parameter) }}</small></span>
           <span class="field">
             <input v-if="parameter.boolean" type="checkbox" :checked="parameterValue(parameter.id, parameter.value) >= 0.5" @change="change(parameter, $event)" />
             <select v-else-if="parameter.options?.length" :value="parameterValue(parameter.id, parameter.value)" @change="change(parameter, $event)">

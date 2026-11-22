@@ -182,7 +182,7 @@ async function find() {
   finding.value = true
   message.value = ''
   try {
-    values.value = { ...values.value, ...((await Service.FindCODESYSList(plcId.value, values.value)) ?? {}) }
+    values.value = { ...values.value, ...(await Service.FindCODESYSList(plcId.value, values.value)) }
   } catch (error) {
     message.value = (error as Error).message
   } finally {

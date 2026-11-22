@@ -22,7 +22,7 @@ wails3 dev                                       # the app with hot reload
 wails3 task build                                # a native binary into bin/
 go test ./internal/... ./cmd/... ./catalog/...   # Go tests; the root package also needs frontend/dist
 (cd st && go test ./...)                         # the ST compiler, a Go module of its own
-(cd frontend && npx vue-tsc --noEmit && npx vite build)
+(cd frontend && npm run fmt && npm run lint && npx vue-tsc --noEmit && npx vite build)
 wails3 generate bindings -clean=true -ts -i      # after changing a Go service's methods or types
 go run ./cmd/taktwin-schema                      # after changing the Go types of a file format
 go run ./cmd/taktwin-cli -validate <folder or .taktwin>
@@ -36,6 +36,7 @@ The frontend's TypeScript bindings in `frontend/bindings/` are generated from th
 - **No third-party geometry.** Models are built from functional values such as sizes, positions and strokes. Never add, convert or trace meshes, textures or logos of a manufacturer.
 - **No station-, module- or exercise-specific code in the app.** Everything is described in JSON and runs on the engine's general primitives: devices, transports, joints, expressions, and Structured Text `program` devices that modules bring. If a new station needs something the primitives cannot do, add or extend a primitive. Never write code for that station.
 - **Never hardcode a path.** The user folder comes from Wails (`Documents/Taktwin` by default) or from `TAKTWIN_HOME`. Settings go to `TAKTWIN_CONFIG`, and `TAKTWIN_COLLECTIONS` adds collection folders for development and tests. Tests set all three to temporary folders.
+- **New packages must be at least 7 days old** (`frontend/.npmrc`), and are pinned to an exact version. A release only days old is where a compromised package shows up.
 - **Use the framework's own features** before writing your own: Wails menus with `CmdOrCtrl` accelerators, Wails dialogs, file drops and file associations. Don't write your own platform detection.
 - **No `confirm()`, `alert()` or `prompt()` in the frontend.** Wails' macOS webview never shows them, and `confirm()` answers no at once. Ask through `ask()` or `choose()` in `frontend/src/ask.ts`, which use Wails' native dialogs.
 - **No links out of the app, and no feedback form.** The repository's issues are not open to the public.
@@ -45,7 +46,7 @@ The frontend's TypeScript bindings in `frontend/bindings/` are generated from th
 ## Style
 
 - **Go:** `gofmt`. Doc comments are full sentences in plain English, saying what something is or does. Test names read as sentences, such as `TestAProjectKeepsItsWork`, with a comment saying what the test shows.
-- **Frontend:** Prettier with `.prettierrc.json` (single quotes, no semicolons, lines up to 180 characters). Vue single-file components with `<script setup lang="ts">`. Shared state lives in plain modules with refs (`sim.ts`, `builder.ts`, `update.ts`), not in a store library.
+- **Frontend:** formatted with [oxfmt](https://oxc.rs/docs/guide/usage/formatter) and `frontend/.oxfmtrc.json` (single quotes, no semicolons, lines up to 180 characters), linted with [oxlint](https://oxc.rs/docs/guide/usage/linter): `npm run fmt` and `npm run lint` in `frontend/`, which CI checks. Where a lint rule is wrong for a line, disable it for that line only, with the reason (`// oxlint-disable-next-line rule -- why`). Vue single-file components with `<script setup lang="ts">`. Shared state lives in plain modules with refs (`sim.ts`, `builder.ts`, `update.ts`), not in a store library.
 - **Words in the app and the docs:** short, plain, British spelling, no jargon where a plain word does.
 - **Commits and pull request titles** follow Conventional Commits, such as `feat(projects): …`, `fix(ui): …` or `docs: …`. The subject says what the change brings, and the body lists the details. Work on a branch named like the change (`feat/…`, `fix/…`, `docs/…`), never directly on `main`. Pull requests are squash-merged with their title.
 

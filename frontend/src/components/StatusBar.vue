@@ -51,10 +51,7 @@ async function reveal() {
         I/O test: outputs by hand
         <button @click="Service.SetIOTest(false)">End</button>
       </span>
-      <span v-if="snapshot?.step" class="item mono" title="The step the PLC's program is in">
-        <b>S{{ snapshot.step.number }}</b
-        >&nbsp;{{ snapshot.step.label }}
-      </span>
+      <span v-if="snapshot?.step" class="item mono" title="The step the PLC's program is in"> <b>S{{ snapshot.step.number }}</b>&nbsp;{{ snapshot.step.label }} </span>
       <span class="item mono" title="Simulated time and speed">{{ time }} · {{ snapshot?.speed ?? 1 }}×{{ snapshot?.paused ? ' · paused' : '' }}</span>
     </template>
     <template v-else-if="building">
