@@ -60,7 +60,7 @@ const selected = ref('B2 Pallet at the stop')
             <ul v-if="open[m.id]" role="group">
               <li v-for="c in m.children" :key="c" role="treeitem" :aria-selected="selected === c">
                 <button
-                  class="flex h-7 w-full items-center rounded-[5px] pr-2 pl-[42px] text-left text-muted hover:bg-hover"
+                  class="flex h-7 w-full items-center rounded-[5px] pr-2 pl-10.5 text-left text-muted hover:bg-hover"
                   :class="selected === c ? 'bg-select text-fg' : ''"
                   @click="selected = c"
                 >
@@ -88,7 +88,7 @@ const selected = ref('B2 Pallet at the stop')
           <span class="text-muted">Projects</span>
           <IconChevron class="size-3.5 text-faint" />
           <span class="font-semibold">Load a pallet</span>
-          <span class="rounded-[4px] bg-accent-soft px-1.5 text-[11px] leading-[18px] font-medium text-accent-ink">Exercise</span>
+          <span class="rounded-sm bg-accent-soft px-1.5 text-[11px] leading-4.5 font-medium text-accent-ink">Exercise</span>
           <span class="flex-1" />
           <span class="font-mono text-xs text-muted">00:42.3</span>
           <UiSegmented

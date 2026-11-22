@@ -18,7 +18,7 @@ function show(check: SceneCheck) {
   <ul v-if="scene?.checks?.length" class="m-0 flex list-none flex-col p-0">
     <li v-for="(check, i) in scene.checks" :key="i">
       <button
-        class="flex w-full cursor-default items-start gap-2 rounded-[5px] border-0 px-2 py-1 text-left text-fg focus-visible:outline-offset-[-2px]"
+        class="flex w-full cursor-default items-start gap-2 rounded-[5px] border-0 px-2 py-1 text-left text-fg focus-visible:-outline-offset-2"
         :class="showing(check) ? 'bg-highlight' : 'bg-transparent hover:bg-hover'"
         :aria-pressed="showing(check)"
         title="Show it in the 3D view"

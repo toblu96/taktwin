@@ -39,7 +39,7 @@ watch([model, () => props.options], () => nextTick(measure), { deep: true })
       :aria-pressed="model === o.value"
       :disabled="o.disabled"
       :title="o.title"
-      class="relative z-10 inline-flex h-full cursor-default items-center gap-1.5 rounded-sm border-0 bg-transparent px-2.5 py-0 text-[13px] leading-none text-muted select-none hover:text-fg focus-visible:outline-offset-[-2px] disabled:opacity-45 disabled:hover:text-muted aria-pressed:text-fg"
+      class="relative z-10 inline-flex h-full cursor-default items-center gap-1.5 rounded-sm border-0 bg-transparent px-2.5 py-0 text-[13px] leading-none text-muted select-none hover:text-fg focus-visible:-outline-offset-2 disabled:opacity-45 disabled:hover:text-muted aria-pressed:text-fg"
       @click="model = o.value"
     >
       <component :is="o.icon" v-if="o.icon" class="size-4" />

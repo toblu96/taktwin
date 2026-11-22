@@ -51,7 +51,7 @@ const speeds = computed(() =>
     <button class="t-btn t-btn-ghost h-7 px-1.5" title="Close the project and go back to your projects" @click="closeProject">Projects</button>
     <IconChevron class="size-3.5 shrink-0 text-faint" />
     <span class="min-w-0 truncate font-semibold" :title="project.folder">{{ project.name }}</span>
-    <span v-if="project.exerciseName" class="shrink-0 rounded-sm bg-accent-soft px-1.5 text-[11px] leading-[18px] font-medium text-accent-ink">Exercise</span>
+    <span v-if="project.exerciseName" class="shrink-0 rounded-sm bg-accent-soft px-1.5 text-[11px] leading-4.5 font-medium text-accent-ink">Exercise</span>
     <span v-if="(project.exerciseName || project.stationName) !== project.name" class="min-w-0 truncate text-muted">{{ project.exerciseName || project.stationName }}</span>
     <span v-if="viewProblem" class="flex min-w-0 items-center gap-1.5 truncate text-danger"><IconWarning class="size-4 shrink-0" />{{ viewProblem }}</span>
     <span class="flex-1" />

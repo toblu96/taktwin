@@ -104,7 +104,7 @@ const plcs = computed(() => {
   })
 })
 
-const row = 'flex h-7 w-full min-w-0 cursor-default items-center gap-1.5 rounded-[5px] border-0 pr-2 text-left text-fg focus-visible:outline-offset-[-2px]'
+const row = 'flex h-7 w-full min-w-0 cursor-default items-center gap-1.5 rounded-[5px] border-0 pr-2 text-left text-fg focus-visible:-outline-offset-2'
 const chosen = (on: boolean) => (on ? 'bg-highlight' : 'bg-transparent hover:bg-hover')
 </script>
 
@@ -153,7 +153,7 @@ const chosen = (on: boolean) => (on ? 'bg-highlight' : 'bg-transparent hover:bg-
         :class="p.module && selection === p.module ? 'border-focus' : ''"
       >
         <button
-          class="flex min-w-0 flex-1 cursor-default items-center gap-2 rounded-l-control border-0 bg-transparent py-1.5 pl-2.5 text-left text-fg hover:bg-hover focus-visible:outline-offset-[-2px]"
+          class="flex min-w-0 flex-1 cursor-default items-center gap-2 rounded-l-control border-0 bg-transparent py-1.5 pl-2.5 text-left text-fg hover:bg-hover focus-visible:-outline-offset-2"
           :disabled="!p.module"
           :title="p.module ? `Show ${p.name}: its connection and settings` : undefined"
           @click="selection = p.module"

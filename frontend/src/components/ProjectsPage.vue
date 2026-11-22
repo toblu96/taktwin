@@ -105,7 +105,7 @@ onUnmounted(() => window.removeEventListener('keydown', key))
 
 <template>
   <main class="group relative min-h-0 overflow-auto" data-file-drop-target>
-    <div class="mx-auto max-w-[1180px] px-8 pt-7 pb-10">
+    <div class="mx-auto max-w-295 px-8 pt-7 pb-10">
       <header class="mb-5 flex items-end gap-3">
         <div>
           <h1 class="m-0 text-xl font-semibold tracking-tight">Projects</h1>
@@ -159,7 +159,7 @@ onUnmounted(() => window.removeEventListener('keydown', key))
           :title="e.description || 'Start a project of your own on this station'"
           @click="act(() => newProject({ station: e.station, exercise: '' }))"
         >
-          <span class="flex h-12 w-[76px] shrink-0 items-center justify-center rounded-[5px] bg-s3"><img src="/logo.svg" alt="" class="size-7 opacity-70" /></span>
+          <span class="flex h-12 w-19 shrink-0 items-center justify-center rounded-[5px] bg-s3"><img src="/logo.svg" alt="" class="size-7 opacity-70" /></span>
           <span class="min-w-0">
             <span class="block truncate font-semibold">{{ e.stationName }}</span>
             <span class="block truncate text-xs text-muted">Example · {{ e.collection }}</span>
@@ -170,7 +170,7 @@ onUnmounted(() => window.removeEventListener('keydown', key))
           :disabled="busy"
           @click="create('empty')"
         >
-          <span class="flex h-12 w-[76px] shrink-0 items-center justify-center rounded-[5px] bg-s3 text-muted"><IconWrench class="size-5" /></span>
+          <span class="flex h-12 w-19 shrink-0 items-center justify-center rounded-[5px] bg-s3 text-muted"><IconWrench class="size-5" /></span>
           <span class="min-w-0">
             <span class="block font-semibold">Build your own</span>
             <span class="block text-xs text-muted">An empty station to put together</span>

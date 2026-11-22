@@ -158,7 +158,7 @@ async function reload() {
       <button
         v-for="t in tabs"
         :key="t.id"
-        class="flex h-8 cursor-default items-center gap-2.5 rounded-control border-0 px-2 text-left focus-visible:outline-offset-[-2px]"
+        class="flex h-8 cursor-default items-center gap-2.5 rounded-control border-0 px-2 text-left focus-visible:-outline-offset-2"
         :class="tab === t.id ? 'bg-highlight text-fg' : 'bg-transparent text-muted hover:bg-hover hover:text-fg'"
         :aria-current="tab === t.id ? 'page' : undefined"
         @click="showTab(t.id)"
@@ -219,7 +219,7 @@ async function reload() {
                   <div class="flex flex-wrap items-center gap-2">
                     <strong class="font-semibold">{{ c.name }}</strong>
                     <span v-if="c.version" class="font-mono text-xs text-muted">{{ c.version }}</span>
-                    <span class="rounded-sm bg-s3 px-1.5 text-[11px] leading-[18px] text-muted">{{ SOURCES[c.source] ?? c.source }}</span>
+                    <span class="rounded-sm bg-s3 px-1.5 text-[11px] leading-4.5 text-muted">{{ SOURCES[c.source] ?? c.source }}</span>
                     <span v-if="c.hidden" class="rounded-sm border border-control px-1.5 text-[11px] leading-4 text-muted">Hidden</span>
                   </div>
                   <p v-if="c.description" class="m-0 mt-1 text-muted">{{ c.description }}</p>

@@ -85,7 +85,7 @@ const exact = (iso?: string) => (iso ? new Date(iso).toLocaleString() : '')
     >
       <img v-if="p.thumbnail" :src="p.thumbnail" alt="" class="block size-full object-cover" :class="p.problem ? 'grayscale' : ''" />
       <img v-else src="/logo.svg" alt="" class="absolute top-1/2 left-1/2 size-14 -translate-1/2 opacity-60" />
-      <span v-if="p.exercise" class="absolute top-2 left-2 rounded-sm bg-accent px-1.5 text-[11px] leading-[18px] font-semibold text-on-accent">Exercise</span>
+      <span v-if="p.exercise" class="absolute top-2 left-2 rounded-sm bg-accent px-1.5 text-[11px] leading-4.5 font-semibold text-on-accent">Exercise</span>
     </button>
     <div class="flex items-start gap-2 px-3 pt-2.5 pb-3">
       <div class="min-w-0 flex-1">

@@ -58,7 +58,7 @@ const menu = (exercise: boolean) => [
         ]"
       />
       <main class="min-w-0 flex-1 overflow-auto">
-        <div class="mx-auto max-w-[1180px] px-8 pt-7 pb-10">
+        <div class="mx-auto max-w-295 px-8 pt-7 pb-10">
           <header class="mb-5 flex items-end gap-4">
             <div>
               <h1 class="text-xl font-semibold tracking-tight">Projects</h1>
@@ -91,7 +91,7 @@ const menu = (exercise: boolean) => [
               :key="p.name"
               class="group hover:border-line-strong overflow-hidden rounded-card border border-line bg-s1 transition-[border-color,translate] hover:-translate-y-px"
             >
-              <button class="block aspect-[16/10] w-full overflow-hidden bg-[#cfd7d8]" :aria-label="`Open ${p.name}`">
+              <button class="block aspect-16/10 w-full overflow-hidden bg-[#cfd7d8]" :aria-label="`Open ${p.name}`">
                 <img :src="p.picture" alt="" class="size-full object-cover" />
               </button>
               <div class="flex items-start gap-2 px-3 pt-2.5 pb-3">
@@ -116,14 +116,14 @@ const menu = (exercise: boolean) => [
           <h2 class="mt-9 mb-3 text-[13px] font-semibold text-muted">Start from</h2>
           <div class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
             <button class="border-line-strong flex items-center gap-3 rounded-card border border-dashed p-3 text-left hover:bg-hover">
-              <img src="/lab/station.jpg" alt="" class="h-12 w-[76px] rounded-[5px] object-cover" />
+              <img src="/lab/station.jpg" alt="" class="h-12 w-19 rounded-[5px] object-cover" />
               <span>
                 <span class="block font-semibold">Pallet loading</span>
                 <span class="text-xs text-muted">Example · Taktwin</span>
               </span>
             </button>
             <button class="border-line-strong flex items-center gap-3 rounded-card border border-dashed p-3 text-left hover:bg-hover" @click="creating = true">
-              <span class="flex h-12 w-[76px] items-center justify-center rounded-[5px] bg-s3 text-muted"><IconWrench class="size-5" /></span>
+              <span class="flex h-12 w-19 items-center justify-center rounded-[5px] bg-s3 text-muted"><IconWrench class="size-5" /></span>
               <span>
                 <span class="block font-semibold">Build your own</span>
                 <span class="text-xs text-muted">An empty station to put together</span>

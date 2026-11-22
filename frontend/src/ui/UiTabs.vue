@@ -25,7 +25,7 @@ const model = defineModel<string>({ required: true })
       </TabsList>
       <div v-if="$slots.actions" class="flex h-full items-center gap-0.5 pl-2"><slot name="actions" /></div>
     </div>
-    <TabsPanel v-for="t in tabs" :key="t.value" :value="t.value" class="min-h-0 flex-1 overflow-auto bg-s0 p-3 focus-visible:outline-offset-[-2px]">
+    <TabsPanel v-for="t in tabs" :key="t.value" :value="t.value" class="min-h-0 flex-1 overflow-auto bg-s0 p-3 focus-visible:-outline-offset-2">
       <slot :name="t.value" />
     </TabsPanel>
   </Tabs>
