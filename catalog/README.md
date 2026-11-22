@@ -53,7 +53,7 @@ A module is a physical unit you could unscrew from where it stands. Its coordina
 | `plc` | For a PLC: how it shows its addresses. See [PLCs](#plcs) |
 | `group` | Where the library lists an accessory: Sensors, Actuators, PLC and I/O, or Mechanical |
 
-A `description` on a module is what people read in the library, so say what it is and what it does. The library previews every entry on its own, without a PLC.
+A `description` on a module is what people read in the library, so say what it is and what it does. The library previews every entry on its own, without a PLC. It does so with the workpieces its collection names, and offers on each transport only the kinds of the `family` that the module's own `placeWorkpiece` actions on that transport name, such as cartons on a carton conveyor; without one, every kind.
 
 Any number can be an expression over parameters, such as `"length - 47"` or `"radius * sin(45)"`. Angles are degrees. Expressions know `+ - * /`, comparisons, `&&`, `||` and `!` (true is 1, and anything from 0.5 counts as true), and `sin`, `cos`, `asin`, `sqrt`, `abs`, `min` and `max`. Anything with `"when"` only exists if the expression isn't zero. A station can pass text with `texts`, used as `{name}` in text fields.
 

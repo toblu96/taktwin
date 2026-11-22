@@ -41,8 +41,8 @@ const parameters = computed(() => {
     </header>
     <div class="context-body min-h-0 flex-1 overflow-y-auto">
       <template v-if="selected">
-        <section v-if="panelWidgets.length" class="section">
-          <h3 class="section-title">Controls</h3>
+        <section v-if="panelWidgets.length" class="t-section">
+          <h3 class="t-section-title">Controls</h3>
           <WidgetList :widgets="panelWidgets" />
         </section>
         <PlcSection v-if="selected.isPlc" :signals="false" />

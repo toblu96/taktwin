@@ -7,11 +7,10 @@ import { detailsWidth, treeWidth } from '../layout'
 import { current, enter, entries, lastEntry, leave, open, openError, preview, rootInstance } from '../library'
 import { simKey } from '../sim'
 import UiSash from '../ui/UiSash.vue'
-import UiTree, { type TreeHeading, type TreeRow } from '../ui/UiTree.vue'
+import UiTree, { type TreeHeading, type TreeRow, type TreeSection } from '../ui/UiTree.vue'
 import StationViewer from '../viewer/StationViewer.vue'
 import LibraryDetails from './LibraryDetails.vue'
 import StationDock from './StationDock.vue'
-import IconCollection from '~icons/fluent/library-16-regular'
 import IconStation from '~icons/fluent/grid-16-regular'
 import IconModule from '~icons/fluent/cube-16-regular'
 import IconAccessory from '~icons/fluent/toolbox-16-regular'
@@ -51,13 +50,12 @@ watch(
 )
 
 const search = ref('')
-const expanded = ref(new Set<string>())
 
 const levels = [
-  { level: 'station', title: 'Stations', tree: true },
-  { level: 'module', title: 'Modules', tree: true },
-  { level: 'accessory', title: 'Accessories', tree: false },
-  { level: 'part', title: 'Parts', tree: false },
+  { level: 'station', title: 'Stations' },
+  { level: 'module', title: 'Modules' },
+  { level: 'accessory', title: 'Accessories' },
+  { level: 'part', title: 'Parts' },
 ]
 
 // Sensors and actuators first, then the rest.
@@ -65,26 +63,12 @@ const groupOrder = ['Sensors', 'Actuators', 'PLC and I/O', 'Mechanical', 'Pneuma
 
 const key = (e: { level: string; id: string }) => `${e.level}/${e.id}`
 
-// Stations and modules unfold into what they are built from. A search lists
-// everything that matches, flat.
-function rows(entry: Entry, depth: number, parents: string[]): { entry: Entry; depth: number; path: string }[] {
-  const path = [...parents, key(entry)].join('>')
-  const list = [{ entry, depth, path }]
-  if (!expanded.value.has(path)) return list
-  for (const ref of entry.contains ?? []) {
-    const child = entries.value.find((e) => e.id === ref.id && e.level === ref.level)
-    if (child && child.level !== 'part') list.push(...rows(child, depth + 1, [...parents, key(entry)]))
-  }
-  return list
-}
-
-const canUnfold = (entry: Entry) => (entry.contains ?? []).some((c) => c.level !== 'part')
-
-// Each collection with its levels: stations, modules, accessories and parts.
+// Each collection is a section of its own, which opens and closes, with its stations, modules,
+// accessories and parts. What an entry is built from shows beside its preview, not here.
 const collapsed = ref(new Set<string>())
-function toggleCollection(id: string) {
+function toggleCollection(id: string, open: boolean) {
   const next = new Set(collapsed.value)
-  if (next.has(id)) next.delete(id)
+  if (open) next.delete(id)
   else next.add(id)
   collapsed.value = next
 }
@@ -103,39 +87,21 @@ function levelsOf(all: Entry[], term: string) {
       const inLevel = all.filter((e) => e.level === level.level)
       const matching = term ? inLevel.filter((e) => `${e.name} ${e.id} ${e.group ?? ''} ${e.description ?? ''}`.toLowerCase().includes(term)) : inLevel
       const names = [...new Set(matching.map((e) => e.group ?? ''))].sort((a, b) => (groupOrder.indexOf(a) + 1 || 99) - (groupOrder.indexOf(b) + 1 || 99))
-      return {
-        ...level,
-        count: matching.length,
-        groups: names.map((name) => ({
-          name,
-          rows: matching.filter((e) => (e.group ?? '') === name).flatMap((e) => (level.tree && !term ? rows(e, 0, []) : [{ entry: e, depth: 0, path: key(e) }])),
-        })),
-      }
+      return { ...level, count: matching.length, groups: names.map((name) => ({ name, entries: matching.filter((e) => (e.group ?? '') === name) })) }
     })
     .filter((level) => level.count > 0)
 }
 
-function choose(row: { entry: Entry; path: string }) {
-  if (canUnfold(row.entry)) {
-    const next = new Set(expanded.value)
-    // Choosing it again folds it, while choosing it the first time always shows it.
-    if (current.value && key(current.value) === key(row.entry) && next.has(row.path)) next.delete(row.path)
-    else next.add(row.path)
-    expanded.value = next
-  }
-  void show(row.entry)
-}
-
-// The tree's rows: each collection, which opens and closes, with its levels and groups as
-// headings and its entries below them.
+// The tree's rows: a section for each collection, open while searching, with its levels and
+// groups as headings and its entries below them.
 const icons: Record<string, typeof IconStation> = { station: IconStation, module: IconModule, accessory: IconAccessory, part: IconPart }
-const byKey = new Map<string, { entry: Entry; path: string }>()
-const items = computed<(TreeRow | TreeHeading)[]>(() => {
+const byKey = new Map<string, Entry>()
+const items = computed<(TreeRow | TreeHeading | TreeSection)[]>(() => {
   byKey.clear()
   const term = search.value.trim()
   return visible.value.flatMap((c) => {
     const open = !collapsed.value.has(c.id) || !!term
-    const head: TreeRow = { key: `c:${c.id}`, label: c.name, icon: IconCollection, children: true, open, count: c.count, strong: true }
+    const head: TreeSection = { key: `c:${c.id}`, section: c.name, open, count: c.count }
     if (!open) return [head]
     return [
       head,
@@ -143,21 +109,18 @@ const items = computed<(TreeRow | TreeHeading)[]>(() => {
         { key: `l:${c.id}:${level.level}`, heading: level.title, count: level.count } as TreeHeading,
         ...level.groups.flatMap((group) => [
           ...(group.name ? [{ key: `g:${c.id}:${level.level}:${group.name}`, heading: group.name, depth: 1 } as TreeHeading] : []),
-          ...group.rows.map((row): TreeRow => {
-            const k = `e:${c.id}:${row.path}`
-            byKey.set(k, row)
-            const parentPath = row.path.split('>').slice(0, -1).join('>')
+          ...group.entries.map((entry): TreeRow => {
+            const k = `e:${c.id}:${key(entry)}`
+            byKey.set(k, entry)
             return {
               key: k,
-              label: row.entry.name,
-              depth: row.depth + (group.name ? 1 : 0),
-              icon: row.entry.error ? IconWarning : icons[row.entry.level],
-              children: level.tree && !term && canUnfold(row.entry),
-              open: expanded.value.has(row.path),
-              selected: !!current.value && key(current.value) === key(row.entry),
-              parent: parentPath ? `e:${c.id}:${parentPath}` : `c:${c.id}`,
-              title: row.entry.error || row.entry.description,
-              danger: !!row.entry.error,
+              label: entry.name,
+              depth: group.name ? 1 : 0,
+              icon: entry.error ? IconWarning : icons[entry.level],
+              selected: !!current.value && key(current.value) === key(entry),
+              parent: `c:${c.id}`,
+              title: entry.error || entry.description,
+              danger: !!entry.error,
             }
           }),
         ]),
@@ -167,23 +130,11 @@ const items = computed<(TreeRow | TreeHeading)[]>(() => {
 })
 
 function select(k: string) {
-  if (k.startsWith('c:')) toggleCollection(k.slice(2))
-  else {
-    const row = byKey.get(k)
-    if (row) choose(row)
-  }
+  const entry = byKey.get(k)
+  if (entry) void show(entry)
 }
-function toggle(k: string, to: boolean) {
-  if (k.startsWith('c:')) {
-    if (collapsed.value.has(k.slice(2)) === to) toggleCollection(k.slice(2))
-    return
-  }
-  const row = byKey.get(k)
-  if (!row) return
-  const next = new Set(expanded.value)
-  if (to) next.add(row.path)
-  else next.delete(row.path)
-  expanded.value = next
+function toggle(k: string, open: boolean) {
+  if (k.startsWith('c:')) toggleCollection(k.slice(2), open)
 }
 
 const hint = computed(() =>

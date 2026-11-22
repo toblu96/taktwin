@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { Switch, SwitchThumb } from '@ui-sdk/vue/switch'
 
-// A setting that is on or off, with its label beside it. On, it is teal, the colour of what is
-// chosen, and so is its focus ring; the thumb slides, the colours change at once.
-defineProps<{ label: string; disabled?: boolean }>()
+// A setting that is on or off, with its label beside it, or before it at the start of a row that
+// it ends (trailing), as in a list of settings. On, it is teal, the colour of what is chosen, and
+// so is its focus ring; the thumb slides, the colours change at once.
+defineProps<{ label: string; disabled?: boolean; trailing?: boolean }>()
 const model = defineModel<boolean>({ required: true })
 </script>
 
 <template>
-  <label class="inline-flex cursor-default items-center gap-2.5 select-none" :class="disabled ? 'opacity-45' : ''">
+  <label class="cursor-default items-center gap-2.5 select-none" :class="[disabled ? 'opacity-45' : '', trailing ? 'flex flex-row-reverse justify-between' : 'inline-flex']">
     <Switch
       v-model="model"
       :disabled="disabled"
