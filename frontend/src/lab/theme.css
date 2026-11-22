@@ -1,0 +1,154 @@
+/* UI SDK's own few styles sit in their layer, below everything of ours. */
+@layer ui-sdk;
+@import 'tailwindcss';
+
+/*
+  Taktwin's look, tried out in the UI lab. Surfaces step from the canvas (0) to the chrome around
+  it (1), to what is raised above it (2: menus, dialogs, cards), with hairline borders between
+  them, as VS Code's modern UI does. Taktwin's own colours mark what matters: amber for the one
+  action a page is about and the active item, teal for focus and selection. Everything comes in
+  dark and light, following the system unless data-theme says otherwise.
+*/
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --t-s0: #111315;
+  --t-s1: #17191c;
+  --t-s2: #1e2124;
+  --t-s3: #272b2f;
+  --t-hover: #ffffff0d;
+  --t-press: #ffffff17;
+  --t-line: #2a2e32;
+  --t-line-strong: #3a3f45;
+  --t-fg: #d7dadc;
+  --t-muted: #8e959b;
+  --t-faint: #636a70;
+  --t-accent: #f0b43e;
+  --t-on-accent: #1d1503;
+  --t-accent-soft: #f0b43e1f;
+  --t-accent-ink: #f0b43e;
+  --t-focus: #4ec5b2;
+  --t-select: #4ec5b224;
+  --t-danger: #f2766b;
+  --t-ok: #5cd29a;
+  --t-shadow: 0 8px 24px #0000006b, 0 0 0 1px #ffffff0a;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --t-s0: #ffffff;
+  --t-s1: #f6f7f8;
+  --t-s2: #ffffff;
+  --t-s3: #eceef0;
+  --t-hover: #0000000a;
+  --t-press: #00000014;
+  --t-line: #e3e6e9;
+  --t-line-strong: #cdd2d6;
+  --t-fg: #1c2125;
+  --t-muted: #5b646b;
+  --t-faint: #8a9298;
+  --t-accent: #f0b43e;
+  --t-on-accent: #1d1503;
+  --t-accent-soft: #f0b43e2e;
+  --t-accent-ink: #7a5200;
+  --t-focus: #0e8a78;
+  --t-select: #0e8a781f;
+  --t-danger: #c93b30;
+  --t-ok: #1e8f5a;
+  --t-shadow: 0 8px 24px #1c21251f, 0 0 0 1px #1c21250f;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --t-s0: #ffffff;
+    --t-s1: #f6f7f8;
+    --t-s2: #ffffff;
+    --t-s3: #eceef0;
+    --t-hover: #0000000a;
+    --t-press: #00000014;
+    --t-line: #e3e6e9;
+    --t-line-strong: #cdd2d6;
+    --t-fg: #1c2125;
+    --t-muted: #5b646b;
+    --t-faint: #8a9298;
+    --t-accent-soft: #f0b43e2e;
+    --t-accent-ink: #7a5200;
+    --t-focus: #0e8a78;
+    --t-select: #0e8a781f;
+    --t-danger: #c93b30;
+    --t-ok: #1e8f5a;
+    --t-shadow: 0 8px 24px #1c21251f, 0 0 0 1px #1c21250f;
+  }
+}
+
+/* The tokens as Tailwind utilities: bg-s1, text-muted, border-line, ring-focus and so on. */
+@theme inline {
+  --color-s0: var(--t-s0);
+  --color-s1: var(--t-s1);
+  --color-s2: var(--t-s2);
+  --color-s3: var(--t-s3);
+  --color-hover: var(--t-hover);
+  --color-press: var(--t-press);
+  --color-line: var(--t-line);
+  --color-line-strong: var(--t-line-strong);
+  --color-fg: var(--t-fg);
+  --color-muted: var(--t-muted);
+  --color-faint: var(--t-faint);
+  --color-accent: var(--t-accent);
+  --color-on-accent: var(--t-on-accent);
+  --color-accent-soft: var(--t-accent-soft);
+  --color-accent-ink: var(--t-accent-ink);
+  --color-focus: var(--t-focus);
+  --color-select: var(--t-select);
+  --color-danger: var(--t-danger);
+  --color-ok: var(--t-ok);
+  --shadow-pop: var(--t-shadow);
+  --radius-control: 6px;
+  --radius-card: 8px;
+  --radius-dialog: 10px;
+  --font-sans: system-ui, -apple-system, 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+}
+
+@layer base {
+  html,
+  body,
+  #lab {
+    height: 100%;
+  }
+  body {
+    @apply bg-s0 font-sans text-[13px] leading-[1.45] text-fg antialiased;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-1 outline-focus;
+  }
+}
+
+/* What the components share, so that both libraries' versions look alike. */
+@layer components {
+  .t-btn {
+    @apply inline-flex h-7 items-center gap-1.5 rounded-control border border-line bg-s2 px-2.5 text-[13px] font-medium text-fg transition-colors select-none hover:bg-s3 disabled:opacity-45;
+  }
+  .t-btn-primary {
+    @apply border-transparent bg-accent text-on-accent hover:brightness-105;
+  }
+  .t-btn-ghost {
+    @apply border-transparent bg-transparent text-muted hover:bg-hover hover:text-fg;
+  }
+  .t-icon-btn {
+    @apply inline-flex size-7 items-center justify-center rounded-control text-muted hover:bg-hover hover:text-fg;
+  }
+  .t-popup {
+    @apply z-50 min-w-44 rounded-card border border-line bg-s2 p-1 shadow-pop;
+  }
+  .t-item {
+    @apply flex h-7 cursor-default items-center gap-2 rounded-[5px] px-2 text-fg outline-none select-none;
+  }
+  .t-input {
+    @apply h-7 w-full rounded-control border border-line bg-s0 px-2 text-fg placeholder:text-faint focus-visible:border-focus focus-visible:outline-none;
+  }
+  .t-label {
+    @apply text-xs font-medium text-muted;
+  }
+}
