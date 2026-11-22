@@ -2,10 +2,13 @@
 import { computed } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { simulation, useSim } from '../sim'
+import UiLamp from '../ui/UiLamp.vue'
 import PlcTest from './PlcTest.vue'
 import type { SceneConnector, ScenePin } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 
-// The pins of a module with their live state and what is behind them.
+// The pins of a module, connector by connector, with their live state, what each is for and
+// which PLC signal is wired to it. In the library any free signal can be switched by its lamp,
+// in a running station a PLC output during the I/O test.
 const props = defineProps<{ connectors: SceneConnector[] }>()
 
 const sim = useSim()
@@ -20,7 +23,6 @@ const hasOutputs = computed(() => props.connectors.some((c) => c.pins?.some(plcO
 const plc = computed(() => props.connectors.flatMap((c) => c.pins ?? []).find(plcOutput)?.plc ?? '')
 const plcOf = (pin: ScenePin) => snapshot.value?.plcs?.find((p, i) => (pin.plc ? p.id === pin.plc : i === 0))
 
-// In a preview any free signal can be switched, and in an I/O test any PLC output.
 const testOutput = (pin: ScenePin) => sim === simulation && !!plcOf(pin)?.ioTest && plcOutput(pin)
 const canSwitch = (pin: ScenePin) => (pin.forcible && !!service.SetPin) || testOutput(pin)
 
@@ -29,136 +31,49 @@ function switchPin(pin: ScenePin) {
   if (testOutput(pin)) void Service.SetTestOutputFor(pin.plc ?? '', pin.address ?? '', on)
   else void service.SetPin?.(pin.state, on)
 }
+
+const row = 'flex min-h-8 items-center gap-2.5 border-0 border-b border-solid border-line py-1 last:border-b-0'
 </script>
 
 <template>
-  <PlcTest v-if="sim === simulation && hasOutputs" compact :plc="plc" />
-  <section v-for="connector in connectors" :key="connector.id" class="section">
-    <h3 class="section-title">{{ connector.type === 'wires' ? 'Signals' : connector.id }} <span class="kind">{{ connector.type === 'wires' ? '' : connector.label }}</span></h3>
-    <table>
-      <tbody>
-        <tr v-for="pin in connector.pins" :key="pin.pin" :class="{ unused: !pin.wired }">
-          <td class="dot-cell">
-            <span v-if="pin.analog" class="wave" title="Analogue signal">~</span>
-            <button
-              v-else-if="canSwitch(pin)"
-              class="force"
-              :aria-pressed="stateOn(pin.state)"
-              :title="`Switch ${pin.pin} ${stateOn(pin.state) ? 'off' : 'on'}`"
-              @click="switchPin(pin)"
-            >
-              <span class="dot" :class="[pin.output ? 'out' : 'in', { on: stateOn(pin.state) }]" />
-            </button>
-            <span v-else class="dot" :class="[pin.output ? 'out' : 'in', { on: stateOn(pin.state) }]" />
-          </td>
-          <td v-if="connector.type !== 'wires'" class="pin mono">{{ pin.pin }}</td>
-          <td class="function">
-            <template v-if="pin.function"
-              >{{ pin.function }}<small v-if="pin.source"><br />{{ pin.source }}</small></template
-            >
-            <small v-else>{{ pin.spare ? 'Spare' : 'Not used' }}</small>
-          </td>
-          <td class="wire mono" :title="pin.invert ? 'Inverted at the source' : ''">
-            <span v-if="pin.analog && pin.wired" class="volts">{{ (snapshot?.states?.[pin.state] ?? 0).toFixed(2) }} V</span>
-            <template v-if="pin.plcName">{{ pin.invert ? '¬' : '' }}{{ pin.plcName }}<br /><small :title="pin.address">{{ pin.shown || pin.address }}</small></template>
-            <small v-else-if="pin.wired && !pin.address && !service.SetPin && !pin.analog">not wired to PLC</small>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <PlcTest v-if="sim === simulation && hasOutputs" :plc="plc" />
+  <section v-for="connector in connectors" :key="connector.id" class="t-section">
+    <h3 class="t-section-title">
+      {{ connector.type === 'wires' ? 'Signals' : connector.id }}
+      <span v-if="connector.type !== 'wires'" class="ml-1 font-normal tracking-normal normal-case">{{ connector.label }}</span>
+    </h3>
+    <ul class="m-0 list-none p-0">
+      <li v-for="pin in connector.pins" :key="pin.pin" :class="row">
+        <span class="grid w-4 shrink-0 place-items-center" :class="pin.wired ? '' : 'opacity-50'">
+          <span v-if="pin.analog" class="text-sm leading-none text-muted" title="Analogue signal">~</span>
+          <button
+            v-else-if="canSwitch(pin)"
+            class="-m-1 grid size-5 cursor-default place-items-center rounded-full border-0 bg-transparent p-0 hover:bg-hover"
+            :aria-pressed="stateOn(pin.state)"
+            :aria-label="`Switch ${pin.function || pin.pin} ${stateOn(pin.state) ? 'off' : 'on'}`"
+            @click="switchPin(pin)"
+          >
+            <UiLamp :on="stateOn(pin.state)" :out="pin.output" />
+          </button>
+          <UiLamp v-else :on="stateOn(pin.state)" :out="pin.output" />
+        </span>
+        <span v-if="connector.type !== 'wires'" class="w-6 shrink-0 font-mono text-xs font-semibold" :class="pin.wired ? '' : 'text-faint'">{{ pin.pin }}</span>
+        <span class="min-w-0 flex-1">
+          <template v-if="pin.function">
+            <span class="block truncate">{{ pin.function }}</span>
+            <span v-if="pin.source" class="block truncate text-xs text-muted">{{ pin.source }}</span>
+          </template>
+          <span v-else class="text-xs text-faint">{{ pin.spare ? 'Spare' : 'Not used' }}</span>
+        </span>
+        <span class="shrink-0 text-right font-mono text-xs leading-tight" :title="pin.invert ? 'Inverted at the source' : undefined">
+          <span v-if="pin.analog && pin.wired" class="mr-2 text-lamp-in">{{ (snapshot?.states?.[pin.state] ?? 0).toFixed(2) }} V</span>
+          <template v-if="pin.plcName">
+            <span class="block">{{ pin.invert ? '¬' : '' }}{{ pin.plcName }}</span>
+            <span class="block text-[11px] text-muted" :title="pin.address">{{ pin.shown || pin.address }}</span>
+          </template>
+          <span v-else-if="pin.wired && !pin.address && !service.SetPin && !pin.analog" class="text-[11px] text-muted">not wired to the PLC</span>
+        </span>
+      </li>
+    </ul>
   </section>
 </template>
-
-<style scoped>
-.kind {
-  font-weight: 400;
-  letter-spacing: 0;
-  margin-left: 4px;
-  text-transform: none;
-}
-
-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-td {
-  border-bottom: 1px solid #1a3a3f;
-  padding: 3px 6px 3px 0;
-}
-
-.unused {
-  opacity: 0.55;
-}
-
-.dot-cell {
-  width: 18px;
-}
-
-.volts {
-  color: var(--signal);
-  margin-right: 8px;
-  white-space: nowrap;
-}
-
-.force {
-  background: none;
-  border: 1px solid var(--line);
-  border-radius: 50%;
-  display: grid;
-  height: 17px;
-  margin-left: -4px;
-  padding: 0;
-  place-items: center;
-  width: 17px;
-}
-
-.force:hover {
-  background: var(--panel-raised);
-  border-color: var(--text-dim);
-}
-
-.dot {
-  background: #24464b;
-  border-radius: 50%;
-  display: block;
-  height: 9px;
-  width: 9px;
-}
-
-.wave {
-  color: var(--text-dim);
-  display: block;
-  font-size: 13px;
-  line-height: 9px;
-}
-
-.dot.in.on {
-  background: #4ee67c;
-  box-shadow: 0 0 6px #4ee67c;
-}
-
-.dot.out.on {
-  background: #ff9d2e;
-  box-shadow: 0 0 6px #ff9d2e;
-}
-
-.pin {
-  font-size: 12px;
-  font-weight: 600;
-  width: 34px;
-}
-
-.wire {
-  font-size: 12px;
-  line-height: 1.25;
-  padding-right: 0;
-  text-align: right;
-  white-space: nowrap;
-}
-
-small {
-  color: var(--text-dim);
-  font-size: 11px;
-}
-</style>

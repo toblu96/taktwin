@@ -33,7 +33,8 @@ async function reveal() {
   }
 }
 
-const item = 'flex h-6 shrink-0 cursor-default items-center gap-1.5 rounded-sm border-0 bg-transparent px-1.5 text-xs text-muted'
+const base = 'flex h-6 shrink-0 cursor-default items-center gap-1.5 rounded-sm border-0 px-1.5 text-xs'
+const item = `${base} bg-transparent text-muted`
 const button = `${item} hover:bg-hover hover:text-fg focus-visible:-outline-offset-2`
 </script>
 
@@ -51,9 +52,11 @@ const button = `${item} hover:bg-hover hover:text-fg focus-visible:-outline-offs
         <span class="size-1.5 rounded-full" :class="lamp[link] ?? 'bg-faint'" />
         {{ snapshot?.plc ?? 'No PLC' }}<template v-if="link"> · {{ linkText[link] ?? link }}</template>
       </button>
-      <span v-if="snapshot?.ioTest" :class="item" class="bg-accent font-medium text-on-accent">
+      <span v-if="snapshot?.ioTest" :class="base" class="bg-accent font-medium text-on-accent">
         I/O test: outputs by hand
-        <button class="t-btn h-4.5 border-0 bg-on-accent px-1.5 text-[11px] text-accent hover:bg-on-accent" @click="Service.SetIOTest(false)">End</button>
+        <button class="t-btn h-4.5 border-0 bg-on-accent px-1.5 text-[11px] text-accent hover:bg-on-accent focus-visible:-outline-offset-2" @click="Service.SetIOTest(false)">
+          End
+        </button>
       </span>
       <span v-if="snapshot?.step" :class="item" class="font-mono" title="The step the PLC's program is in">
         <b class="font-semibold text-accent-ink">S{{ snapshot.step.number }}</b>{{ snapshot.step.label }}

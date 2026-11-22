@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { bit, simulation, useSim } from '../sim'
+import UiLamp from '../ui/UiLamp.vue'
 
 // The signals of the PLC that is shown, live: a lamp for each digital input and output, the
 // value of each analogue one. During an I/O test the outputs are switched here by hand, and a
@@ -50,7 +51,6 @@ const analogGroups = computed(() =>
   ].filter((g) => g.list.length),
 )
 
-const lamp = (on: boolean) => (on ? 'bg-ok shadow-[0_0_6px_var(--t-ok)]' : 'bg-s3 shadow-[inset_0_0_0_1px_var(--t-control)]')
 const cell = 'border-0 border-b border-solid border-line py-1 pr-3 align-middle'
 const number = 't-input h-6 w-16 px-1.5 text-right font-mono text-xs'
 </script>
@@ -80,9 +80,9 @@ const number = 't-input h-6 w-16 px-1.5 text-right font-mono text-xs'
                 :aria-label="`Switch ${signal.name} ${bit(group.image, signal.byte, signal.bit) ? 'off' : 'on'}`"
                 @click="switchOutput(signal.address, !bit(group.image, signal.byte, signal.bit))"
               >
-                <span class="block size-2.5 rounded-full" :class="lamp(bit(group.image, signal.byte, signal.bit))" />
+                <UiLamp :on="bit(group.image, signal.byte, signal.bit)" :out="group.outputs" />
               </button>
-              <span v-else class="block size-2.5 rounded-full" :class="lamp(bit(group.image, signal.byte, signal.bit))" />
+              <UiLamp v-else :on="bit(group.image, signal.byte, signal.bit)" :out="group.outputs" />
             </td>
             <td :class="cell" class="truncate font-semibold">{{ signal.name }}</td>
             <td v-if="wide || testing" :class="cell" class="text-muted">

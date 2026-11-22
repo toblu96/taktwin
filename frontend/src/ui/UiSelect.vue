@@ -18,7 +18,7 @@ const model = defineModel<string | null>({ required: true })
         <IconChevron class="size-4 shrink-0 text-muted" />
       </SelectTrigger>
       <SelectContent class="t-popup max-h-72 min-w-(--anchor-width) overflow-auto">
-        <SelectItem v-for="o in options" :key="o.value" :value="o.value" class="t-item group h-auto py-1.5">
+        <SelectItem v-for="o in options" :key="o.value" :value="o.value" :label="o.label" class="t-item group h-auto py-1.5">
           <span class="flex flex-1 flex-col">
             <SelectItemText>{{ o.label }}</SelectItemText>
             <span v-if="o.hint" class="text-xs text-muted group-data-highlighted:text-fg/80">{{ o.hint }}</span>

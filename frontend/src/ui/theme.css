@@ -39,6 +39,8 @@
   --t-danger: #f2766b;
   --t-on-danger: #1a0605;
   --t-ok: #5cd29a;
+  --t-lamp-in: #5cd29a;
+  --t-lamp-out: #ff9d2e;
   --t-shadow: 0 8px 24px #00000073, 0 0 0 1px #ffffff0a;
 }
 
@@ -66,6 +68,8 @@
   --t-danger: #c0352b;
   --t-on-danger: #ffffff;
   --t-ok: #1a7f50;
+  --t-lamp-in: #1a7f50;
+  --t-lamp-out: #b85c00;
   --t-shadow: 0 8px 24px #1b1f2324, 0 0 0 1px #1b1f2312;
 }
 
@@ -92,6 +96,8 @@
   --color-danger: var(--t-danger);
   --color-on-danger: var(--t-on-danger);
   --color-ok: var(--t-ok);
+  --color-lamp-in: var(--t-lamp-in);
+  --color-lamp-out: var(--t-lamp-out);
   --shadow-pop: var(--t-shadow);
   --radius-control: 6px;
   --radius-card: 8px;
