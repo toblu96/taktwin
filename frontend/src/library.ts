@@ -28,15 +28,21 @@ export const rootInstance = computed(() => {
   return preview.scene.value?.instances?.find((i) => i.id === current.value?.id) ?? null
 })
 
+// Opens an entry in the preview. Only the last one asked for shows, should an earlier one
+// answer after it.
+let opening = 0
 export async function open(entry: EntryRef) {
+  const ticket = ++opening
   current.value = entry
   remember('taktwin.entry', `${entry.level}/${entry.id}`)
   openError.value = ''
   preview.selection.value = null
   preview.snapshot.value = null
   try {
-    preview.scene.value = await LibraryService.Open(entry.level, entry.id)
+    const scene = await LibraryService.Open(entry.level, entry.id)
+    if (ticket === opening) preview.scene.value = scene
   } catch (error) {
+    if (ticket !== opening) return
     preview.scene.value = null
     openError.value = (error as Error).message
   }
@@ -44,14 +50,18 @@ export async function open(entry: EntryRef) {
 
 let unsubscribe: (() => void) | undefined
 
+// Entering the library lists its entries; the page opens the one its address names.
 export async function enter() {
   unsubscribe = Events.On('library:snapshot', (event) => {
     preview.snapshot.value = event.data as Snapshot
   })
   entries.value = (await LibraryService.Entries()) ?? []
+}
+
+// The entry to show when the address names none: the one shown last, or the first that loads.
+export function lastEntry(): EntryRef | null {
   const saved = recall('taktwin.entry')
-  const first = entries.value.find((e) => `${e.level}/${e.id}` === saved) ?? entries.value.find((e) => !e.error) ?? null
-  if (first) await open(first)
+  return entries.value.find((e) => `${e.level}/${e.id}` === saved) ?? entries.value.find((e) => !e.error) ?? null
 }
 
 export function leave() {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { signals } from './data'
 import ProjectsLayout from './layouts/ProjectsLayout.vue'
 import ProjectWindow from './layouts/ProjectWindow.vue'
@@ -10,6 +10,8 @@ import UiSegmented from '../ui/UiSegmented.vue'
 import UiSelect from '../ui/UiSelect.vue'
 import UiSwitch from '../ui/UiSwitch.vue'
 import UiTabs from '../ui/UiTabs.vue'
+import UiTree, { type TreeHeading, type TreeRow } from '../ui/UiTree.vue'
+import IconCube from '~icons/fluent/cube-16-regular'
 import IconPlay from '~icons/fluent/play-20-regular'
 import IconWrench from '~icons/fluent/wrench-20-regular'
 import IconRename from '~icons/fluent/rename-20-regular'
@@ -35,6 +37,19 @@ const tab = ref('check')
 const station = ref<string | null>(null)
 const open = ref(false)
 const on = ref(true)
+const treeOpen = ref(true)
+const picked = ref('b2')
+const tree = computed<(TreeRow | TreeHeading)[]>(() => [
+  { key: 'h', heading: 'Modules' },
+  { key: 'conveyor', label: 'Pallet conveyor', icon: IconCube, children: true, open: treeOpen.value, selected: picked.value === 'conveyor' },
+  ...(treeOpen.value
+    ? [
+        { key: 'b1', label: 'B1 Pallet at start', depth: 1, parent: 'conveyor', selected: picked.value === 'b1' },
+        { key: 'b2', label: 'B2 Pallet at the stop', depth: 1, parent: 'conveyor', selected: picked.value === 'b2' },
+      ]
+    : []),
+  { key: 'broken', label: 'A module that does not load', icon: IconCube, danger: true, selected: picked.value === 'broken' },
+])
 const order = ref(signals.map((s) => s.key))
 const menu = [{ label: 'Rename', icon: IconRename, shortcut: 'F2' }, {}, { label: 'Delete…', icon: IconDelete, danger: true }]
 </script>
@@ -85,6 +100,9 @@ const menu = [{ label: 'Rename', icon: IconRename, shortcut: 'F2' }, {}, { label
               { value: 'b', label: 'Two magazines', hint: 'Your own' },
             ]"
           />
+        </section>
+        <section class="w-72 rounded-card border border-line bg-s1 p-1.5">
+          <UiTree :items="tree" label="A tree" @select="(k) => (picked = k)" @toggle="(_, to) => (treeOpen = to)" />
         </section>
         <section class="h-48 overflow-hidden rounded-card border border-line">
           <UiTabs

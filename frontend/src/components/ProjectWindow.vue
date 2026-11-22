@@ -3,7 +3,7 @@ import { onMounted, onUnmounted, watch } from 'vue'
 import { panelOpen, panelTab } from '../project-view'
 import { useRoute } from 'vue-router'
 import { editingConnection, programming, project } from '../sim'
-import { stored } from '../ui/stored'
+import { detailsWidth as details, panelHeight as panel, treeWidth as tree } from '../layout'
 import UiSash from '../ui/UiSash.vue'
 import ProgramIde from '../ide/ProgramIde.vue'
 import StationViewer from '../viewer/StationViewer.vue'
@@ -20,10 +20,6 @@ import StationTree from './StationTree.vue'
 // take the middle while they are open.
 const route = useRoute()
 const active = () => route.name === 'simulate'
-
-const tree = stored('layout.tree', 240)
-const details = stored('layout.details', 320)
-const panel = stored('layout.panel', 240)
 
 // An exercise opens on what it asks for, a station on its signals.
 watch(

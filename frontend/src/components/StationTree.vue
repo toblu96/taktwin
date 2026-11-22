@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { SceneInstance } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 import { programming, simulation } from '../sim'
-import IconChevron from '~icons/fluent/chevron-right-12-regular'
+import UiTree, { type TreeHeading, type TreeRow } from '../ui/UiTree.vue'
 import IconStation from '~icons/fluent/grid-16-regular'
 import IconModule from '~icons/fluent/cube-16-regular'
 import IconAccessory from '~icons/fluent/toolbox-16-regular'
@@ -12,7 +12,6 @@ import IconCode from '~icons/fluent/code-16-regular'
 // The side bar of an open project, as VS Code's explorer: the station and its modules as a tree,
 // with what a module holds below it, and its PLCs at the foot with how they run. Clicking a row
 // selects it, as clicking it in the 3D view does; the panel on the right shows what is selected.
-// Up and Down go through the rows, Right opens a row and Left closes it or goes to its parent.
 const { scene, snapshot, selection } = simulation
 
 // Guide rails and the like belong to another module, so they are not listed.
@@ -20,7 +19,7 @@ const listed = computed(() => (scene.value?.instances ?? []).filter((i) => !i.se
 const inside = (id: string) => listed.value.filter((i) => i.parent === id)
 
 const open = ref(new Set<string>())
-function toggle(id: string, to = !open.value.has(id)) {
+function toggle(id: string, to: boolean) {
   const next = new Set(open.value)
   if (to) next.add(id)
   else next.delete(id)
@@ -38,50 +37,41 @@ watch(selection, (id) => {
   open.value = next
 })
 
-type Row = { item: SceneInstance; depth: number; parent?: string; children: number }
-function rows(items: SceneInstance[], depth: number): Row[] {
+// The tree's rows: the station, then its modules and its accessories, each with what it holds
+// below it while open. The station's row has the key "", for nothing selected.
+function rows(items: SceneInstance[], depth: number): TreeRow[] {
   return items.flatMap((item) => {
     const children = inside(item.id)
-    const row: Row = { item, depth, parent: item.parent, children: children.length }
-    return [row, ...(open.value.has(item.id) ? rows(children, depth + 1) : [])]
+    const row: TreeRow = {
+      key: item.id,
+      label: item.name,
+      depth,
+      icon: item.isPlc ? IconPlc : item.level === 'module' ? IconModule : IconAccessory,
+      children: children.length > 0,
+      open: open.value.has(item.id),
+      selected: selection.value === item.id,
+      parent: item.parent ?? '',
+      title: item.module,
+    }
+    return [row, ...(row.open ? rows(children, depth + 1) : [])]
   })
 }
-const groups = computed(() => {
+const items = computed<(TreeRow | TreeHeading)[]>(() => {
   const top = listed.value.filter((i) => !i.parent)
+  const modules = rows(
+    top.filter((i) => i.level === 'module'),
+    0,
+  )
+  const accessories = rows(
+    top.filter((i) => i.level !== 'module'),
+    0,
+  )
   return [
-    {
-      title: 'Modules',
-      rows: rows(
-        top.filter((i) => i.level === 'module'),
-        0,
-      ),
-    },
-    {
-      title: 'Accessories',
-      rows: rows(
-        top.filter((i) => i.level !== 'module'),
-        0,
-      ),
-    },
-  ].filter((g) => g.rows.length)
+    { key: '', label: scene.value?.name ?? '', icon: IconStation, selected: selection.value === null, strong: true },
+    ...(modules.length ? [{ key: 'h:modules', heading: 'Modules' }, ...modules] : []),
+    ...(accessories.length ? [{ key: 'h:accessories', heading: 'Accessories' }, ...accessories] : []),
+  ]
 })
-
-// The keyboard moves through the rows as they show.
-const tree = ref<HTMLElement | null>(null)
-function move(e: KeyboardEvent, row?: Row) {
-  const all = Array.from(tree.value?.querySelectorAll<HTMLElement>('[data-row]') ?? [])
-  const here = all.indexOf(e.currentTarget as HTMLElement)
-  const focus = (i: number) => all[Math.max(0, Math.min(all.length - 1, i))]?.focus()
-  if (e.key === 'ArrowDown') focus(here + 1)
-  else if (e.key === 'ArrowUp') focus(here - 1)
-  else if (e.key === 'ArrowRight' && row?.children && !open.value.has(row.item.id)) toggle(row.item.id, true)
-  else if (e.key === 'ArrowLeft' && row && open.value.has(row.item.id)) toggle(row.item.id, false)
-  else if (e.key === 'ArrowLeft' && row?.parent) {
-    const parent = row.parent
-    void nextTick(() => tree.value?.querySelector<HTMLElement>(`[data-row="${CSS.escape(parent)}"]`)?.focus())
-  } else return
-  e.preventDefault()
-}
 
 // The PLCs, each with a lamp: green while a program runs or the connection stands, amber while
 // it connects, red when it failed. The engine calls a PLC with nothing to run "No PLC".
@@ -103,46 +93,12 @@ const plcs = computed(() => {
     }
   })
 })
-
-const row = 'flex h-7 w-full min-w-0 cursor-default items-center gap-1.5 rounded-[5px] border-0 pr-2 text-left text-fg focus-visible:-outline-offset-2'
-const chosen = (on: boolean) => (on ? 'bg-highlight' : 'bg-transparent hover:bg-hover')
 </script>
 
 <template>
   <aside class="flex h-full min-w-0 flex-col bg-s1" aria-label="Station">
     <h2 class="m-0 flex h-9 shrink-0 items-center px-3 text-xs font-semibold tracking-wide text-muted uppercase">Station</h2>
-    <nav ref="tree" class="min-h-0 flex-1 overflow-auto px-1.5 pb-2" aria-label="Modules of the station">
-      <button data-row="" :class="[row, chosen(selection === null)]" class="pl-2" :aria-current="selection === null ? 'true' : undefined" @click="selection = null" @keydown="move">
-        <IconStation class="size-4 shrink-0 text-muted" />
-        <span class="truncate font-medium">{{ scene?.name }}</span>
-      </button>
-      <template v-for="group in groups" :key="group.title">
-        <h3 class="m-0 mt-3 mb-1 px-2 text-[11px] font-medium text-faint">{{ group.title }}</h3>
-        <button
-          v-for="r in group.rows"
-          :key="r.item.id"
-          :data-row="r.item.id"
-          :class="[row, chosen(selection === r.item.id)]"
-          :style="{ paddingLeft: `${4 + r.depth * 16}px` }"
-          :title="r.item.module"
-          :aria-current="selection === r.item.id ? 'true' : undefined"
-          :aria-expanded="r.children ? open.has(r.item.id) : undefined"
-          @click="selection = r.item.id"
-          @keydown="move($event, r)"
-        >
-          <span
-            class="-my-1 grid size-4 shrink-0 place-items-center rounded-sm text-faint hover:text-fg"
-            :class="r.children ? '' : 'invisible'"
-            aria-hidden="true"
-            @click.stop="toggle(r.item.id)"
-          >
-            <IconChevron class="size-3" :class="open.has(r.item.id) ? 'rotate-90' : ''" />
-          </span>
-          <component :is="r.item.isPlc ? IconPlc : r.item.level === 'module' ? IconModule : IconAccessory" class="size-4 shrink-0 text-muted" />
-          <span class="truncate">{{ r.item.name }}</span>
-        </button>
-      </template>
-    </nav>
+    <UiTree :items="items" label="Modules of the station" class="min-h-0 flex-1 overflow-auto px-1.5 pb-2" @select="(key) => (selection = key || null)" @toggle="toggle" />
 
     <section v-if="plcs.length" class="shrink-0 border-t border-line p-2" aria-label="PLCs">
       <h3 class="m-0 mb-1.5 px-1 text-[11px] font-medium text-faint">{{ plcs.length > 1 ? 'PLCs' : 'PLC' }}</h3>

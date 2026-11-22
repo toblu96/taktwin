@@ -15,7 +15,7 @@ export const router = createRouter({
     { path: '/', name: 'projects', component: () => import('./components/ProjectsPage.vue') },
     { path: '/project', name: 'simulate', component: () => import('./components/ProjectWindow.vue'), meta: { project: true } },
     { path: '/project/build', name: 'build', component: () => import('./components/BuilderPage.vue'), meta: { project: true } },
-    { path: '/library', name: 'library', component: () => import('./components/LibraryPage.vue') },
+    { path: '/library/:level(station|module|accessory|part)?/:id?', name: 'library', component: () => import('./components/LibraryPage.vue') },
     { path: '/settings/:tab(general|collections|updates|about)?', name: 'settings', component: () => import('./components/SettingsPage.vue') },
     { path: '/:rest(.*)*', redirect: '/' },
   ],
