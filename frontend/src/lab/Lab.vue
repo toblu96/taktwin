@@ -8,6 +8,7 @@ import UiIoList from '../ui/UiIoList.vue'
 import UiMenu from '../ui/UiMenu.vue'
 import UiSegmented from '../ui/UiSegmented.vue'
 import UiSelect from '../ui/UiSelect.vue'
+import UiSwitch from '../ui/UiSwitch.vue'
 import UiTabs from '../ui/UiTabs.vue'
 import IconPlay from '~icons/fluent/play-20-regular'
 import IconWrench from '~icons/fluent/wrench-20-regular'
@@ -33,6 +34,7 @@ const seg = ref('simulate')
 const tab = ref('check')
 const station = ref<string | null>(null)
 const open = ref(false)
+const on = ref(true)
 const order = ref(signals.map((s) => s.key))
 const menu = [{ label: 'Rename', icon: IconRename, shortcut: 'F2' }, {}, { label: 'Delete…', icon: IconDelete, danger: true }]
 </script>
@@ -71,6 +73,7 @@ const menu = [{ label: 'Rename', icon: IconRename, shortcut: 'F2' }, {}, { label
           <button class="t-btn t-btn-primary">Primary</button>
           <button class="t-btn t-btn-ghost">Ghost</button>
           <input class="t-input w-56" placeholder="An input" aria-label="An input" />
+          <UiSwitch v-model="on" label="A switch" />
         </section>
         <section class="w-72">
           <UiSelect

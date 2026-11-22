@@ -53,7 +53,7 @@ Tests do not show whether a page works. `go build -tags server` builds the app i
 | `internal/plcprog` | A PLC's ST project in your folder, and the soft PLC that runs it behind an OPC UA server |
 | `internal/simapp` | The Wails services the frontend calls: the simulation and its projects (`service.go`, `projects.go`), exercise files and their checks (`exercisefile.go`, `exercises.go`), the builder (`builder.go`, `wiring.go`), the library and collections (`library.go`, `collections.go`), connections (`connections.go`, `editor.go`), the programming tool (`programs.go`), settings and updates |
 | `internal/version` | The app's version; `scripts/set-version.sh` changes it with the build files |
-| `frontend/src` | The Vue app. `sim.ts` holds the open project and the page, `builder.ts` the station being built, `update.ts` the updates; `ask.ts` asks in Wails' native dialogs |
+| `frontend/src` | The Vue app. `router.ts` says where the app is (projects, the open project simulated or built, library, settings) and guards those pages, `sim.ts` holds the open project, `builder.ts` the station being built, `update.ts` the updates; `ask.ts` asks in Wails' native dialogs |
 | `frontend/src/ui` | The shared components on UI SDK and the design tokens (`theme.css`); `lab.html` shows them. See [AGENTS.md](../AGENTS.md#the-ui) |
 | `frontend/src/components` | The pages and their parts: `ProjectsPage`, an open project (`ProjectWindow` with `StationTree`, `ContextPanel`, `BottomPanel` and its tabs, `TopBar`, `StatusBar`), `BuilderPage` with `WiringView`, `LibraryPage`, `SettingsPage`, and the PLC panel with `ConnectionEditor` |
 | `frontend/src/viewer` | Renders any station in plain three.js, and the builder's handles and ghosts |

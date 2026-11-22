@@ -2,7 +2,9 @@
 import { computed, ref } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { edits } from '../builder'
-import { openSettings, page, project, simulation, view } from '../sim'
+import { useRoute } from 'vue-router'
+import { openSettings } from '../router'
+import { project, simulation } from '../sim'
 import { update, updateAvailable } from '../update'
 import IconSaved from '~icons/fluent/checkmark-16-regular'
 import IconPanel from '~icons/fluent/panel-bottom-20-regular'
@@ -13,8 +15,9 @@ import { panelOpen } from '../project-view'
 // state, and a click goes to where it is changed.
 const { scene, snapshot } = simulation
 
-const running = computed(() => page.value === 'simulation' && !!project.value && view.value === 'simulate')
-const building = computed(() => page.value === 'simulation' && !!project.value && view.value === 'build')
+const route = useRoute()
+const running = computed(() => !!project.value && route.name === 'simulate')
+const building = computed(() => !!project.value && route.name === 'build')
 
 const link = computed(() => snapshot.value?.link?.state ?? '')
 const linkText: Record<string, string> = { connected: 'connected', failed: 'not connected', connecting: 'connecting' }

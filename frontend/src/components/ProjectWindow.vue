@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch } from 'vue'
 import { panelOpen, panelTab } from '../project-view'
-import { editingConnection, page, programming, project, view } from '../sim'
+import { useRoute } from 'vue-router'
+import { editingConnection, programming, project } from '../sim'
 import { stored } from '../ui/stored'
 import UiSash from '../ui/UiSash.vue'
 import ProgramIde from '../ide/ProgramIde.vue'
@@ -17,7 +18,8 @@ import StationTree from './StationTree.vue'
 // 3D view in the middle with the panel below it, and what is selected on the right. Each edge
 // between them can be dragged, and the sizes are kept. The program and a connection's editor
 // take the middle while they are open.
-const active = () => page.value === 'simulation' && view.value === 'simulate'
+const route = useRoute()
+const active = () => route.name === 'simulate'
 
 const tree = stored('layout.tree', 240)
 const details = stored('layout.details', 320)

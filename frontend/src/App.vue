@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
-import BuilderPage from './components/BuilderPage.vue'
-import LibraryPage from './components/LibraryPage.vue'
-import SettingsPage from './components/SettingsPage.vue'
+import { useRoute } from 'vue-router'
 import TopBar from './components/TopBar.vue'
-import ProjectsPage from './components/ProjectsPage.vue'
-import ProjectWindow from './components/ProjectWindow.vue'
 import StatusBar from './components/StatusBar.vue'
 import ActivityBar from './components/ActivityBar.vue'
-import { connect, loadError, page, project, view } from './sim'
+import { connect, loadError } from './sim'
 import { connectUpdates } from './update'
+
+const route = useRoute()
 
 onMounted(() => {
   connect()
@@ -24,14 +22,12 @@ onMounted(() => {
     <div class="flex min-h-0 flex-1">
       <ActivityBar />
       <div class="flex min-w-0 flex-1 flex-col">
-        <TopBar v-if="page === 'simulation'" />
+        <TopBar v-if="route.meta.project" />
         <div class="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)]">
-          <ProjectsPage v-if="page === 'simulation' && !project" />
-          <!-- The simulation stays loaded and keeps running behind the settings and the builder. -->
-          <ProjectWindow v-show="page === 'simulation' && project && view === 'simulate'" />
-          <BuilderPage v-if="page === 'simulation' && project && view === 'build'" />
-          <LibraryPage v-if="page === 'library'" />
-          <SettingsPage v-if="page === 'settings'" />
+          <!-- The project's window is kept while the settings or the builder show, with its 3D view and panel as they were. -->
+          <RouterView v-slot="{ Component }">
+            <KeepAlive include="ProjectWindow"><component :is="Component" /></KeepAlive>
+          </RouterView>
         </div>
       </div>
     </div>

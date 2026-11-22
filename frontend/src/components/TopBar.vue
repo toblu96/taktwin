@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Service as service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import { closeProject, page, project, simulation, view } from '../sim'
+import { useRoute } from 'vue-router'
+import { closeProject, project, simulation } from '../sim'
 import { viewProblem } from '../project-view'
 import UiSegmented from '../ui/UiSegmented.vue'
 import IconChevron from '~icons/fluent/chevron-right-16-regular'
@@ -14,7 +15,8 @@ import IconWarning from '~icons/fluent/warning-16-filled'
 // ways to go elsewhere; warnings that need an answer sit on the 3D view.
 const { snapshot } = simulation
 
-const running = computed(() => page.value === 'simulation' && view.value === 'simulate')
+const route = useRoute()
+const running = computed(() => route.name === 'simulate')
 const paused = computed(() => snapshot.value?.paused ?? false)
 const time = computed(() => {
   const total = snapshot.value?.time ?? 0

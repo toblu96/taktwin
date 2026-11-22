@@ -1,7 +1,8 @@
 import { Events } from '@wailsio/runtime'
-import { computed, inject, ref, shallowRef, watch, type InjectionKey } from 'vue'
+import { computed, inject, ref, shallowRef, type InjectionKey } from 'vue'
 import { Service } from '../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { ask, choose, tell } from './ask'
+import { openSettings, router } from './router'
 import type { Base, ProjectInfo } from '../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import type { Snapshot } from '../bindings/github.com/toblu96/taktwin/internal/engine'
 import type { Scene, SceneInstance } from '../bindings/github.com/toblu96/taktwin/internal/model'
@@ -132,31 +133,9 @@ export function remember(key: string, value: string) {
   }
 }
 
-// The page that is showing: the projects, or the open project; the library, which is there
-// while no project is open; or the settings.
-type Page = 'simulation' | 'library' | 'settings'
-const savedPage = recall('taktwin.page')
-export const page = ref<Page>(savedPage === 'library' || savedPage === 'settings' ? savedPage : 'simulation')
-watch(page, (value) => remember('taktwin.page', value))
-
-// The settings' tab that shows, and where the app goes back to when they close.
-export type SettingsTab = 'general' | 'collections' | 'updates' | 'about'
-export const settingsTab = ref<SettingsTab>('general')
-let beforeSettings: Page = 'simulation'
-
-export function openSettings(tab?: SettingsTab) {
-  if (tab) settingsTab.value = tab
-  if (page.value === 'settings') return
-  beforeSettings = page.value
-  page.value = 'settings'
-}
-
-export function closeSettings() {
-  if (page.value === 'settings') page.value = beforeSettings
-}
-
-// What the open project shows: its station running, or being built on.
-export const view = ref<'simulate' | 'build'>('simulate')
+// Settles once the app knows whether a project is open, which the first page waits for.
+let markReady = () => {}
+export const ready = new Promise<void>((resolve) => (markReady = resolve))
 
 // Counts how often the user's files were read again, so that lists of stations refresh.
 export const filesRead = ref(0)
@@ -197,15 +176,14 @@ export async function refreshProject() {
 }
 
 // Shows the station the simulation has after opening something, and its project.
-async function show(next: Promise<Scene>) {
+async function show(next: Promise<Scene>, to: 'simulate' | 'build' = 'simulate') {
   programming.value = null
   editingConnection.value = null
   simulation.selection.value = null
   simulation.snapshot.value = null
   simulation.scene.value = await next
   await refreshProject()
-  page.value = 'simulation'
-  view.value = 'simulate'
+  await router.push({ name: to })
 }
 
 // Opens a project by name, or makes one of a station or an exercise, named after it unless
@@ -216,8 +194,7 @@ export const newProject = (base: Base, name = '') => show(Service.NewProject(nam
 // Makes a project with an empty station of its own, standing on what a collection has to
 // stand on, and opens it to be built on.
 export async function newEmptyProject(collection: string, name = '') {
-  await show(Service.NewEmptyProject(name, collection))
-  view.value = 'build'
+  await show(Service.NewEmptyProject(name, collection), 'build')
 }
 
 // What takes a picture of the simulation's 3D view, while it shows.
@@ -235,8 +212,7 @@ export async function closeProject() {
   simulation.snapshot.value = null
   simulation.scene.value = null
   project.value = null
-  page.value = 'simulation'
-  view.value = 'simulate'
+  await router.push({ name: 'projects' })
 }
 
 // Opens a project file the user picks; cancelling changes nothing.
@@ -324,10 +300,13 @@ export function connect() {
   refreshProject()
     .then(async () => {
       if (project.value) simulation.scene.value = await Service.Scene()
-      await takeOpened()
     })
     .catch((error: Error) => {
       loadError.value = error.message
+    })
+    .finally(() => {
+      markReady()
+      void takeOpened()
     })
 }
 
