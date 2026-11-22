@@ -105,8 +105,7 @@ const hint = computed(() =>
       <div class="levels">
         <template v-for="c in visible" :key="c.id">
           <button class="collection" :aria-expanded="!collapsed.has(c.id)" @click="toggleCollection(c.id)">
-            <span class="fold mono">{{ collapsed.has(c.id) && !search ? '+' : '−' }}</span
-            >{{ c.name }}<span class="mono">{{ c.count }}</span>
+            <span class="fold mono">{{ collapsed.has(c.id) && !search ? '+' : '−' }}</span>{{ c.name }}<span class="mono">{{ c.count }}</span>
           </button>
           <section v-for="level in collapsed.has(c.id) && !search ? [] : c.levels" :key="c.id + level.level">
             <h3 class="band">

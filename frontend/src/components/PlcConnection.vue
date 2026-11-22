@@ -274,12 +274,7 @@ async function apply() {
         </label>
       </template>
       <div class="actions">
-        <button
-          v-if="connection.startsWith('codesys')"
-          :disabled="finding"
-          title="Looks for the variable list on the server and fills in where it is"
-          @click="find"
-        >
+        <button v-if="connection.startsWith('codesys')" :disabled="finding" title="Looks for the variable list on the server and fills in where it is" @click="find">
           {{ finding ? 'Looking…' : 'Find on the server' }}
         </button>
         <button :disabled="!connection" title="Which node each signal is exchanged with" @click="editBindings">Edit bindings</button>

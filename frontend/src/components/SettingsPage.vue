@@ -231,7 +231,9 @@ async function reload() {
           <p class="about">
             <img src="/logo.svg" alt="" width="40" height="40" />
             <span>
-              <span><strong>Taktwin</strong> <span class="mono version">{{ update?.version ?? '' }}</span></span>
+              <span
+                ><strong>Taktwin</strong> <span class="mono version">{{ update?.version ?? '' }}</span></span
+              >
               <span class="hint">A PLC training simulator with a 3D digital twin of production stations. Apache License 2.0.</span>
             </span>
           </p>

@@ -80,8 +80,7 @@ const passed = (c: CheckState) => !c.running && !c.error && (c.lines ?? []).leng
       </p>
       <ol class="lines">
         <li v-for="(line, index) in check.lines ?? []" :key="index" :class="line.ok ? 'ok' : 'bad'">
-          <span class="mark">{{ line.ok ? '✓' : '✗' }}</span
-          >{{ line.line }}
+          <span class="mark">{{ line.ok ? '✓' : '✗' }}</span>{{ line.line }}
         </li>
       </ol>
       <p v-if="check.error" class="error">{{ check.error }}</p>

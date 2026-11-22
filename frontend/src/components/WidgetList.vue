@@ -50,7 +50,9 @@ const setKey = (widget: SceneWidget, on: boolean) => {
 
     <template v-for="(widget, index) in others" :key="index">
       <div v-if="widget.type === 'switch'" class="switch" role="group" :aria-label="widget.label">
-        <span>{{ widget.label }} <small class="mono">{{ widget.tag }}</small></span>
+        <span
+          >{{ widget.label }} <small class="mono">{{ widget.tag }}</small></span
+        >
         <div class="segmented">
           <button v-for="(label, i) in widget.labels ?? []" :key="label" :class="{ active: stateOn(widget.state) === (i === 1) }" @click="setKey(widget, i === 1)">
             {{ label }}
@@ -70,12 +72,7 @@ const setKey = (widget: SceneWidget, on: boolean) => {
         </p>
       </div>
 
-      <button
-        v-else-if="widget.type === 'button'"
-        class="action"
-        :disabled="stateOn(widget.disabledWhen)"
-        @click="runAction(widget.action ?? '', widget.args)"
-      >
+      <button v-else-if="widget.type === 'button'" class="action" :disabled="stateOn(widget.disabledWhen)" @click="runAction(widget.action ?? '', widget.args)">
         <span v-if="widget.swatch" class="swatch" :style="{ background: widget.swatch }" />{{ widget.label }}
       </button>
 

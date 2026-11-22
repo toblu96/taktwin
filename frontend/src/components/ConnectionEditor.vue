@@ -270,7 +270,9 @@ const counts = computed(() => {
       <button v-if="tab === 'bindings'" @click="showJson">JSON</button>
       <button v-else @click="applyJson">Back to the bindings</button>
       <button v-if="yours" class="danger" @click="remove">Delete</button>
-      <button class="primary" :disabled="busy || !doc || !doc.id" :title="yours ? '' : 'Saves it into your folder'" @click="save">{{ yours ? 'Save' : 'Save into your folder' }}</button>
+      <button class="primary" :disabled="busy || !doc || !doc.id" :title="yours ? '' : 'Saves it into your folder'" @click="save">
+        {{ yours ? 'Save' : 'Save into your folder' }}
+      </button>
       <button @click="emit('close')">Close</button>
     </div>
     <p v-if="message" class="error" role="alert">{{ message }}</p>
@@ -283,8 +285,8 @@ const counts = computed(() => {
     <div v-else-if="doc" class="body">
       <section class="signals">
         <p class="help">
-          Select a signal, then pick the node on the right, or type its NodeId. A binding follows the signal's symbol when it moves to another pin, or stays with the
-          address. {{ counts }}.
+          Select a signal, then pick the node on the right, or type its NodeId. A binding follows the signal's symbol when it moves to another pin, or stays with the address.
+          {{ counts }}.
         </p>
         <table>
           <thead>
@@ -338,8 +340,8 @@ const counts = computed(() => {
         </table>
         <h4>Templates</h4>
         <p class="help">
-          Bind every signal of a kind at once. A template's NodeId may use {shown} (as the PLC shows the address), {address}, {symbol}, {byte}, {bit}, {bit:2} and
-          {channel}, and the connection's vars. Bindings above take the place of what a template gives them.
+          Bind every signal of a kind at once. A template's NodeId may use {shown} (as the PLC shows the address), {address}, {symbol}, {byte}, {bit}, {bit:2} and {channel}, and
+          the connection's vars. Bindings above take the place of what a template gives them.
         </p>
         <div v-for="(g, i) in doc.generate ?? []" :key="i" class="template">
           <select v-model="g.signals">
