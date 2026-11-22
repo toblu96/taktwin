@@ -29,7 +29,7 @@ async function reveal() {
 }
 
 const item = 'flex h-6 shrink-0 cursor-default items-center gap-1.5 rounded-sm border-0 bg-transparent px-1.5 text-xs text-muted'
-const button = `${item} hover:bg-hover hover:text-fg`
+const button = `${item} hover:bg-hover hover:text-fg focus-visible:outline-offset-[-2px]`
 </script>
 
 <template>

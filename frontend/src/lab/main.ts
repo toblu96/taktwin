@@ -3,5 +3,7 @@
 import '../ui/theme.css'
 import { createApp } from 'vue'
 import Lab from './Lab.vue'
+import { keyboardReach } from '../ui/keyboard'
 
 createApp(Lab).mount('#lab')
+keyboardReach()

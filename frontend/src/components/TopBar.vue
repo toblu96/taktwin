@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Service as service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { closeProject, page, project, simulation, view } from '../sim'
 import { viewProblem } from '../project-view'
@@ -23,10 +23,16 @@ const time = computed(() => {
   return `${String(minutes).padStart(2, '0')}:${seconds}`
 })
 
-// A PLC over OPC UA runs in real time, so only 1× is offered then.
-const speed = computed({
-  get: () => String(snapshot.value?.speed ?? 1),
-  set: (v: string) => void service.SetSpeed(Number(v)),
+// The speed, kept here so that a click shows at once: the simulation's snapshot only reports it
+// a frame later, and changes it here only when it really changes. A PLC over OPC UA runs in real
+// time, so only 1× is offered then.
+const speed = ref(String(snapshot.value?.speed ?? 1))
+watch(
+  () => snapshot.value?.speed,
+  (v) => (speed.value = String(v ?? 1)),
+)
+watch(speed, (v) => {
+  if (Number(v) !== snapshot.value?.speed) void service.SetSpeed(Number(v))
 })
 const speeds = computed(() =>
   [1, 2, 5].map((s) => ({

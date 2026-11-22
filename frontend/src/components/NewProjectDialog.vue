@@ -84,7 +84,7 @@ async function create() {
     <div class="flex flex-col gap-4">
       <UiSegmented v-model="from" label="Start from" :options="kinds" class="self-start" />
 
-      <div class="flex max-h-80 flex-col gap-4 overflow-auto">
+      <div class="-m-1 flex max-h-80 flex-col gap-4 overflow-auto p-1">
         <section v-for="g in grouped(choices)" :key="g.id">
           <h3 class="t-label m-0 mb-2">{{ g.name }}</h3>
           <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">

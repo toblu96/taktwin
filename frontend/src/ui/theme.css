@@ -113,10 +113,21 @@
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
   }
-  /* The focus ring stands 2px off what it marks, so that it never touches a coloured control. */
+  /*
+    The focus ring: a second border floating 2px off what has focus, so that it never touches a
+    coloured control. It shows when the keyboard brings focus somewhere, and on a text field while
+    it is typed in, but not on a click. It is an outline, which the browser paints after the
+    content around it, so neighbours do not cover it; only an ancestor that clips or scrolls can
+    cut it, so such a box keeps --t-ring of space inside, or its children draw the ring inside.
+  */
+  :root {
+    --t-ring-width: 2px;
+    --t-ring-gap: 2px;
+    --t-ring: calc(var(--t-ring-width) + var(--t-ring-gap));
+  }
   :focus-visible {
-    outline: 2px solid var(--t-focus);
-    outline-offset: 2px;
+    outline: var(--t-ring-width) solid var(--t-focus);
+    outline-offset: var(--t-ring-gap);
   }
 }
 
@@ -141,7 +152,7 @@
     @apply flex h-7 cursor-default items-center gap-2 rounded-[5px] px-2 text-fg outline-none select-none data-highlighted:bg-highlight;
   }
   .t-input {
-    @apply h-7 w-full rounded-control border border-control bg-s0 px-2 text-[13px] text-fg placeholder:text-faint focus-visible:border-focus focus-visible:outline-none;
+    @apply h-7 w-full rounded-control border border-control bg-s0 px-2 text-[13px] text-fg placeholder:text-faint focus-visible:border-focus;
   }
   .t-label {
     @apply text-xs font-medium text-muted;

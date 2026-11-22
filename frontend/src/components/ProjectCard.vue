@@ -103,6 +103,7 @@ const exact = (iso?: string) => (iso ? new Date(iso).toLocaleString() : '')
         />
         <button
           v-else
+          tabindex="-1"
           class="block w-full cursor-default truncate border-0 bg-transparent p-0 text-left font-semibold text-fg"
           :disabled="busy || !!p.problem"
           @click="emit('open')"
