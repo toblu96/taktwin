@@ -1,15 +1,28 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import { programming, simulation } from '../sim'
+import { programming, project, simulation } from '../sim'
 import StationDock from './StationDock.vue'
 import IconCode from '~icons/fluent/code-16-regular'
 import IconTest from '~icons/fluent/toggle-left-16-regular'
 
-// The side bar of the simulation as it runs: the station's PLCs, each with how it is connected
-// and what it runs, its program and its I/O test, and the station's own controls, such as
-// putting workpieces in. Clicking a PLC shows its connection on the right.
+// The side bar of the simulation as it runs: what the project is about, the station's PLCs, each
+// with how it is connected and what it runs, its program and its I/O test, and the station's own
+// controls, such as putting workpieces in. How a PLC is connected is set up in the wiring.
 const { scene, snapshot, selection } = simulation
+
+// The exercise the project is on, or else its station, with what it is about.
+const exerciseText = ref('')
+watch(
+  () => [project.value?.exercise, scene.value?.id],
+  async () => {
+    const id = project.value?.exercise
+    exerciseText.value = id ? (((await Service.Exercises()) ?? []).find((e) => e.id === id)?.description ?? '') : ''
+  },
+  { immediate: true },
+)
+const title = computed(() => project.value?.exerciseName || scene.value?.name || '')
+const about = computed(() => exerciseText.value || scene.value?.description || '')
 
 // The engine calls a PLC with nothing to run "No PLC".
 const idle = 'No PLC'
@@ -41,16 +54,20 @@ const hasControls = computed(() => (scene.value?.docks ?? []).some((d) => d.widg
 
 <template>
   <aside class="flex h-full min-w-0 flex-col bg-s1" aria-label="Station">
-    <h2 class="m-0 flex h-9 shrink-0 items-center px-3 text-xs font-semibold tracking-wide text-muted uppercase">Station</h2>
     <div class="min-h-0 flex-1 overflow-auto">
-      <section v-if="plcs.length" class="t-section pt-1">
+      <section class="t-section">
+        <p class="m-0 text-[11px] font-semibold tracking-wide text-muted uppercase">{{ project?.exercise ? 'Exercise' : 'Station' }}</p>
+        <h2 class="m-0 mt-1 text-[15px] leading-snug font-semibold">{{ title }}</h2>
+        <p v-if="about" class="m-0 mt-1.5 line-clamp-4 text-muted" :title="about">{{ about }}</p>
+      </section>
+      <section v-if="plcs.length" class="t-section">
         <h3 class="t-section-title">{{ plcs.length > 1 ? 'PLCs' : 'PLC' }}</h3>
         <div class="flex flex-col gap-2">
           <div v-for="p in plcs" :key="p.id" class="rounded-card border bg-s0" :class="p.module && selection === p.module ? 'border-focus' : 'border-line'">
             <button
               class="flex w-full min-w-0 cursor-default items-start gap-2.5 rounded-t-card border-0 bg-transparent px-2.5 pt-2 pb-1.5 text-left text-fg hover:bg-hover focus-visible:-outline-offset-2"
               :disabled="!p.module"
-              :title="p.module ? `Show how ${p.name} is connected` : undefined"
+              :title="p.module ? `Show ${p.name}` : undefined"
               @click="selection = p.module"
             >
               <span class="mt-1.5 size-2 shrink-0 rounded-full" :class="p.lamp" />

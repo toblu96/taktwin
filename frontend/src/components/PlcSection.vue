@@ -10,7 +10,7 @@ import IconWindow from '~icons/fluent/window-new-16-regular'
 // A PLC: in a running station its program, what runs and its step, and how it is connected; its
 // signals in the library. In an open project the panel below the 3D view shows the signals and
 // their test, so the PLC's own view leaves them out.
-withDefaults(defineProps<{ signals?: boolean }>(), { signals: true })
+withDefaults(defineProps<{ signals?: boolean; connection?: boolean }>(), { signals: true, connection: true })
 
 const sim = useSim()
 const { plcId, plcScene, plcView, scene } = sim
@@ -37,7 +37,7 @@ const hasSignals = computed(() => {
       <button class="t-btn" title="Beside the simulation, in a window of its own" @click="ProgramService.OpenWindow(plcId)"><IconWindow class="size-4" />Open in window</button>
     </div>
   </section>
-  <PlcConnection v-if="sim === simulation" :key="`${scene?.id}:${plcId}`" />
+  <PlcConnection v-if="sim === simulation && connection" :key="`${scene?.id}:${plcId}`" />
   <section v-if="signals && hasSignals" class="t-section">
     <IoTable />
   </section>
