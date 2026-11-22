@@ -51,7 +51,7 @@ export function Check($module: string, id: string, place: $models.BuilderPlace):
 }
 
 /**
- * Close stops the builder's engine.
+ * Close stops the builder's engine, and ends building on a project's station.
  */
 export function Close(): $CancellablePromise<void> {
     return $Call.ByID(3477080205);
@@ -63,6 +63,13 @@ export function Close(): $CancellablePromise<void> {
  */
 export function DeleteStation(id: string): $CancellablePromise<void> {
     return $Call.ByID(1485404648, id);
+}
+
+/**
+ * Edit builds on the station of the simulation's open project, which keeps every change.
+ */
+export function Edit(): $CancellablePromise<$models.BuilderState> {
+    return $Call.ByID(208775643);
 }
 
 /**

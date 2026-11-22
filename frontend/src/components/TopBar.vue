@@ -1,29 +1,58 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { LibraryService, Service as service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import { grouped } from '../collections'
-import { filesRead, loadStation, page, simulation } from '../sim'
+import { ask } from '../ask'
+import { computed, ref } from 'vue'
+import { Service as service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
+import { edits } from '../builder'
+import { closeProject, closeSettings, openSettings, page, project, refreshProject, reloadStation, simulation, view } from '../sim'
 import { updateAvailable } from '../update'
 
-const { scene, snapshot } = simulation
+const { snapshot } = simulation
 
 const speeds = [1, 2, 5]
 
-const stations = ref<{ id: string; name: string; collection?: string }[]>([])
-// Read again on each opening, so that a station saved in the user folder shows up.
-const refresh = async () => {
-  stations.value = ((await LibraryService.Entries()) ?? []).filter((e) => e.level === 'station' && !e.error)
-}
-onMounted(refresh)
-watch(filesRead, refresh)
-const choose = (event: Event) => void loadStation((event.target as HTMLSelectElement).value)
+// The simulation's controls show while the open project's station runs.
+const running = computed(() => page.value === 'simulation' && !!project.value && view.value === 'simulate')
+const problem = ref('')
 
-const time = computed(() => {
-  const total = snapshot.value?.time ?? 0
-  const minutes = Math.floor(total / 60)
-  const seconds = (total % 60).toFixed(1).padStart(4, '0')
-  return `${String(minutes).padStart(2, '0')}:${seconds}`
-})
+// Building is on a station of the project's own: a collection's station becomes a copy that
+// the project keeps, after asking. An exercise's station stays as the exercise has it.
+async function build() {
+  const p = project.value
+  if (!p || view.value === 'build') return
+  problem.value = ''
+  if (!p.own) {
+    const ok = await ask(
+      `Build on a copy of ${p.stationName} that belongs to this project? The project then no longer follows updates of the station's collection.`,
+      'Build on a copy',
+    )
+    if (!ok) return
+    try {
+      await service.CustomizeStation()
+      await refreshProject()
+    } catch (e) {
+      problem.value = (e as Error).message ?? String(e)
+      return
+    }
+  }
+  view.value = 'build'
+}
+
+// Back from building, the simulation runs the station as it was built.
+async function simulate() {
+  if (view.value === 'simulate') return
+  view.value = 'simulate'
+  problem.value = ''
+  if (!edits.value) return
+  try {
+    await reloadStation()
+  } catch (e) {
+    problem.value = `The station does not load: ${(e as Error).message ?? e}`
+  }
+}
+
+// The gear shows the settings, and a second click goes back to where the app was.
+const toggleSettings = () => (page.value === 'settings' ? closeSettings() : openSettings())
+
 const paused = computed(() => snapshot.value?.paused ?? false)
 </script>
 
@@ -31,38 +60,41 @@ const paused = computed(() => snapshot.value?.paused ?? false)
   <header class="bar">
     <img src="/logo.svg" alt="" width="26" height="26" />
     <strong class="name">Taktwin</strong>
-    <nav class="tabs" aria-label="Pages">
-      <button :class="{ active: page === 'simulation' }" @click="page = 'simulation'">Simulation</button>
+    <nav v-if="!project" class="tabs" aria-label="Pages">
+      <button :class="{ active: page === 'simulation' }" @click="page = 'simulation'">Projects</button>
       <button :class="{ active: page === 'library' }" @click="page = 'library'">Library</button>
-      <button :class="{ active: page === 'builder' }" @click="page = 'builder'">Builder</button>
-      <button :class="{ active: page === 'settings' }" @click="page = 'settings'">Settings<span v-if="updateAvailable" class="dot" title="An update is available"></span></button>
     </nav>
-    <select v-if="page === 'simulation'" class="station" :value="scene?.id" aria-label="Station" @change="choose" @focus="refresh">
-      <optgroup v-for="g in grouped(stations)" :key="g.id" :label="g.name">
-        <option v-for="s in g.items" :key="s.id" :value="s.id">{{ s.name }}</option>
-      </optgroup>
-    </select>
-
-    <div v-if="page === 'simulation'" class="status">
-      <button class="source" title="PLC connection" @click="simulation.selection.value = scene?.plc.module ?? null">
-        <span v-if="snapshot?.link" class="lamp" :class="snapshot.link.state" />{{ snapshot?.plc ?? 'PLC' }}
-      </button>
-      <span v-if="snapshot?.ioTest" class="test">
-        I/O test: outputs by hand
-        <button @click="service.SetIOTest(false)">End</button>
+    <template v-else>
+      <button class="back" title="Close the project and go back to your projects" @click="closeProject">‹ Projects</button>
+      <span class="project" :title="project.folder">
+        {{ project.name }}
+        <small>{{ project.exerciseName ? `Exercise: ${project.exerciseName}` : project.stationName }}</small>
       </span>
+      <div v-if="page === 'simulation'" class="segmented view" role="group" aria-label="View">
+        <button :class="{ active: view === 'simulate' }" :aria-pressed="view === 'simulate'" @click="simulate">Simulate</button>
+        <button
+          :class="{ active: view === 'build' }"
+          :aria-pressed="view === 'build'"
+          :disabled="!!project.exercise"
+          :title="project.exercise ? 'The station of an exercise stays as the exercise has it' : 'Build on the station'"
+          @click="build"
+        >
+          Build
+        </button>
+      </div>
+    </template>
+    <span v-if="problem" class="collision">{{ problem }}</span>
+
+    <!-- What needs acknowledging; the status bar shows the rest. -->
+    <div v-if="running" class="status">
       <span v-for="text in snapshot?.collisions ?? []" :key="text" class="collision">{{ text }}</span>
       <span v-if="snapshot?.fellOff" class="collision fell">
         {{ snapshot.fellOff === 1 ? 'A workpiece' : `${snapshot.fellOff} workpieces` }} fell off the station
         <button @click="service.AcknowledgeFellOff()">OK</button>
       </span>
-      <span v-if="snapshot?.step" class="step mono">
-        <b>S{{ snapshot.step.number }}</b> {{ snapshot.step.label }}
-      </span>
     </div>
 
-    <div v-if="page === 'simulation'" class="controls">
-      <span class="time mono" title="Simulated time">{{ time }}</span>
+    <div v-if="running" class="controls">
       <div class="segmented" role="group" aria-label="Simulation speed">
         <button
           v-for="speed in speeds"
@@ -78,6 +110,17 @@ const paused = computed(() => snapshot.value?.paused ?? false)
       <button class="fixed" @click="service.SetPaused(!paused)">{{ paused ? 'Resume' : 'Pause' }}</button>
       <button @click="service.Reset()">Restart</button>
     </div>
+    <span v-if="!running" class="spacer" />
+    <button class="gear" :class="{ active: page === 'settings' }" :aria-pressed="page === 'settings'" title="Settings" aria-label="Settings" @click="toggleSettings">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"
+          transform="translate(-1 0)"
+        />
+      </svg>
+      <span v-if="updateAvailable" class="dot" title="An update is available"></span>
+    </button>
   </header>
 </template>
 
@@ -100,12 +143,55 @@ img {
   font-size: 14px;
 }
 
-.station {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 2px;
+.back {
+  padding: 3px 8px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.view button {
+  min-width: 76px;
+}
+
+.gear {
+  align-items: center;
+  background: none;
+  border-color: transparent;
+  color: var(--text-dim);
+  display: flex;
+  padding: 4px 6px;
+  position: relative;
+}
+
+.gear:hover,
+.gear.active {
+  background: var(--panel-raised);
+  border-color: var(--line);
   color: var(--text);
-  padding: 3px 6px;
+}
+
+.gear .dot {
+  position: absolute;
+  right: 1px;
+  top: 1px;
+}
+
+.project {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  max-width: 260px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project small {
+  color: var(--text-dim);
+  font-size: 11px;
 }
 
 .status {
@@ -116,29 +202,6 @@ img {
   justify-content: center;
   min-width: 0;
   white-space: nowrap;
-}
-
-.source {
-  align-items: center;
-  background: none;
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  color: var(--text-dim);
-  display: flex;
-  font-size: 12px;
-  gap: 6px;
-  padding: 2px 10px;
-}
-
-.test {
-  align-items: center;
-  background: var(--accent);
-  color: #1b1405;
-  display: flex;
-  font-size: 12px;
-  font-weight: 600;
-  gap: 8px;
-  padding: 2px 3px 2px 8px;
 }
 
 .collision {
@@ -164,34 +227,6 @@ img {
   font-size: 11px;
   font-weight: 700;
   padding: 1px 7px;
-}
-
-.test button {
-  background: #1b1405;
-  border: 0;
-  color: var(--accent);
-  font-size: 11px;
-  padding: 1px 7px;
-}
-
-.lamp {
-  background: var(--accent);
-  border-radius: 50%;
-  height: 8px;
-  width: 8px;
-}
-
-.lamp.connected {
-  background: #4ee67c;
-}
-
-.lamp.failed {
-  background: var(--danger);
-}
-
-.step b {
-  color: var(--accent);
-  font-weight: 600;
 }
 
 .controls {
@@ -222,29 +257,17 @@ img {
   color: var(--text);
 }
 
-.tabs .dot {
+.gear .dot {
   background: var(--accent);
   border-radius: 50%;
-  display: inline-block;
   height: 7px;
-  margin-left: 6px;
-  vertical-align: 2px;
   width: 7px;
-}
-
-.tabs .active .dot {
-  background: #1b1405;
 }
 
 .tabs .active {
   background: var(--accent);
   color: #1b1405;
   font-weight: 600;
-}
-
-.time {
-  color: var(--text-dim);
-  margin-right: 4px;
 }
 
 .fixed {

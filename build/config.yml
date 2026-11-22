@@ -69,7 +69,14 @@ dev_mode:
 
 # File Associations
 # More information at: https://v3.wails.io/noit/done/yet
+# The entries below are also written by hand into build/darwin/Info*.plist (whose icon is
+# "icons", the .icns of the app) and build/windows/nsis/wails_tools.nsh (icon.ico).
 fileAssociations:
+  - ext: taktwin-project
+    name: Taktwin.Project
+    description: Taktwin project
+    iconName: icon
+    role: Editor
 #  - ext: wails
 #    name: Wails
 #    description: Wails Application File

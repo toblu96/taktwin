@@ -11,9 +11,7 @@ import {
   cancelPlacing,
   check,
   confirming as confirmPlace,
-  deleteStation,
   enter,
-  exists,
   fit,
   ghost,
   ghostPose,
@@ -26,7 +24,6 @@ import {
   move,
   nudge as step,
   overlay,
-  own,
   pending,
   pick,
   placeAt,
@@ -36,16 +33,14 @@ import {
   remove,
   putBack,
   rotate,
-  save,
   selected,
   selectedMarks,
   setParam,
   setStation,
-  start,
   state,
 } from '../builder'
 import { grouped } from '../collections'
-import { filesRead, loadStation, page, simKey } from '../sim'
+import { simKey } from '../sim'
 import StationViewer from '../viewer/StationViewer.vue'
 import WiringView from './WiringView.vue'
 
@@ -53,7 +48,6 @@ import WiringView from './WiringView.vue'
 provide(simKey, built)
 
 const entries = ref<Entry[]>([])
-const from = ref('')
 const loadEntries = async () => {
   entries.value = (await LibraryService.Entries()) ?? []
 }
@@ -100,16 +94,6 @@ function onKey(event: KeyboardEvent) {
   }
 }
 
-const stations = computed(() => entries.value.filter((e) => e.level === 'station' && !e.error))
-// To start from, by collection: an empty station of each that has something to stand on, then its stations.
-const startGroups = computed(() =>
-  grouped([...stations.value, ...entries.value.filter((e) => e.role === 'station' && !e.error)]).map((g) => ({
-    ...g,
-    empty: g.items.some((e) => e.level !== 'station'),
-    stations: g.items.filter((e) => e.level === 'station'),
-  })),
-)
-
 // The palette shows one collection at a time, by default the one most of the station is from.
 const ALL = '*'
 const chosenCollection = ref<string | null>(null)
@@ -140,27 +124,6 @@ const palette = computed(() => {
     list: list.sort((a, b) => a.name.localeCompare(b.name)),
   }))
 })
-
-// A station saved here shows in the list to start from.
-watch(
-  () => state.value?.saved,
-  (saved) => {
-    if (saved) {
-      filesRead.value++
-      void loadEntries()
-    }
-  },
-)
-
-const confirming = ref('')
-async function confirmDelete() {
-  const id = confirming.value
-  confirming.value = ''
-  await deleteStation(id)
-  if (from.value === id) from.value = ''
-  filesRead.value++
-  await loadEntries()
-}
 
 const name = ref('')
 const description = ref('')
@@ -269,14 +232,6 @@ function show(check: SceneCheck) {
   built.highlight.value = same ? null : { instances, at: check.at ?? null }
 }
 
-async function tryIt() {
-  const id = state.value?.station.id
-  if (!id) return
-  filesRead.value++
-  page.value = 'simulation'
-  await loadStation(id)
-}
-
 const hint = computed(() =>
   pending.value
     ? `Point at a line to place the ${pending.value.name}, click to put it down · R turns it · Esc cancels`
@@ -296,27 +251,6 @@ const hint = computed(() =>
         <button role="tab" :class="{ active: paletteTab === 'modules' }" :aria-selected="paletteTab === 'modules'" @click="paletteTab = 'modules'">In the station</button>
       </nav>
       <template v-if="paletteTab === 'add'">
-        <section class="block">
-          <h3 class="section-title">Start from</h3>
-          <div class="row">
-            <select v-model="from" aria-label="Start from">
-              <option value="">An empty station</option>
-              <optgroup v-for="g in startGroups" :key="g.id" :label="g.name">
-                <option v-if="g.empty" :value="`empty:${g.id}`">An empty station of {{ g.name }}</option>
-                <option v-for="s in g.stations" :key="s.id" :value="s.id">{{ s.name }}{{ own.includes(s.id) ? ' (yours)' : '' }}</option>
-              </optgroup>
-            </select>
-            <button :disabled="busy" @click="start(from)">Start</button>
-          </div>
-          <div v-if="from && own.includes(from)" class="row">
-            <button v-if="confirming !== from" class="danger" @click="confirming = from">Delete this station</button>
-            <template v-else>
-              <span class="hint">Delete its folder for good?</span>
-              <button class="danger" @click="confirmDelete">Delete</button>
-              <button @click="confirming = ''">Keep</button>
-            </template>
-          </div>
-        </section>
         <p v-if="pending" class="picked">Point at a line in the 3D view and click to put it down. R turns it, Esc cancels.</p>
         <section v-if="paletteCollections.length > 1" class="block">
           <label class="collection">
@@ -493,15 +427,7 @@ const hint = computed(() =>
             <span>Description</span>
             <textarea v-model="description" rows="2" @change="rename" />
           </label>
-          <div class="row">
-            <button :disabled="busy || !state" @click="save(false)">Save</button>
-            <button :disabled="busy || !state?.saved" @click="tryIt">Try in Simulation</button>
-          </div>
-          <p v-if="exists" class="problem">
-            A station with this name is already saved.
-            <button @click="save(true)">Replace it</button>
-          </p>
-          <p v-if="state?.saved" class="hint mono" :title="state.saved">Saved to {{ state.saved }}</p>
+          <p class="hint">The project keeps every change. <strong>Simulate</strong> runs the station as it is built.</p>
         </section>
       </template>
 

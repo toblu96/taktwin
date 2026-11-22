@@ -30,5 +30,20 @@
             <key>NSAllowsLocalNetworking</key>
             <true/>
         </dict>
+        <key>CFBundleDocumentTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleTypeExtensions</key>
+                <array>
+                    <string>taktwin-project</string>
+                </array>
+                <key>CFBundleTypeName</key>
+                    <string>Taktwin project</string>
+                <key>CFBundleTypeRole</key>
+                    <string>Editor</string>
+                <key>CFBundleTypeIconFile</key>
+                    <string>icons</string>
+            </dict>
+        </array>
     </dict>
 </plist>

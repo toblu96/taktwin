@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import WidgetList from '../components/WidgetList.vue'
-import { useSim } from '../sim'
+import { thumbnails, useSim } from '../sim'
 import type { SceneInstance } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 import type { GhostPose, Handle, Overlay, SiteLine } from './build'
 import { StationScene, type CameraView } from './scene'
@@ -137,6 +137,10 @@ function placePopup() {
 
 onMounted(start)
 
+// The simulation's own view takes the picture a project keeps of its station.
+const takeThumbnail = () => scene?.thumbnail() ?? null
+if (!props.preview && !props.building) thumbnails.take = takeThumbnail
+
 // A new scene in a preview: a parameter can change the shape, and the camera stays
 // where it is unless it is another entry.
 async function rebuild() {
@@ -184,6 +188,7 @@ watch(selection, (id) => {
 })
 
 onBeforeUnmount(() => {
+  if (thumbnails.take === takeThumbnail) thumbnails.take = null
   window.clearInterval(loadTimer)
   observer?.disconnect()
   scene?.dispose()

@@ -16,7 +16,10 @@ declare module "@wailsio/runtime" {
     namespace Events {
         interface CustomEvents {
             "builder:snapshot": engine$0.Snapshot;
+            "files:dropped": string[] | null;
+            "files:opened": string;
             "library:snapshot": engine$0.Snapshot;
+            "menu:command": string;
             "sim:check": simapp$0.CheckState;
             "sim:snapshot": engine$0.Snapshot;
         }

@@ -18,6 +18,14 @@ import * as sim$0 from "../sim/models.js";
 import * as st$0 from "../../st/models.js";
 
 /**
+ * Base is what a project is based on: a station, or an exercise and its station.
+ */
+export interface Base {
+    "station": string;
+    "exercise"?: string;
+}
+
+/**
  * BuildResult is what building a project says.
  */
 export interface BuildResult {
@@ -261,12 +269,29 @@ export interface ConnectionInfo {
 }
 
 /**
- * ExerciseInfo is an exercise on the station in the simulation.
+ * Example is a station a collection opens with, offered to start a project from.
+ */
+export interface Example {
+    "station": string;
+    "stationName": string;
+    "collection": string;
+    "description": string;
+}
+
+/**
+ * ExerciseInfo is an exercise and the station it is on.
  */
 export interface ExerciseInfo {
     "id": string;
     "name": string;
     "description": string;
+    "station": string;
+    "stationName": string;
+
+    /**
+     * Collection is the collection it comes from, "" for the user's own.
+     */
+    "collection"?: string;
 
     /**
      * Changes says how the exercise sets the station up, one line each, and Open whether the
@@ -284,6 +309,30 @@ export interface FolderInfo {
     "path": string;
     "default": boolean;
     "fixed": boolean;
+}
+
+/**
+ * LastCheck is how a check of an exercise went: passed or not, and when, as RFC 3339.
+ */
+export interface LastCheck {
+    "exercise": string;
+    "passed": boolean;
+    "at": string;
+}
+
+/**
+ * OpenOptions are the answers to what InspectProjectFile asks.
+ */
+export interface OpenOptions {
+    /**
+     * Install installs the collections the file brings that are missing here, or older.
+     */
+    "install": boolean;
+
+    /**
+     * Continue opens the project made from the same exercise handed out before instead.
+     */
+    "continue": boolean;
 }
 
 /**
@@ -338,6 +387,10 @@ export interface PreviewBinding {
  * ProgramProject is a PLC's project as the editor opens it.
  */
 export interface ProgramProject {
+    /**
+     * Project is the name of the project the program is in, which SaveFile takes.
+     */
+    "project": string;
     "station": string;
     "plc": string;
     "title": string;
@@ -355,7 +408,7 @@ export interface ProgramProject {
 
 /**
  * ProgramStatus is the soft PLC's state, whether the simulation is connected to it, and the
- * station the simulation shows: an editor open on another station's project reloads.
+ * project the simulation works in: an editor open on another project's program reloads.
  */
 export interface ProgramStatus {
     "loaded": boolean;
@@ -368,6 +421,85 @@ export interface ProgramStatus {
     "loadedAt": string;
     "connected": boolean;
     "station": string;
+    "project": string;
+}
+
+/**
+ * ProjectFileInfo is what opening a project file would do, for the app to ask about first.
+ */
+export interface ProjectFileInfo {
+    "name": string;
+    "handout": boolean;
+    "exerciseName"?: string;
+
+    /**
+     * Existing is the project made from the same exercise handed out before, which can be
+     * gone on with instead.
+     */
+    "existing"?: string;
+
+    /**
+     * Installs are the collections the file brings that are missing here, or older.
+     */
+    "installs": Requirement[] | null;
+
+    /**
+     * Missing are the collections it needs that are neither here, shown, nor in the file.
+     */
+    "missing": Requirement[] | null;
+}
+
+/**
+ * ProjectInfo is a project as the app lists it.
+ */
+export interface ProjectInfo {
+    "name": string;
+    "station": string;
+    "stationName": string;
+    "exercise"?: string;
+    "exerciseName"?: string;
+
+    /**
+     * Own says that the project has a station of its own, which it builds on, rather than
+     * that of a collection, which follows the collection's updates.
+     */
+    "own"?: boolean;
+
+    /**
+     * Folder is where it is kept.
+     */
+    "folder": string;
+
+    /**
+     * Modified is when its file was last written, as RFC 3339.
+     */
+    "modified"?: string;
+
+    /**
+     * Problem says why it does not open, such as its station's collection being hidden or gone.
+     */
+    "problem"?: string;
+
+    /**
+     * Thumbnail is a picture of its station as it was last closed, as a data URL.
+     */
+    "thumbnail"?: string;
+    "lastCheck"?: LastCheck | null;
+}
+
+/**
+ * Requirement is a collection a project needs, with the version it was made with.
+ */
+export interface Requirement {
+    "collection": string;
+    "name"?: string;
+    "version"?: string;
+
+    /**
+     * Installed is the version here, if one is; Hidden says that it is hidden in the settings.
+     */
+    "installed"?: string;
+    "hidden"?: boolean;
 }
 
 /**

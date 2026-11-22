@@ -7,6 +7,7 @@ import (
 	"maps"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
@@ -17,11 +18,15 @@ import (
 // CheckEvent is emitted with the CheckState each time a line of a running check is done.
 const CheckEvent = "sim:check"
 
-// ExerciseInfo is an exercise on the station in the simulation.
+// ExerciseInfo is an exercise and the station it is on.
 type ExerciseInfo struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Station     string `json:"station"`
+	StationName string `json:"stationName"`
+	// Collection is the collection it comes from, "" for the user's own.
+	Collection string `json:"collection,omitempty"`
 	// Changes says how the exercise sets the station up, one line each, and Open whether the
 	// station in the simulation is set up so. One without changes is always open.
 	Changes []string `json:"changes"`
@@ -46,31 +51,34 @@ type checking struct {
 // Exercises lists the exercises of the station in the simulation.
 func (s *Service) Exercises() []ExerciseInfo {
 	s.mu.Lock()
+	if s.bundle == nil {
+		s.mu.Unlock()
+		return []ExerciseInfo{}
+	}
 	station, open := s.bundle.Station.ID, s.exercise
 	s.mu.Unlock()
-	lib := Library()
 	out := []ExerciseInfo{}
-	for _, id := range lib.Exercises() {
-		if ex, err := lib.Exercise(id); err == nil && ex.Station == station {
-			changes := describeChanges(ex.Changes)
-			out = append(out, ExerciseInfo{ID: ex.ID, Name: ex.Name, Description: ex.Description, Changes: changes, Open: len(changes) == 0 || open == ex.ID})
+	for _, ex := range exercises(s.library()) {
+		if ex.Station == station {
+			ex.Open = len(ex.Changes) == 0 || open == ex.ID
+			out = append(out, ex)
 		}
 	}
 	return out
 }
 
-// OpenExercise puts the station of an exercise into the simulation, set up as the exercise
-// changes it, with no PLC until one is connected.
-func (s *Service) OpenExercise(id string) (model.Scene, error) {
-	bundle, _, err := Library().LoadExercise(id)
-	if err != nil {
-		return model.Scene{}, err
+// AllExercises lists every exercise of the library, to start a project from.
+func (s *Service) AllExercises() []ExerciseInfo { return exercises(Library()) }
+
+func exercises(lib *model.Library) []ExerciseInfo {
+	out := []ExerciseInfo{}
+	for _, id := range lib.Exercises() {
+		if ex, err := lib.Exercise(id); err == nil {
+			out = append(out, ExerciseInfo{ID: ex.ID, Name: ex.Name, Description: ex.Description, Station: ex.Station, StationName: cmpOr(lib.StationName(ex.Station), ex.Station),
+				Collection: lib.ExerciseCollection(ex.ID), Changes: describeChanges(ex.Changes)})
+		}
 	}
-	bundle, e, err := start(bundle)
-	if err != nil {
-		return model.Scene{}, err
-	}
-	return s.replace(bundle, e, id), nil
+	return out
 }
 
 // describeChanges says what an exercise changes on its station, one line each.
@@ -114,12 +122,16 @@ func (s *Service) checkState() CheckState {
 // StartCheck checks the station against an exercise, from its power-on state with the PLC
 // as it is, line by line on the wall clock, as someone with the grading sheet would.
 func (s *Service) StartCheck(id string) error {
-	ex, err := Library().Exercise(id)
+	ex, err := s.library().Exercise(id)
 	if err != nil {
 		return err
 	}
 	s.mu.Lock()
-	e, station, ctx, open := s.engine, s.bundle.Station.ID, s.ctx, s.exercise
+	if s.engine == nil {
+		s.mu.Unlock()
+		return errNoProject
+	}
+	e, station, ctx, open, project := s.engine, s.bundle.Station.ID, s.ctx, s.exercise, s.proj.name
 	s.mu.Unlock()
 	if ex.Station != station {
 		return fmt.Errorf("%s is an exercise for the %s station", ex.Name, ex.Station)
@@ -149,11 +161,40 @@ func (s *Service) StartCheck(id string) error {
 		if err != nil {
 			s.check.state.Error = err.Error()
 		}
+		passed := passed(s.check.state)
 		s.check.mu.Unlock()
+		// A check that was stopped says nothing about the program.
+		if run.Err() == nil {
+			s.keepCheck(project, LastCheck{Exercise: id, Passed: passed, At: time.Now().UTC().Format(time.RFC3339)})
+		}
 		stop()
 		s.emitCheck()
 	}()
 	return nil
+}
+
+// passed says whether a check that ran to its end passed every line.
+func passed(st CheckState) bool {
+	if st.Error != "" || len(st.Lines) == 0 {
+		return false
+	}
+	for _, l := range st.Lines {
+		if !l.OK {
+			return false
+		}
+	}
+	return true
+}
+
+// keepCheck keeps how a check went in the project it ran in, if that is still open.
+func (s *Service) keepCheck(project string, c LastCheck) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if project == "" || s.proj.name != project {
+		return
+	}
+	s.proj.def.LastCheck = &c
+	_ = s.saveProject()
 }
 
 // StopCheck stops a running check.

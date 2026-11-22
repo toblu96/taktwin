@@ -14,9 +14,24 @@ import "../github.com/wailsapp/wails/v3/internal/eventcreate.js";
 export const BuilderSnapshot = "builder:snapshot";
 
 /**
+ * Name of the custom event "files:dropped".
+ */
+export const FilesDropped = "files:dropped";
+
+/**
+ * Name of the custom event "files:opened".
+ */
+export const FilesOpened = "files:opened";
+
+/**
  * Name of the custom event "library:snapshot".
  */
 export const LibrarySnapshot = "library:snapshot";
+
+/**
+ * Name of the custom event "menu:command".
+ */
+export const MenuCommand = "menu:command";
 
 /**
  * Name of the custom event "sim:check".

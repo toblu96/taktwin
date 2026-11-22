@@ -17,6 +17,7 @@ export {
 };
 
 export type {
+    Base,
     BuildResult,
     BuilderCheck,
     BuilderFloor,
@@ -32,13 +33,19 @@ export type {
     CollectionInfo,
     ConnectionDoc,
     ConnectionInfo,
+    Example,
     ExerciseInfo,
     FolderInfo,
+    LastCheck,
+    OpenOptions,
     PLCConfig,
     Preview,
     PreviewBinding,
     ProgramProject,
     ProgramStatus,
+    ProjectFileInfo,
+    ProjectInfo,
+    Requirement,
     SignalInfo,
     UpdateRelease,
     UpdateStatus,

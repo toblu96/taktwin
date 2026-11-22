@@ -228,12 +228,14 @@ RequestExecutionLevel "${REQUEST_EXECUTION_LEVEL}"
 
 !macro wails.associateFiles
     ; Create file associations
-    
+    !insertmacro APP_ASSOCIATE "taktwin-project" "Taktwin.Project" "Taktwin project" "$INSTDIR\icon.ico" "Open with ${INFO_PRODUCTNAME}" "$INSTDIR\${PRODUCT_EXECUTABLE} $\"%1$\""
+    File "..\icon.ico"
 !macroend
 
 !macro wails.unassociateFiles
     ; Delete app associations
-    
+    !insertmacro APP_UNASSOCIATE "taktwin-project" "Taktwin.Project"
+    Delete "$INSTDIR\icon.ico"
 !macroend
 
 !macro CUSTOM_PROTOCOL_ASSOCIATE PROTOCOL DESCRIPTION ICON COMMAND

@@ -1,16 +1,18 @@
 # User guide
 
-Taktwin has four pages. **Simulation** runs a station with its PLC. **Builder** puts stations together. **Library** browses the collections and previews any module on its own, without a PLC. **Settings** manages collections, your folder and updates.
+Taktwin starts on **Projects**, which lists your projects. Beside it, **Library** browses the collections and previews any module on its own, without a PLC. An open project shows its station: **Simulate** runs it with its PLC, and **Build** puts it together. The gear at the top right opens **Settings**: **General** for your folder, **Collections**, **Updates** and **About**. A second click on the gear, or Esc, goes back.
+
+The status bar along the bottom shows the app's version, with a dot when an update is ready; a click opens **Updates**. While a station runs it shows its PLC and connection, an I/O test with **End**, the PLC's step, and the simulated time and speed; a click on the PLC shows its panel. On the right, **✓ Saved** shows the project's folder. What needs acknowledging, such as a collision or a workpiece that fell off, stays in the top bar.
 
 ## Collections and your own stations
 
-Stations, modules, workpieces and exercises are JSON files, described by the JSON Schemas in [`schema/`](../schema) and by [the collection format](../catalog/README.md). A collection is a folder of them, or a `.taktwin` zip of that folder, which **Settings** imports.
+Stations, modules, workpieces and exercises are JSON files, described by the JSON Schemas in [`schema/`](../schema) and by [the collection format](../catalog/README.md). A collection is a folder of them, or a `.taktwin` zip of that folder, which **Settings › Collections** imports.
 
-The app also reads stations from a `Taktwin` folder in your documents folder, wherever the system keeps that, or from the folder in `TAKTWIN_HOME`. **Settings** shows the exact path, opens it in the file manager and has **Reload**, which reads your files again. Put each station in `stations/<id>/station.json` there. They show in the station list next to the built-in ones, and in the Library. A station that does not load is listed in red with the reason; one that loads but does not fit together shows its problems under **Station checks**.
+The app also reads stations from a `Taktwin` folder in your documents folder, wherever the system keeps that, or from the folder in `TAKTWIN_HOME`. **Settings** shows the exact path, opens it in the file manager and has **Reload**, which reads your files again. Put each station in `stations/<id>/station.json` there. They show next to the built-in ones when you make a project, and in the Library. A station that does not load is listed in red with the reason; one that loads but does not fit together shows its problems under **Station checks**.
 
 ## The builder
 
-The **Builder** page puts a station together without editing files. Start from an empty stand or a copy of any station, then:
+**Build**, in the top bar of an open project, puts its station together without editing files. A project made from an empty station opens there. A project on a collection's station builds on a copy of it that the project keeps, after asking, and no longer follows the collection's updates. The station of an exercise stays as the exercise has it. Then:
 
 - Click a module on the left to pick it: every place it fits shows as a line, and a see-through copy follows the pointer, on the 5 mm grid or in whole mm with Shift. It is green where it fits and red where it does not, with the reason. A click puts it down, R turns it, Esc puts it back.
 - A selected module shows arrows to move it along its rail or to the next one; what is screwed onto it goes along. **Fit** moves it to where the station has the fewest problems. Backspace removes it, with everything screwed onto it.
@@ -20,7 +22,32 @@ The **Builder** page puts a station together without editing files. Start from a
 - The station checks have their own tab and update with every change.
 - A selected stand shows a **+** on each side where there is room, to put another stand beside it, so that a station grows into a line, each stand with its own PLC.
 - **Wiring** shows the PLCs, consoles, interfaces and I/O terminals with the cables between them. Click a connector, then another of its kind, to move its cable; click a pin to move what it carries. Each pin shows the PLC address it reaches, as the PLC module shows them, and the name the PLC knows it by, which can be changed.
-- **Save** writes it to your folder, and **Try in Simulation** opens it there.
+- The project keeps every change, as `station.json` in its folder. **Simulate** runs the station as it is built; when it was changed, its PLCs are disconnected, as on a restart.
+
+## Projects
+
+Everything you do in the simulation belongs to a project: the soft PLC's programs, how each PLC is connected, and the station's settings. A project is saved as it changes, so there is nothing to save.
+
+The app starts on **Projects**: a card for each of your projects, the latest first, with a picture of its station as you left it and how its last exercise check went. Below them is the station each collection comes with, as an **Example**, until its collection is hidden in **Settings › Collections**. Clicking a project opens it; clicking an example makes a project of your own on it. With projects on stations and on exercises, tabs show either kind, and the filter field (⌘F / Ctrl+F) finds a project by its name, station or exercise.
+
+- **New project** makes one from a station or from an exercise of your collections, or with an empty station to build. It is named after the station or exercise unless you give it a name, with a number where that name is taken. A project on an exercise has the station set up as the exercise says, and its check in **Exercises**.
+- A card's **⋯** menu renames, duplicates, shows the project's folder, exports or deletes it.
+- **Export…** writes a project into a `.taktwin-project` file, to hand it in or move it to another computer. **Open file…** opens such a file as a project of its own, as does dropping it onto the page; on a Mac also **File › Import Project File…** (⌘O).
+- **‹ Projects** in the top bar closes the project; on a Mac also **File › Close Project** (⌘W). Closing disconnects every PLC and stops its soft PLCs, so download the program again after opening the project.
+
+Only a Mac has a menu bar, as every Mac app does: besides the **File** menu it has **Taktwin › Settings…** (⌘,). On Windows everything is on the app's pages.
+
+Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. A project whose station or exercise is in none of your collections, for example because the collection is hidden, is listed with the reason and does not open. Projects are kept in the `projects` folder of your folder, one folder each, with `project.json`, the programs in `programs/<plc>/`, `thumbnail.jpg`, `station.json` once the project has a station of its own, and `exercise.json` and `instructions.md` for an exercise handed out. A project file holds only these, and an import refuses anything else.
+
+### Exercises as one file
+
+A teacher hands an exercise out as one file: in the card menu of a project on an exercise, **Hand out as exercise…** writes a `.taktwin-project` file with the station and the exercise as copies, the station's settings, the instructions, and the collections students may not have, those you imported. It asks whether this project's programs go along as a start; by default they do not, so that a solution does not go out by mistake. How the PLCs are connected and how checks went stay behind. A station that uses modules from your own folder cannot be handed out: put them into a collection first.
+
+The instructions are Markdown: `instructions.md` in the project's folder, or beside the exercise in its collection (`exercises/<id>/instructions.md`). They show under the exercise, beside its **Check**.
+
+Students open the file by double-clicking it, dropping it onto **Projects**, or with **Open file…**. When it brings a collection they do not have, or a newer one, the app asks to install it first; one it needs but does not bring must be imported in **Settings › Collections**. The project keeps the exercise's station as it is. Opening the file again asks whether to go on with the project made from it before or to start again.
+
+To hand in, students use **Export…** on their project. A teacher opening that file gets a project named after the file, such as `Anna.taktwin-project`, and presses **Check**.
 
 ## Running a station
 
@@ -58,4 +85,4 @@ Each PLC can also run a Structured Text program written in the app. In the PLC's
 - **Online**, the code shows each variable's value in a box after its name. Click a value to prepare a new one, then F7 forces it, Ctrl+F7 writes it once, and Alt+F7 releases all forces.
 - **Watch** lists every variable live, and can prepare, write and force values in the same way.
 
-A project lives in your folder under `programs/<station>/<plc>/`, one `.st` file for each POU, with `project.json` for the task. `Bits.st` is written from the station's I/O table each time the project opens. A new project starts from a template with a step chain; a collection can bring an example program for its station.
+A PLC's program lives in the project you work in, under `programs/<plc>/`, one `.st` file for each POU, with `project.json` for the task. `Bits.st` is written from the station's I/O table each time the project opens. A new project starts from a template with a step chain; a collection can bring an example program for its station.

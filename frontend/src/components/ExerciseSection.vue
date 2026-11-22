@@ -2,7 +2,8 @@
 import { Events } from '@wailsio/runtime'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { Service, type CheckState, type ExerciseInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import { openExercise, useSim } from '../sim'
+import { newProject, project, useSim } from '../sim'
+import MarkdownText from './MarkdownText.vue'
 
 // The exercises of the station, and the check of one of them against whatever PLC runs it,
 // line by line as on a grading sheet.
@@ -10,17 +11,19 @@ const { scene } = useSim()
 const exercises = ref<ExerciseInfo[]>([])
 const check = ref<CheckState | null>(null)
 const error = ref('')
+// What the project's exercise asks for, in Markdown, if it says more than its description.
+const instructions = ref('')
 
 async function load() {
   exercises.value = (await Service.Exercises()) ?? []
   check.value = await Service.Check()
+  instructions.value = await Service.Instructions()
 }
 
 async function open(id: string) {
   error.value = ''
   try {
-    await openExercise(id)
-    await load()
+    await newProject({ station: '', exercise: id })
   } catch (e) {
     error.value = (e as Error).message
   }
@@ -56,12 +59,13 @@ const passed = (c: CheckState) => !c.running && !c.error && (c.lines ?? []).leng
       <div class="row">
         <strong>{{ exercise.name }}</strong>
         <button v-if="check?.running && check.exercise === exercise.id" @click="Service.StopCheck()">Stop</button>
-        <button v-else-if="!exercise.open" :disabled="check?.running" title="Put the station into the simulation as this exercise sets it up" @click="open(exercise.id)">
-          Open
+        <button v-else-if="!exercise.open" :disabled="check?.running" title="Start a project on this exercise, with the station set up as it says" @click="open(exercise.id)">
+          New project
         </button>
         <button v-else :disabled="check?.running" title="Reset the station and check it line by line" @click="start(exercise.id)">Check</button>
       </div>
       <p class="description">{{ exercise.description }}</p>
+      <MarkdownText v-if="instructions && project?.exercise === exercise.id" class="instructions" :source="instructions" />
       <div v-if="exercise.changes?.length" class="changes">
         <span class="changes-title">{{ exercise.open ? 'Set up for this exercise' : 'Sets the station up' }}</span>
         <ul>
@@ -86,6 +90,12 @@ const passed = (c: CheckState) => !c.running && !c.error && (c.lines ?? []).leng
 </template>
 
 <style scoped>
+.instructions {
+  border-left: 2px solid var(--accent);
+  margin: 6px 0 8px;
+  padding-left: 10px;
+}
+
 .exercise + .exercise {
   margin-top: 10px;
 }
