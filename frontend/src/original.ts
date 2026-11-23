@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { Service } from '../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { OriginalInfo } from '../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import { ask, choose } from './ask'
-import { project, refreshProject, simulation } from './sim'
+import { connectionsChanged, editingConnection, project, refreshProject, simulation } from './sim'
 
 // The open project's original, which every project keeps: when it was set and which parts
 // differ from it. A part is put back as the original has it, or everything at once; in expert
@@ -22,6 +22,11 @@ export async function putBack(part: 'connection' | 'programs' | 'station' | 'set
   if (!ok) return
   original.value = await Service.PutBack(part, plc)
   if (part === 'station' || part === 'settings' || part === 'everything') simulation.scene.value = await Service.Scene()
+  if (part === 'connection' || part === 'everything') {
+    // The bindings open in the wiring are those that were put back.
+    editingConnection.value = null
+    connectionsChanged.value++
+  }
   await refreshProject()
 }
 

@@ -352,6 +352,10 @@ export const programming = ref<string | null>(null)
 export const editingConnection = ref<{ plc: string; values: Record<string, unknown> } | null>(null)
 export const savedConnection = ref<{ plc: string } | null>(null)
 
+// Counts the times the PLCs' connections changed outside their panel, such as when one was put
+// back as the project's original has it, for the panel to show them as they are now.
+export const connectionsChanged = ref(0)
+
 export function connect() {
   Events.On('sim:snapshot', (event) => {
     simulation.snapshot.value = event.data as Snapshot
