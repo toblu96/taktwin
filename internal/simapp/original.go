@@ -2,6 +2,7 @@ package simapp
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -205,7 +206,8 @@ func union[V any](a, b map[string]V) map[string]V {
 	return out
 }
 
-// samePLC says whether two ways of connecting a PLC are the same; none and unset are.
+// samePLC says whether two ways of connecting a PLC are the same, connection and all; none
+// and unset are.
 func samePLC(a, b PLCConfig) bool {
 	if a.Mode == "" {
 		a.Mode = PLCNone
@@ -213,15 +215,9 @@ func samePLC(a, b PLCConfig) bool {
 	if b.Mode == "" {
 		b.Mode = PLCNone
 	}
-	if a.Mode != b.Mode || a.Connection != b.Connection || len(a.Values) != len(b.Values) {
-		return false
-	}
-	for k, v := range a.Values {
-		if fmt.Sprint(b.Values[k]) != fmt.Sprint(v) {
-			return false
-		}
-	}
-	return true
+	ja, errA := json.Marshal(a)
+	jb, errB := json.Marshal(b)
+	return errA == nil && errB == nil && bytes.Equal(ja, jb)
 }
 
 // under are the files below a folder, by their paths in it.

@@ -6,6 +6,98 @@
 import * as json$0 from "../../../../../encoding/json/models.js";
 
 /**
+ * BindingDef exchanges one signal of the station, named by its symbol or its address, with
+ * an item of the controller.
+ */
+export interface BindingDef {
+    /**
+     * Signal is the symbol of the signal, such as B1; it follows the signal when it moves to
+     * another pin.
+     */
+    "signal"?: string;
+
+    /**
+     * Address is the address of the signal, such as %IX0.3; whatever is wired there is
+     * exchanged.
+     */
+    "address"?: string;
+
+    /**
+     * Item is what the driver exchanges it with, such as {"nodeId": "ns=2;s=B1"}. Its texts
+     * may use {var}.
+     */
+    "item": json$0.RawMessage;
+
+    /**
+     * Invert exchanges a bit the other way round.
+     */
+    "invert"?: boolean;
+
+    /**
+     * Scale converts an analogue value linearly, from the station's unit to the item's.
+     */
+    "scale"?: Scale | null;
+}
+
+/**
+ * Connection is how one PLC of a station is coupled to a controller: the content of a
+ * connection file, or a preset the app makes.
+ */
+export interface Connection {
+    "id": string;
+    "name": string;
+    "description"?: string;
+
+    /**
+     * Station limits the connection to one station, by id; without it, it fits any station
+     * whose PLC is PLC.
+     */
+    "station"?: string;
+
+    /**
+     * PLC is the instance of the station's PLC module it is for; without it, the first PLC.
+     */
+    "plc"?: string;
+
+    /**
+     * Driver names the driver, such as "opcua".
+     */
+    "driver": string;
+
+    /**
+     * Vars is a JSON Schema of an object, one property per value someone may change, such as
+     * the computer the controller runs on. The form to connect is made from it.
+     */
+    "vars"?: json$0.RawMessage;
+
+    /**
+     * Settings are the driver's, such as its endpoint. Their texts may use {var}.
+     */
+    "settings"?: json$0.RawMessage;
+
+    /**
+     * Namespaces gives names to texts that items use often, such as an OPC UA namespace URI
+     * for nsu={fs}.
+     */
+    "namespaces"?: { [_ in string]?: string } | null;
+    "bindings"?: BindingDef[] | null;
+    "generate"?: GenerateDef[] | null;
+}
+
+/**
+ * GenerateDef makes a binding for each signal of a kind, from a template of its item. Its
+ * texts may use {address} (%IX0.3), {shown} (as the PLC shows it), {symbol}, {byte}, {bit},
+ * {bit:2} (two digits), {channel} (of an analogue channel, 0 for the first), and the vars.
+ */
+export interface GenerateDef {
+    /**
+     * Signals is inputs or outputs (bits), analogInputs, analogOutputs, analog (both) or all.
+     */
+    "signals": string;
+    "item": json$0.RawMessage;
+}
+
+/**
  * Node is one thing a controller offers, as a browser shows it.
  */
 export interface Node {
@@ -36,4 +128,13 @@ export interface Node {
      */
     "below": boolean;
     "under"?: string;
+}
+
+/**
+ * Scale maps From, a range of the value on the wire such as [0, 10] volts, to To, the same
+ * range in the item's unit, such as [0, 100] percent.
+ */
+export interface Scale {
+    "from": number[];
+    "to": number[];
 }

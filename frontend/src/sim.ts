@@ -347,10 +347,10 @@ async function takeOpened() {
 // null while none is.
 export const programming = ref<string | null>(null)
 
-// The connection whose editor is open over the 3D view, with the PLC it is for and the values
-// of its form, or null while none is. Saved is the id it was saved under, once it is.
-export const editingConnection = ref<{ plc: string; id: string; values: Record<string, unknown> } | null>(null)
-export const savedConnection = ref<{ plc: string; id: string; values?: Record<string, unknown> } | null>(null)
+// The PLC whose connection's bindings are open in the wiring, with the values of its form, or
+// null while none is. Saved names the PLC once its bindings were saved into the project.
+export const editingConnection = ref<{ plc: string; values: Record<string, unknown> } | null>(null)
+export const savedConnection = ref<{ plc: string } | null>(null)
 
 export function connect() {
   Events.On('sim:snapshot', (event) => {

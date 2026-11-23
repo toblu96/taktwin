@@ -239,17 +239,23 @@ func (l *Link) session(ctx context.Context) (err error) {
 		return err
 	}
 	bad := map[int]bool{}
-	var texts []string
+	var texts, quiet []string
 	for _, p := range problems {
 		bad[p.Binding] = true
-		if p.Binding >= 0 && p.Binding < len(bindings) {
+		switch {
+		case p.Binding >= 0 && p.Binding < len(bindings) && bindings[p.Binding].Generated && bindings[p.Binding].Signal.Symbol == "":
+			// A template's binding for a signal that nothing of the station uses, such as a
+			// byte the controller has no port for, is left out without a word.
+			quiet = append(quiet, bindings[p.Binding].Signal.Label())
+		case p.Binding >= 0 && p.Binding < len(bindings):
 			texts = append(texts, bindings[p.Binding].Signal.Label()+": "+p.Text)
-		} else {
+		default:
 			texts = append(texts, p.Text)
 		}
 	}
 	l.mu.Lock()
 	l.info.Problems, l.info.Variables = texts, len(bindings)-len(bad)
+	l.info.Unbound = append(l.info.Unbound[:len(l.opts.Connection.Unbound):len(l.opts.Connection.Unbound)], quiet...)
 	l.mu.Unlock()
 	l.set(plcio.LinkConnected, "")
 	err = s.Run(ctx, &exchange{l: l, bindings: bindings})

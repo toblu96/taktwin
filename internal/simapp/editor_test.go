@@ -18,28 +18,25 @@ import (
 	"github.com/toblu96/taktwin/internal/opcsim"
 )
 
-// connectionDraft is a connection being edited, from the app's generic one.
+// connectionDraft is the PLC's own connection being edited, made from the app's generic one.
 func connectionDraft(t *testing.T, s *Service, edit func(map[string]any)) string {
 	t.Helper()
-	doc, err := s.ConnectionFor("", "opcua")
+	planned, err := s.NewConnection("", "opcua")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if doc.Yours || doc.Info.Source != "Taktwin" {
-		t.Errorf("the generic connection is the app's: %+v", doc)
-	}
+	data, _ := json.Marshal(planned.External.Connection)
 	var c map[string]any
-	if err := json.Unmarshal([]byte(doc.JSON), &c); err != nil {
+	if err := json.Unmarshal(data, &c); err != nil {
 		t.Fatal(err)
 	}
-	c["id"], c["name"] = "mine", "Mine"
 	edit(c)
-	data, _ := json.Marshal(c)
+	data, _ = json.Marshal(c)
 	return string(data)
 }
 
-// The editor sees what a connection exchanges as it is edited, keeps it in the user's folder,
-// and removes it again.
+// The editor sees what a connection exchanges as it is edited, and keeps it in the project as
+// the PLC's own, not in the user's folder.
 func TestAConnectionIsEditedAndKept(t *testing.T) {
 	s, home := newService(t)
 	signals, err := s.SignalsFor("")
@@ -75,30 +72,25 @@ func TestAConnectionIsEditedAndKept(t *testing.T) {
 		t.Errorf("an unknown symbol: %+v", p)
 	}
 
-	info, err := s.SaveConnection("", doc, values)
+	if _, err := s.SaveConnection("", strings.Replace(doc, `"signal":"M1"`, `"signal":"M9"`, 1), values); err == nil {
+		t.Error("a connection that does not resolve is kept")
+	}
+	planned, err := s.SaveConnection("", doc, values)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Source != "Your folder" {
-		t.Errorf("saved into the user's folder: %+v", info)
+	if planned.External == nil || planned.External.Kind != "opcua" || len(planned.External.Connection.Bindings) != 1 || planned.External.Values["endpoint"] != "opc.tcp://127.0.0.1:4840" {
+		t.Errorf("kept as the PLC's own: %+v", planned)
 	}
-	if _, err := os.Stat(filepath.Join(home, ConnectionsFolder, "mine.json")); err != nil {
-		t.Fatal(err)
+	if got := s.PlannedPLC(""); got.External == nil || len(got.External.Connection.Generate) != 1 {
+		t.Errorf("the project keeps it: %+v", got)
 	}
-	if again, err := s.ConnectionFor("", "mine"); err != nil || !again.Yours {
-		t.Errorf("listed as the user's: %+v %v", again, err)
+	s.SaveProject()
+	if def := defIn(t, s.Project().Path); def.PLCs[""].External == nil || len(def.PLCs[""].External.Connection.Bindings) != 1 {
+		t.Errorf("the file has it: %+v", def.PLCs)
 	}
-	for id, want := range map[string]string{"codesys": "of the app", "../x": "no id", "opcua": "of the app"} {
-		bad := strings.Replace(doc, `"id":"mine"`, `"id":"`+id+`"`, 1)
-		if _, err := s.SaveConnection("", bad, values); err == nil || !strings.Contains(err.Error(), want) {
-			t.Errorf("id %s: %v", id, err)
-		}
-	}
-	if err := s.DeleteConnection("mine"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.ConnectionFor("", "mine"); err == nil {
-		t.Error("it is gone")
+	if items, _ := os.ReadDir(filepath.Join(home, ConnectionsFolder)); len(items) != 0 {
+		t.Errorf("a connection file was written into the user's folder: %v", items)
 	}
 }
 

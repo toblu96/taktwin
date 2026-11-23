@@ -102,8 +102,13 @@ func TestAProjectKeepsItsWork(t *testing.T) {
 	if err := s.SetParameter(param.ID, value); err != nil {
 		t.Fatal(err)
 	}
-	config := PLCConfig{Mode: PLCExternal, Connection: "opcua", Values: map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}}
-	if err := s.SetPLCFor("", config); err != nil {
+	if _, err := s.NewConnection("", "opcua"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetConnectionValues("", map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal}); err != nil {
 		t.Fatal(err)
 	}
 	prog := NewProgramService(s)
@@ -128,7 +133,7 @@ func TestAProjectKeepsItsWork(t *testing.T) {
 	if _, err := s.OpenProjectFile(file, OpenOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	if got := s.PlannedPLC(""); got.Mode != PLCExternal || got.Connection != "opcua" || got.Values["endpoint"] != "opc.tcp://127.0.0.1:1" {
+	if got := s.PlannedPLC(""); got.Mode != PLCExternal || got.External == nil || got.External.Kind != "opcua" || got.External.Values["endpoint"] != "opc.tcp://127.0.0.1:1" {
 		t.Errorf("the PLC's connection is kept: %+v", got)
 	}
 	if got := s.PLCFor(""); got.Mode != PLCNone {
@@ -804,7 +809,13 @@ func TestAProjectKeepsItsOriginal(t *testing.T) {
 		if err := s.SetParameter("speed", 0.5); err != nil {
 			t.Fatal(err)
 		}
-		if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal, Connection: "opcua", Values: map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}}); err != nil {
+		if _, err := s.NewConnection("", "opcua"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.SetConnectionValues("", map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal}); err != nil {
 			t.Fatal(err)
 		}
 		opened, err := prog.Open("")

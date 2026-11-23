@@ -15,14 +15,14 @@ import IconOut from '~icons/fluent/arrow-left-16-regular'
 import IconRefresh from '~icons/fluent/arrow-clockwise-16-regular'
 import IconAdd from '~icons/fluent/add-16-regular'
 import IconClose from '~icons/fluent/dismiss-16-regular'
-import IconDelete from '~icons/fluent/delete-16-regular'
 import IconUnbind from '~icons/fluent/link-dismiss-16-regular'
 
 // The editor of a connection, in the middle of the wiring: which item of the controller each
 // signal of the station is exchanged with, picked from what the controller offers, browsed in
 // the side bar (#wiring-nodes, which the wiring view puts there while this is open), or written by hand, and the templates that bind many at once; or the whole file as
-// JSON. It saves the connection into the user's folder.
-const props = defineProps<{ plc: string; id: string; values: Record<string, unknown> }>()
+// JSON. It saves the connection into the project, as the PLC's own; the PLC uses it once it is
+// connected again.
+const props = defineProps<{ plc: string; values: Record<string, unknown> }>()
 const emit = defineEmits<{ close: [] }>()
 
 type BindingDef = { signal?: string; address?: string; item: Record<string, unknown>; invert?: boolean; scale?: unknown }
@@ -42,8 +42,6 @@ type Doc = {
 }
 
 const doc = ref<Doc | null>(null)
-const yours = ref(false)
-const builtIn = ref(false)
 const signals = ref<SignalInfo[]>([])
 const preview = ref<Preview | null>(null)
 const message = ref('')
@@ -69,22 +67,14 @@ async function close() {
   if (await keepOrDrop()) emit('close')
 }
 onBeforeRouteLeave(() => keepOrDrop())
-const station = computed(() => simulation.scene.value?.id ?? '')
 
 onMounted(async () => {
   try {
-    const [d, list] = await Promise.all([Service.ConnectionFor(props.plc, props.id), Service.SignalsFor(props.plc)])
+    const [planned, list] = await Promise.all([Service.PlannedPLC(props.plc), Service.SignalsFor(props.plc)])
     signals.value = list ?? []
-    const parsed: Doc = JSON.parse(d.json)
-    yours.value = d.yours
-    // A connection of the app is the start of one's own, which needs an id of its own.
-    builtIn.value = d.info.source === 'Taktwin'
-    if (builtIn.value) {
-      parsed.id = ''
-      parsed.name = `${parsed.name} (mine)`
-      parsed.description = undefined
-      parsed.bindings ??= []
-    }
+    if (!planned.external) throw new Error('Choose the kind of connection first.')
+    const parsed: Doc = JSON.parse(JSON.stringify(planned.external.connection))
+    parsed.bindings ??= []
     doc.value = parsed
     savedText.value = text.value
     selected.value = signals.value[0]?.address ?? ''
@@ -279,34 +269,15 @@ const view = computed({
   },
 })
 
-const onlyHere = computed({
-  get: () => !!doc.value?.station,
-  set: (on: boolean) => {
-    if (doc.value) doc.value.station = on ? station.value : undefined
-  },
-})
-
-// The file's id from the connection's name, kept apart from the ids of the app's own connections.
-function idOf(name: string) {
-  const id =
-    name
-      .toLowerCase()
-      .normalize('NFKD')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'my-connection'
-  return /^(codesys|soft|opcua)(-|$)/.test(id) ? `my-${id}` : id
-}
-
 // Saves the bindings, and closes the editor unless asked to stay; it says whether it saved.
 async function save(close = true): Promise<boolean> {
   if (!doc.value) return false
-  if (!doc.value.id?.trim()) doc.value.id = idOf(doc.value.name ?? '')
   busy.value = true
   message.value = ''
   try {
-    const info = await Service.SaveConnection(props.plc, text.value, props.values)
+    await Service.SaveConnection(props.plc, text.value, props.values)
     savedText.value = text.value
-    savedConnection.value = { plc: props.plc, id: info.id, values: props.values }
+    savedConnection.value = { plc: props.plc }
     if (close) emit('close')
     return true
   } catch (e) {
@@ -314,17 +285,6 @@ async function save(close = true): Promise<boolean> {
     return false
   } finally {
     busy.value = false
-  }
-}
-
-async function remove() {
-  if (!doc.value) return
-  try {
-    await Service.DeleteConnection(doc.value.id)
-    savedConnection.value = { plc: props.plc, id: '' }
-    emit('close')
-  } catch (e) {
-    message.value = (e as Error).message
   }
 }
 
@@ -339,13 +299,7 @@ const counts = computed(() => {
   <section class="flex min-h-0 flex-col bg-s0" aria-label="Bindings of the connection">
     <header class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-0 border-b border-solid border-line bg-s1 px-3 py-2">
       <h2 class="m-0 text-[13px] font-semibold">Bindings</h2>
-      <template v-if="doc">
-        <label class="flex items-center gap-1.5 text-xs text-muted">Name <input v-model="doc.name" class="t-input h-6 w-48 px-1.5 text-[13px]" type="text" /></label>
-        <label class="flex items-center gap-1.5 text-xs text-muted"
-          >Id <input v-model="doc.id" class="t-input h-6 w-32 px-1.5 font-mono text-xs" type="text" placeholder="my-plc" spellcheck="false"
-        /></label>
-        <UiCheckbox v-model="onlyHere" label="Only for this station" class="text-xs" />
-      </template>
+      <span v-if="doc" class="truncate text-xs text-muted">{{ doc.name }}</span>
       <span class="flex-1" />
       <UiSegmented
         v-model="view"
@@ -355,16 +309,8 @@ const counts = computed(() => {
           { value: 'json', label: 'JSON' },
         ]"
       />
-      <button v-if="yours" class="t-btn text-danger" @click="remove"><IconDelete class="size-4" />Delete</button>
       <span v-if="unsaved" class="text-xs text-accent-ink" role="status">Not saved yet</span>
-      <button
-        class="t-btn t-btn-primary"
-        :disabled="busy || !doc"
-        :title="yours ? undefined : 'Saves it into your folder, with an id from its name unless it has one'"
-        @click="save()"
-      >
-        {{ yours ? 'Save' : 'Save into your folder' }}
-      </button>
+      <button class="t-btn t-btn-primary" :disabled="busy || !doc" title="Keeps the bindings in the project, for the PLC's next connection" @click="save()">Save</button>
       <button class="t-icon-btn" title="Close the bindings" aria-label="Close the bindings" @click="close"><IconClose class="size-4" /></button>
     </header>
     <p v-if="message" class="m-0 shrink-0 border-0 border-b border-solid border-line px-3 py-2 text-danger" role="alert">{{ message }}</p>

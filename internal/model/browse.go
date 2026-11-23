@@ -461,6 +461,3 @@ func round2(v float64) float64 {
 	f, _ := strconv.ParseFloat(strconv.FormatFloat(v, 'f', 2, 64), 64)
 	return f
 }
-
-// Maps are the station's maps for PLC programs written for another wiring, of its first PLC.
-func (p *Plan) Maps() []PLCMapDef { return p.maps }

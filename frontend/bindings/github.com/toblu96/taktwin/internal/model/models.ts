@@ -402,7 +402,6 @@ export interface ScenePLC {
      * Naming is how the PLC's program names the variables of its image.
      */
     "naming": plcio$0.Naming;
-    "maps": ScenePLCMap[] | null;
     "inputs": SceneSignal[] | null;
     "outputs": SceneSignal[] | null;
     "analog": SceneAnalog[] | null;
@@ -411,14 +410,6 @@ export interface ScenePLC {
      * AnalogOutputs are the analogue outputs, as Analog the inputs.
      */
     "analogOutputs": SceneAnalog[] | null;
-}
-
-/**
- * ScenePLCMap is an address map a PLC link can use.
- */
-export interface ScenePLCMap {
-    "id": string;
-    "name": string;
 }
 
 /**

@@ -6,6 +6,9 @@
 import * as exercise$0 from "../exercise/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as link$0 from "../link/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as model$0 from "../model/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -232,24 +235,8 @@ export interface CollectionInfo {
 }
 
 /**
- * ConnectionDoc is a connection as the connection editor edits it.
- */
-export interface ConnectionDoc {
-    /**
-     * JSON is the connection file.
-     */
-    "json": string;
-    "info": ConnectionInfo;
-
-    /**
-     * Yours is set for a connection file of the user's folder; saving any other puts a copy
-     * there, which then takes its place.
-     */
-    "yours": boolean;
-}
-
-/**
- * ConnectionInfo is a connection a PLC of the station can use, for the PLC panel.
+ * ConnectionInfo is a kind of connection a PLC of the station can be given, for the PLC
+ * panel: a technology, such as CODESYS or an OPC UA server, not a mapping of one station.
  */
 export interface ConnectionInfo {
     "id": string;
@@ -257,7 +244,7 @@ export interface ConnectionInfo {
     "description"?: string;
 
     /**
-     * Source is where it comes from: the app, a collection by name, or the user's folder.
+     * Source is where it comes from: the app, or a collection by name.
      */
     "source": string;
     "driver": string;
@@ -299,6 +286,25 @@ export interface ExerciseInfo {
      */
     "changes": string[] | null;
     "open": boolean;
+}
+
+/**
+ * ExternalConnection is a project's connection of one PLC to a controller outside the app:
+ * made from a kind, such as CODESYS or an OPC UA server, and then the project's own, with its
+ * bindings and what its form is filled in with.
+ */
+export interface ExternalConnection {
+    /**
+     * Kind is the kind it was made from, by id, such as codesys or opcua.
+     */
+    "kind": string;
+    "connection": link$0.Connection;
+
+    /**
+     * Values are what its vars are set to, such as the server's address; the others keep
+     * their defaults.
+     */
+    "values"?: { [_ in string]?: any } | null;
 }
 
 /**
@@ -360,20 +366,17 @@ export interface OriginalInfo {
 }
 
 /**
- * PLCConfig says which PLC the station uses.
+ * PLCConfig says which PLC the station uses, and keeps the PLC's own connection to a
+ * controller outside the app while another mode runs, so that switching back brings it back.
  */
 export interface PLCConfig {
     "mode": string;
 
     /**
-     * Connection names the connection, for PLCExternal (see ConnectionsFor).
+     * External is the project's connection of the PLC to a controller outside the app, for
+     * PLCExternal; nil until a kind of connection is chosen.
      */
-    "connection": string;
-
-    /**
-     * Values are what its vars are set to; the others keep their defaults.
-     */
-    "values": { [_ in string]?: any } | null;
+    "external"?: ExternalConnection | null;
 }
 
 /**

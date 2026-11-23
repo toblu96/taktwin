@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import type { ConnectionInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
+import type { ConnectionInfo, PLCConfig } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
+import { ask } from '../ask'
 import { editingConnection, savedConnection, simulation } from '../sim'
 import UiSegmented from '../ui/UiSegmented.vue'
 import UiSelect from '../ui/UiSelect.vue'
@@ -9,10 +10,13 @@ import UiSwitch from '../ui/UiSwitch.vue'
 import IconSearch from '~icons/fluent/search-16-regular'
 import IconBindings from '~icons/fluent/arrow-swap-16-regular'
 import IconDisconnect from '~icons/fluent/plug-disconnected-16-regular'
+import IconChange from '~icons/fluent/arrow-repeat-all-16-regular'
 
 // How a PLC of the station is connected: none, the app's soft PLC, or a controller outside the
-// app through a connection, with that connection's form, and how the connection is doing. It is
-// the PLC given by its index, or else the one the selection picks.
+// app, and how the connection is doing. An external PLC has one connection, the project's own:
+// made once from a kind, such as CODESYS or FluidSIM, then filled in and bound in the project,
+// and kept while another mode runs. It is the PLC given by its index, or else the one the
+// selection picks.
 const props = defineProps<{ index?: number }>()
 const plcId = computed(() => (props.index === undefined ? simulation.plcId.value : props.index > 0 ? (simulation.scene.value?.plcs?.[props.index]?.module ?? '') : ''))
 const plcView = computed(() => (props.index === undefined ? simulation.plcView.value : (simulation.snapshot.value?.plcs?.[props.index] ?? null)))
@@ -23,7 +27,7 @@ const MODES = [
   {
     id: 'external',
     label: 'External',
-    help: 'The station connects to a controller outside the app, such as a CODESYS PLC or FluidSIM, through a connection: one of the app, or a connection file of your folder or a collection.',
+    help: "The station connects to a controller outside the app, such as a CODESYS PLC or FluidSIM, through the project's own connection.",
   },
 ]
 
@@ -101,90 +105,80 @@ function defaultsOf(vars: string): { [name: string]: unknown } {
   }
 }
 
-// What someone filled in for a connection, kept between sessions, without secrets.
-function storedValues(id: string): { [name: string]: unknown } {
-  try {
-    const stored = JSON.parse(localStorage.getItem(`taktwin.connection.${id}`) ?? 'null')
-    if (stored) return stored
-    // The server address the app asked for before connections.
-    const endpoint = localStorage.getItem('taktwin.endpoint')
-    return id === 'codesys' && endpoint ? { endpoint } : {}
-  } catch {
-    return {}
-  }
-}
-
-function storeValues(id: string, values: { [name: string]: unknown }, fields: Field[]) {
-  const kept = Object.fromEntries(Object.entries(values).filter(([n]) => !fields.find((f) => f.name === n)?.secret))
-  try {
-    localStorage.setItem(`taktwin.connection.${id}`, JSON.stringify(kept))
-  } catch {
-    // It only means filling them in again next time.
-  }
-}
-
 const mode = ref('none')
-const connections = ref<ConnectionInfo[]>([])
-const connection = ref('')
+const kinds = ref<ConnectionInfo[]>([])
+// How the project means to connect the PLC, with its own connection, and how it runs now.
+const planned = ref<PLCConfig | null>(null)
+const running = ref<PLCConfig | null>(null)
 const values = ref<{ [name: string]: unknown }>({})
 const message = ref('')
 const busy = ref(false)
+// Choosing a kind shows while there is no connection yet, or to replace it.
+const choosing = ref(false)
 
-// What is running, to tell a change that still needs applying.
-const applied = ref({ mode: 'none', connection: '', values: '{}' })
+const external = computed(() => planned.value?.external ?? null)
+const kind = computed(() => kinds.value.find((k) => k.id === external.value?.kind) ?? null)
+const varsText = (vars: unknown) => (vars ? JSON.stringify(vars) : '')
+const fields = computed(() => fieldsOf(varsText(external.value?.connection?.vars)))
 
-const chosen = computed(() => connections.value.find((c) => c.id === connection.value) ?? null)
-const fields = computed(() => fieldsOf(chosen.value?.vars ?? ''))
-
-async function loadConnections() {
+async function load() {
+  message.value = ''
   try {
-    connections.value = (await Service.ConnectionsFor(plcId.value)) ?? []
+    const [p, r, k] = await Promise.all([Service.PlannedPLC(plcId.value), Service.PLCFor(plcId.value), Service.ConnectionKinds(plcId.value)])
+    planned.value = p
+    running.value = r
+    kinds.value = k ?? []
+    values.value = { ...defaultsOf(varsText(p.external?.connection?.vars)), ...p.external?.values }
+    choosing.value = !p.external
   } catch (error) {
     message.value = (error as Error).message
-    connections.value = []
   }
-  if (!connections.value.some((c) => c.id === connection.value)) connection.value = connections.value[0]?.id ?? ''
 }
 
-// Each connection keeps what was filled in for it.
-watch(connection, (id) => {
-  const c = connections.value.find((x) => x.id === id)
-  values.value = { ...defaultsOf(c?.vars ?? ''), ...(id === applied.value.connection ? JSON.parse(applied.value.values) : storedValues(id)) }
+onMounted(async () => {
+  await load()
+  // A PLC not connected yet offers what the project has for it, ready to connect.
+  mode.value = running.value?.mode !== 'none' ? (running.value?.mode ?? 'none') : (planned.value?.mode ?? 'none')
 })
 
-onMounted(async () => {
-  const plc = await Service.PLCFor(plcId.value)
-  applied.value = { mode: plc.mode, connection: plc.connection, values: JSON.stringify(plc.values ?? {}) }
-  // A PLC not connected yet offers what the project has for it, ready to connect.
-  const planned = plc.mode === 'none' ? await Service.PlannedPLC(plcId.value) : plc
-  mode.value = planned.mode
-  await loadConnections()
-  if (planned.connection) {
-    connection.value = planned.connection
-    await nextTick()
-    if (planned.values) values.value = { ...values.value, ...planned.values }
+// Gives the PLC a new connection of a kind, in place of the one it had, after asking.
+async function chooseKind(id: string | null) {
+  if (!id) return
+  const k = kinds.value.find((x) => x.id === id)
+  if (external.value && !(await ask(`Replace the PLC's connection, with its bindings and what its form has, by a new one of the kind ${k?.name ?? id}?`, 'Replace'))) return
+  try {
+    await Service.NewConnection(plcId.value, id)
+    await load()
+  } catch (error) {
+    message.value = (error as Error).message
   }
-})
+}
+
+// What the form has is kept in the project as it is typed, such as the server's address.
+let valuesTimer = 0
+function keepValues() {
+  window.clearTimeout(valuesTimer)
+  valuesTimer = window.setTimeout(async () => {
+    try {
+      planned.value = await Service.SetConnectionValues(plcId.value, values.value)
+    } catch (error) {
+      message.value = (error as Error).message
+    }
+  }, 300)
+}
 
 const help = computed(() => MODES.find((m) => m.id === mode.value)?.help)
 
 function editBindings() {
-  editingConnection.value = { plc: plcId.value, id: connection.value, values: { ...values.value } }
+  editingConnection.value = { plc: plcId.value, values: { ...values.value } }
 }
 
-// After the editor saved a connection, or deleted one, the list shows it as it is now.
 // After the bindings were saved, connecting again makes the PLC exchange with them.
 const justSaved = ref(false)
 watch(savedConnection, async (saved) => {
   if (!saved || saved.plc !== plcId.value) return
-  await loadConnections()
-  if (saved.id) {
-    justSaved.value = true
-    connection.value = saved.id
-    // The form keeps what was filled in to edit it, once the new connection's form is up.
-    await nextTick()
-    if (saved.values) values.value = { ...values.value, ...saved.values }
-  }
+  await load()
+  justSaved.value = true
   savedConnection.value = null
 })
 
@@ -196,6 +190,7 @@ async function find() {
   message.value = ''
   try {
     values.value = { ...values.value, ...(await Service.FindCODESYSList(plcId.value, values.value)) }
+    keepValues()
   } catch (error) {
     message.value = (error as Error).message
   } finally {
@@ -205,8 +200,8 @@ async function find() {
 const link = computed(() => plcView.value?.link ?? null)
 
 const pending = computed(() => {
-  if (mode.value !== applied.value.mode) return true
-  return mode.value === 'external' && (connection.value !== applied.value.connection || JSON.stringify(values.value) !== applied.value.values)
+  if (mode.value !== (running.value?.mode ?? 'none')) return true
+  return mode.value === 'external' && JSON.stringify(planned.value?.external ?? null) !== JSON.stringify(running.value?.external ?? null)
 })
 
 const STATES: { [state: string]: string } = { connected: 'Connected', connecting: 'Connecting', failed: 'Not connected' }
@@ -221,17 +216,14 @@ const chosenOption = (f: Field) => {
   const i = f.options?.findIndex((o) => o.value === values.value[f.name]) ?? -1
   return i < 0 ? null : String(i)
 }
-const connectionOptions = computed(() => connections.value.map((c) => ({ value: c.id, label: c.name, hint: c.source })))
-watch(
-  () => mode.value === 'external',
-  (external) => external && void loadConnections(),
-)
+const kindOptions = computed(() => kinds.value.map((c) => ({ value: c.id, label: c.name, hint: c.source })))
 
 function setValue(f: Field, v: unknown) {
   const next = { ...values.value }
   if (v === undefined) delete next[f.name]
   else next[f.name] = v
   values.value = next
+  keepValues()
 }
 
 // Lets go of the PLC that runs, also one that cannot be reached, and keeps its form filled in,
@@ -241,7 +233,7 @@ async function disconnect() {
   message.value = ''
   try {
     await Service.DisconnectPLCFor(plcId.value)
-    applied.value = { mode: 'none', connection: '', values: '{}' }
+    await load()
   } catch (error) {
     message.value = (error as Error).message
   } finally {
@@ -253,12 +245,12 @@ async function apply() {
   justSaved.value = false
   busy.value = true
   message.value = ''
-  const external = mode.value === 'external'
-  const config = { mode: mode.value, connection: external ? connection.value : '', values: external ? values.value : {} }
+  window.clearTimeout(valuesTimer)
   try {
-    await Service.SetPLCFor(plcId.value, config)
-    applied.value = { mode: config.mode, connection: config.connection, values: JSON.stringify(config.values) }
-    if (external) storeValues(config.connection, config.values, fields.value)
+    if (mode.value === 'external') await Service.SetConnectionValues(plcId.value, values.value)
+    // The project's own connection goes along.
+    await Service.SetPLCFor(plcId.value, { mode: mode.value })
+    await load()
   } catch (error) {
     message.value = (error as Error).message
   } finally {
@@ -274,9 +266,27 @@ async function apply() {
     <p class="m-0 mt-2 text-xs text-muted">{{ help }}</p>
 
     <div v-if="mode === 'external'" class="mt-3 flex flex-col gap-3">
-      <UiSelect v-model="connection" label="Connection" :options="connectionOptions" placeholder="Choose a connection" />
-      <p v-if="chosen?.description" class="m-0 -mt-1 text-xs text-muted">{{ chosen.description }}</p>
-      <template v-for="f in fields" :key="`${connection}.${f.name}`">
+      <template v-if="choosing">
+        <UiSelect
+          :model-value="null"
+          label="Kind of connection"
+          :options="kindOptions"
+          placeholder="Choose what the PLC is"
+          @update:model-value="(id: string | null) => void chooseKind(id)"
+        />
+        <p class="m-0 -mt-1 text-xs text-muted">
+          {{ external ? 'A new connection replaces the one the project has, bindings and all.' : 'The project then keeps the connection as its own, to fill in and bind.' }}
+        </p>
+        <button v-if="external" class="t-btn self-start" @click="choosing = false">Keep the connection</button>
+      </template>
+      <div v-else-if="external" class="flex items-start gap-2">
+        <div class="min-w-0 flex-1">
+          <p class="m-0 font-medium">{{ external.connection.name || kind?.name || external.kind }}</p>
+          <p v-if="external.connection.description" class="m-0 mt-0.5 text-xs text-muted">{{ external.connection.description }}</p>
+        </div>
+        <button class="t-btn h-6 shrink-0 px-2 text-xs" title="Start a new connection of another kind" @click="choosing = true"><IconChange class="size-3.5" />Change…</button>
+      </div>
+      <template v-for="f in choosing ? [] : fields" :key="`${external?.kind}.${f.name}`">
         <UiSwitch
           v-if="f.type === 'boolean'"
           trailing
@@ -311,15 +321,23 @@ async function apply() {
         </label>
       </template>
       <div class="flex flex-wrap gap-2">
-        <button v-if="connection.startsWith('codesys')" class="t-btn" :disabled="finding" title="Look for the variable list on the server and fill in where it is" @click="find">
+        <button
+          v-if="!choosing && external?.kind === 'codesys'"
+          class="t-btn"
+          :disabled="finding"
+          title="Look for the variable list on the server and fill in where it is"
+          @click="find"
+        >
           <IconSearch class="size-4" />{{ finding ? 'Looking…' : 'Find on the server' }}
         </button>
-        <button class="t-btn" :disabled="!connection" title="Which node each signal is exchanged with" @click="editBindings"><IconBindings class="size-4" />Edit bindings</button>
+        <button v-if="!choosing && external" class="t-btn" title="Which node each signal is exchanged with" @click="editBindings">
+          <IconBindings class="size-4" />Edit bindings
+        </button>
       </div>
     </div>
 
     <p v-if="pending && justSaved" class="m-0 mt-3 text-xs text-accent-ink" role="status">The bindings are saved. Connect to exchange with them.</p>
-    <button v-if="pending" class="t-btn t-btn-primary mt-3 w-full justify-center" :disabled="busy || (mode === 'external' && !connection)" @click="apply">
+    <button v-if="pending" class="t-btn t-btn-primary mt-3 w-full justify-center" :disabled="busy || (mode === 'external' && !external)" @click="apply">
       {{ mode === 'none' ? 'Disconnect the PLC' : 'Connect' }} and restart the station
     </button>
     <p v-if="message" class="m-0 mt-2 text-danger" role="alert">{{ message }}</p>
@@ -349,7 +367,13 @@ async function apply() {
         </ul>
       </details>
     </div>
-    <button v-if="applied.mode !== 'none' && !pending" class="t-btn mt-3" :disabled="busy" title="Let go of the PLC, keeping its form to connect again" @click="disconnect">
+    <button
+      v-if="(running?.mode ?? 'none') !== 'none' && !pending"
+      class="t-btn mt-3"
+      :disabled="busy"
+      title="Let go of the PLC, keeping its connection to connect again"
+      @click="disconnect"
+    >
       <IconDisconnect class="size-4" />Disconnect
     </button>
   </section>

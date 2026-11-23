@@ -352,7 +352,6 @@ type Plan struct {
 
 	stateIndex map[string]int
 	alias      map[string]string
-	maps       []PLCMapDef
 }
 
 // State returns the index of a named state or pin, or -1. Every name on an
@@ -846,7 +845,6 @@ func (b *Bundle) resolveWith(values map[string]float64, cuts map[string][]gap) (
 	}
 	r.where = "station " + st.ID
 	r.addPreviewTests()
-	plan.maps = st.PLC.Maps
 	r.vars, r.texts, r.inst = stationVars, nil, nil
 	r.actions(st.Actions, "", r.segmentRef)
 	if r.err != nil {

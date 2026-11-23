@@ -1,0 +1,19 @@
+{
+  "id": "fluidsim-ports",
+  "name": "FluidSIM: input and output ports",
+  "description": "A FluidSIM circuit that is the controller, with input and output port components: each input of the PLC goes to the same bit of an input port, %IX1.3 to EB1.bit.3, and each output comes from the same bit of an output port, %QX0.2 from AB0.bit.2. Signals the station does not use need no port.",
+  "driver": "opcua",
+  "vars": {
+    "type": "object",
+    "required": ["endpoint", "namespace"],
+    "properties": {
+      "endpoint": { "type": "string", "title": "Server address", "description": "opc.tcp:// and the computer FluidSIM runs on, with the port its OPC UA server is set to", "default": "opc.tcp://127.0.0.1:62555", "pattern": "^opc\\.tcp://" },
+      "namespace": { "type": "string", "title": "Namespace", "description": "The namespace of FluidSIM's nodes, as ns=<index> or nsu=<URI>: ns=2 for FluidSIM", "default": "ns=2", "pattern": "^nsu?=" }
+    }
+  },
+  "settings": { "endpoint": "{endpoint}" },
+  "generate": [
+    { "signals": "inputs", "item": { "nodeId": "{namespace};s=EB{byte}.bit.{bit}" } },
+    { "signals": "outputs", "item": { "nodeId": "{namespace};s=AB{byte}.bit.{bit}" } }
+  ]
+}

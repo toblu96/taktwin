@@ -204,49 +204,9 @@
         "boolean"
       ]
     },
-    "PLCBindingDef": {
-      "additionalProperties": false,
-      "description": "PLCBindingDef connects a signal of the station to a variable of the PLC program.",
-      "properties": {
-        "invert": {
-          "type": "boolean"
-        },
-        "signal": {
-          "type": "string"
-        },
-        "variable": {
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
-    "PLCMapDef": {
-      "additionalProperties": false,
-      "description": "PLCSignalDef names a bit of the PLC image for display. PLCMapDef lets a PLC program use other addresses than the station. A variable it does not mention uses the same address on both sides.",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "inputs": {
-          "items": {
-            "$ref": "#/$defs/PLCBindingDef"
-          },
-          "type": "array"
-        },
-        "name": {
-          "type": "string"
-        },
-        "outputs": {
-          "items": {
-            "$ref": "#/$defs/PLCBindingDef"
-          },
-          "type": "array"
-        }
-      },
-      "type": "object"
-    },
     "PLCSignalDef": {
       "additionalProperties": false,
+      "description": "PLCSignalDef names a bit of the PLC image for display.",
       "properties": {
         "address": {
           "type": "string"
@@ -380,13 +340,10 @@
     },
     "StationPLCDef": {
       "additionalProperties": false,
-      "description": "StationPLCDef is a PLC of a station: the PLC module, such as the rack on a stand, the names of its signals by address, and the address maps for programs written for another wiring. Program is a built-in program, of the first PLC only.",
+      "description": "StationPLCDef is a PLC of a station: the PLC module, such as the rack on a stand, and the names of its signals by address. Program is a built-in program, of the first PLC only.",
       "properties": {
         "maps": {
-          "items": {
-            "$ref": "#/$defs/PLCMapDef"
-          },
-          "type": "array"
+          "description": "Maps were address maps for PLC programs written for another wiring. They are read and left out: such a program's mapping is the connection of a project, of the kind CODESYS."
         },
         "module": {
           "type": "string"

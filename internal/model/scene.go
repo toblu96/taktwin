@@ -99,12 +99,6 @@ type SceneWidget struct {
 	Widgets      []SceneWidget     `json:"widgets,omitempty"`
 }
 
-// ScenePLCMap is an address map a PLC link can use.
-type ScenePLCMap struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
 // ScenePin is one connector pin with what it is connected to.
 type ScenePin struct {
 	Pin      string `json:"pin"`
@@ -208,7 +202,6 @@ type ScenePLC struct {
 	Module string `json:"module,omitempty"`
 	// Naming is how the PLC's program names the variables of its image.
 	Naming  plcio.Naming  `json:"naming"`
-	Maps    []ScenePLCMap `json:"maps"`
 	Inputs  []SceneSignal `json:"inputs"`
 	Outputs []SceneSignal `json:"outputs"`
 	Analog  []SceneAnalog `json:"analog"`
@@ -672,15 +665,12 @@ func (r *resolver) binOf(transport string) int {
 
 // scenePLC is the I/O table of the station's PLC k, as def names its signals.
 func (r *resolver) scenePLC(st *StationDef, def StationPLCDef, k int) ScenePLC {
-	p := ScenePLC{Module: def.Module, Maps: []ScenePLCMap{}, Inputs: []SceneSignal{}, Outputs: []SceneSignal{}, Analog: []SceneAnalog{}, AnalogOutputs: []SceneAnalog{}}
+	p := ScenePLC{Module: def.Module, Inputs: []SceneSignal{}, Outputs: []SceneSignal{}, Analog: []SceneAnalog{}, AnalogOutputs: []SceneAnalog{}}
 	naming := plcio.Naming{}
 	if k < len(r.plan.Naming) {
 		naming = r.plan.Naming[k]
 	}
 	p.Naming = naming
-	for i := range def.Maps {
-		p.Maps = append(p.Maps, ScenePLCMap{ID: def.Maps[i].ID, Name: def.Maps[i].Name})
-	}
 	seen := map[string]bool{}
 	bits := map[string]bool{}
 	for _, b := range r.plan.PLCIn {

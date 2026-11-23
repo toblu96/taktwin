@@ -5,11 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"regexp"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/toblu96/taktwin/internal/link"
@@ -58,41 +54,6 @@ func (s *Service) SignalsFor(plc string) ([]SignalInfo, error) {
 		out = append(out, info)
 	}
 	return out, nil
-}
-
-// ConnectionDoc is a connection as the connection editor edits it.
-type ConnectionDoc struct {
-	// JSON is the connection file.
-	JSON string         `json:"json"`
-	Info ConnectionInfo `json:"info"`
-	// Yours is set for a connection file of the user's folder; saving any other puts a copy
-	// there, which then takes its place.
-	Yours bool `json:"yours"`
-}
-
-// ConnectionFor gives a connection one of the station's PLCs can use, by id, to edit.
-func (s *Service) ConnectionFor(plc, id string) (ConnectionDoc, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	list, err := s.connections(plc)
-	if err != nil {
-		return ConnectionDoc{}, err
-	}
-	for _, o := range list {
-		if o.conn.ID != id {
-			continue
-		}
-		data, err := json.MarshalIndent(o.conn, "", "  ")
-		if err != nil {
-			return ConnectionDoc{}, err
-		}
-		return ConnectionDoc{JSON: string(data), Info: info(o), Yours: o.source == yourFolder}, nil
-	}
-	return ConnectionDoc{}, fmt.Errorf("there is no connection %q for this PLC", id)
-}
-
-func info(o offered) ConnectionInfo {
-	return ConnectionInfo{ID: o.conn.ID, Name: o.conn.Name, Description: o.conn.Description, Source: o.source, Driver: o.conn.Driver, Vars: string(o.conn.Vars)}
 }
 
 // PreviewBinding is a binding of a connection being edited, as it resolves.
@@ -183,63 +144,35 @@ func parseDraft(doc string) (link.Connection, error) {
 	return link.Parse(data)
 }
 
-const yourFolder = "Your folder"
-
-var connectionID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*$`)
-
-// builtIn says whether an id is that of a connection the app makes.
-func builtIn(id string) bool {
-	return id == "codesys" || strings.HasPrefix(id, "codesys-") || id == genericOPCUA().ID || id == "soft"
-}
-
-// SaveConnection checks a connection being edited against one of the station's PLCs, with
-// the values of its form, and writes it into the connections folder of the user's folder.
-func (s *Service) SaveConnection(plc, doc string, values map[string]any) (ConnectionInfo, error) {
-	c, err := link.Parse([]byte(doc))
+// SaveConnection checks a PLC's connection, as the connection editor has it, against the
+// station, with the values of its form, and keeps it in the project as the PLC's own, of the
+// kind it was made from. It does not connect it.
+func (s *Service) SaveConnection(plc, doc string, values map[string]any) (PLCConfig, error) {
+	c, err := parseDraft(doc)
 	if err != nil {
-		return ConnectionInfo{}, err
-	}
-	switch {
-	case !connectionID.MatchString(c.ID):
-		return ConnectionInfo{}, fmt.Errorf("%q is no id for a file: letters, digits, _, - and dots", c.ID)
-	case builtIn(c.ID):
-		return ConnectionInfo{}, fmt.Errorf("%s is the id of a connection of the app: give yours another", c.ID)
-	case strings.TrimSpace(c.Name) == "":
-		return ConnectionInfo{}, errors.New("the connection needs a name")
+		return PLCConfig{}, err
 	}
 	if _, err := link.Lookup(c.Driver); err != nil {
-		return ConnectionInfo{}, err
+		return PLCConfig{}, err
 	}
 	s.mu.Lock()
-	signals := s.signals(plc)
-	s.mu.Unlock()
-	if _, err := c.Resolve(signals, values); err != nil {
-		return ConnectionInfo{}, err
+	defer s.mu.Unlock()
+	if s.engine == nil {
+		return PLCConfig{}, errNoProject
 	}
-	data, err := json.MarshalIndent(c, "", "  ")
-	if err != nil {
-		return ConnectionInfo{}, err
+	if _, err := c.Resolve(s.signals(plc), values); err != nil {
+		return PLCConfig{}, err
 	}
-	dir := filepath.Join(UserFolder(), ConnectionsFolder)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return ConnectionInfo{}, err
+	planned := s.proj.def.PLCs[s.plcKey(plc)]
+	if planned.Mode == "" {
+		planned.Mode = PLCNone
 	}
-	if err := os.WriteFile(filepath.Join(dir, c.ID+".json"), append(data, '\n'), 0o644); err != nil {
-		return ConnectionInfo{}, err
+	kind := c.ID
+	if planned.External != nil {
+		kind = planned.External.Kind
 	}
-	return info(offered{c, yourFolder}), nil
-}
-
-// DeleteConnection removes a connection file of the user's folder, by id.
-func (s *Service) DeleteConnection(id string) error {
-	if !connectionID.MatchString(id) {
-		return fmt.Errorf("%q is no id of a connection", id)
-	}
-	err := os.Remove(filepath.Join(UserFolder(), ConnectionsFolder, id+".json"))
-	if errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("your folder has no connection %s", id)
-	}
-	return err
+	planned.External = &ExternalConnection{Kind: kind, Connection: c, Values: values}
+	return planned, s.remember(plc, planned)
 }
 
 // FindCODESYSList looks for the variable list of the app's CODESYS connection on the server
@@ -251,7 +184,7 @@ func (s *Service) FindCODESYSList(plc string, values map[string]any) (map[string
 	if naming.Inputs == "" {
 		return nil, errors.New("the PLC module does not name a variable list")
 	}
-	c := codesys(naming, nil)
+	c := codesys(naming)
 	filled, err := c.Values(values)
 	if err != nil {
 		return nil, err

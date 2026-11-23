@@ -71,7 +71,7 @@ watch(
 
     <div class="relative flex min-w-0 flex-1 flex-col">
       <p v-if="trouble" class="m-0 shrink-0 border-0 border-b border-solid border-line bg-s1 px-3 py-2 text-danger" role="alert">{{ trouble }}</p>
-      <ConnectionEditor v-if="editingConnection" :key="editingConnection.id" class="min-h-0 flex-1" v-bind="editingConnection" @close="editingConnection = null" />
+      <ConnectionEditor v-if="editingConnection" :key="editingConnection.plc" class="min-h-0 flex-1" v-bind="editingConnection" @close="editingConnection = null" />
       <WiringDiagram v-else class="min-h-0 flex-1" :wiring="shown" :editable="editable" :selected="selected" @select="(id) => (selected = id)" />
       <PagePanel v-if="editable" :tabs="[{ value: 'problems', label: 'Problems', count: checks.length }]">
         <template #problems><ProblemsPanel :checks="checks" /></template>

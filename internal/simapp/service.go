@@ -60,13 +60,25 @@ const (
 	PLCSoft = "soft"
 )
 
-// PLCConfig says which PLC the station uses.
+// PLCConfig says which PLC the station uses, and keeps the PLC's own connection to a
+// controller outside the app while another mode runs, so that switching back brings it back.
 type PLCConfig struct {
 	Mode string `json:"mode"`
-	// Connection names the connection, for PLCExternal (see ConnectionsFor).
-	Connection string `json:"connection"`
-	// Values are what its vars are set to; the others keep their defaults.
-	Values map[string]any `json:"values"`
+	// External is the project's connection of the PLC to a controller outside the app, for
+	// PLCExternal; nil until a kind of connection is chosen.
+	External *ExternalConnection `json:"external,omitempty"`
+}
+
+// ExternalConnection is a project's connection of one PLC to a controller outside the app:
+// made from a kind, such as CODESYS or an OPC UA server, and then the project's own, with its
+// bindings and what its form is filled in with.
+type ExternalConnection struct {
+	// Kind is the kind it was made from, by id, such as codesys or opcua.
+	Kind       string          `json:"kind"`
+	Connection link.Connection `json:"connection"`
+	// Values are what its vars are set to, such as the server's address; the others keep
+	// their defaults.
+	Values map[string]any `json:"values,omitempty"`
 }
 
 // New returns the simulation with no project open: the app starts on its projects.
@@ -174,11 +186,15 @@ func (s *Service) PLCFor(plc string) PLCConfig {
 }
 
 // SetPLCFor connects one of the station's PLCs, by its module, and restarts the station.
+// Without a connection of its own, the config uses the one the project keeps for the PLC.
 func (s *Service) SetPLCFor(plc string, c PLCConfig) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.engine == nil {
 		return errNoProject
+	}
+	if c.External == nil {
+		c.External = s.proj.def.PLCs[s.plcKey(plc)].External
 	}
 	ctl, err := s.controller(plc, c)
 	if err != nil {
@@ -258,11 +274,11 @@ func (s *Service) controller(plc string, c PLCConfig) (plcio.Controller, error) 
 		}
 		return link.Start(s.ctx, link.Options{Name: soft.Name(), Connection: resolved, Program: soft.LinkProgram()})
 	case PLCExternal:
-		conn, err := s.connection(plc, c.Connection)
-		if err != nil {
-			return nil, err
+		if c.External == nil {
+			return nil, errors.New("choose the kind of connection first")
 		}
-		resolved, err := conn.Resolve(s.signals(plc), c.Values)
+		conn := c.External.Connection
+		resolved, err := conn.Resolve(s.signals(plc), c.External.Values)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", conn.Name, err)
 		}

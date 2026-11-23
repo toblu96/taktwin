@@ -94,26 +94,12 @@ export function CloseProjectDiscarding(): $CancellablePromise<void> {
 }
 
 /**
- * ConnectionFor gives a connection one of the station's PLCs can use, by id, to edit.
+ * ConnectionKinds lists the kinds of connection one of the station's PLCs, by its module, the
+ * first one for "", can be given: the app's own for CODESYS, those of the collections, which
+ * name no station, and one to any OPC UA server.
  */
-export function ConnectionFor(plc: string, id: string): $CancellablePromise<$models.ConnectionDoc> {
-    return $Call.ByID(1920339513, plc, id);
-}
-
-/**
- * ConnectionsFor lists the connections one of the station's PLCs can use, by its module,
- * the first one for "": the app's own for CODESYS, one for each address map of the station,
- * then the files of the user's folder and of the collections.
- */
-export function ConnectionsFor(plc: string): $CancellablePromise<$models.ConnectionInfo[] | null> {
-    return $Call.ByID(3931994334, plc);
-}
-
-/**
- * DeleteConnection removes a connection file of the user's folder, by id.
- */
-export function DeleteConnection(id: string): $CancellablePromise<void> {
-    return $Call.ByID(2776582773, id);
+export function ConnectionKinds(plc: string): $CancellablePromise<$models.ConnectionInfo[] | null> {
+    return $Call.ByID(830060557, plc);
 }
 
 /**
@@ -201,6 +187,15 @@ export function KeepAsOriginal(): $CancellablePromise<$models.OriginalInfo> {
  */
 export function KeepMine(): $CancellablePromise<$models.SaveState> {
     return $Call.ByID(3676473216);
+}
+
+/**
+ * NewConnection gives one of the station's PLCs, by its module, a new connection of a kind,
+ * in place of the one the project kept for it, and gives how the project now means to
+ * connect the PLC. It does not connect it.
+ */
+export function NewConnection(plc: string, kind: string): $CancellablePromise<$models.PLCConfig> {
+    return $Call.ByID(3268074768, plc, kind);
 }
 
 /**
@@ -348,10 +343,11 @@ export function RunAction(name: string, args: { [_ in string]?: string } | null)
 }
 
 /**
- * SaveConnection checks a connection being edited against one of the station's PLCs, with
- * the values of its form, and writes it into the connections folder of the user's folder.
+ * SaveConnection checks a PLC's connection, as the connection editor has it, against the
+ * station, with the values of its form, and keeps it in the project as the PLC's own, of the
+ * kind it was made from. It does not connect it.
  */
-export function SaveConnection(plc: string, doc: string, values: { [_ in string]?: any } | null): $CancellablePromise<$models.ConnectionInfo> {
+export function SaveConnection(plc: string, doc: string, values: { [_ in string]?: any } | null): $CancellablePromise<$models.PLCConfig> {
     return $Call.ByID(606904059, plc, doc, values);
 }
 
@@ -403,6 +399,14 @@ export function Scene(): $CancellablePromise<model$0.Scene> {
 }
 
 /**
+ * SetConnectionValues keeps what the form of a PLC's connection is filled in with, such as
+ * the server's address, in the project, without connecting.
+ */
+export function SetConnectionValues(plc: string, values: { [_ in string]?: any } | null): $CancellablePromise<$models.PLCConfig> {
+    return $Call.ByID(2176774584, plc, values);
+}
+
+/**
  * SetControl presses or releases a button, or turns a key switch.
  */
 export function SetControl(name: string, on: boolean): $CancellablePromise<void> {
@@ -439,6 +443,7 @@ export function SetPLC(c: $models.PLCConfig): $CancellablePromise<void> {
 
 /**
  * SetPLCFor connects one of the station's PLCs, by its module, and restarts the station.
+ * Without a connection of its own, the config uses the one the project keeps for the PLC.
  */
 export function SetPLCFor(plc: string, c: $models.PLCConfig): $CancellablePromise<void> {
     return $Call.ByID(174266174, plc, c);
