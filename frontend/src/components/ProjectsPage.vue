@@ -3,8 +3,9 @@ import { expert } from '../expert'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { Example, ProjectInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
-import { ask, choose } from '../ask'
+import { ask } from '../ask'
 import { filesRead, importProject, newProject, openProjectFile, projectError } from '../sim'
+import { handOut } from '../original'
 import NewProjectDialog from './NewProjectDialog.vue'
 import ProjectCard from './ProjectCard.vue'
 import UiSegmented from '../ui/UiSegmented.vue'
@@ -65,16 +66,8 @@ async function locate(p: ProjectInfo) {
   await openProjectFile(path)
 }
 
-// Hands an exercise out as one file, with the programs as a start only when asked to, so
-// that a solution does not go out by mistake.
-async function handout(p: ProjectInfo) {
-  const WITH = 'With the programs'
-  const answer = await choose(
-    `Hand out ${p.exerciseName || p.name} as one file? It brings the station, the exercise and the collections students may not have. Should the programs of this project go along as a start?`,
-    ['Without programs', WITH],
-  )
-  if (answer) await act(() => Service.ExportExercise(p.path, answer === WITH))
-}
+// Hands a project out as a copy for others.
+const handout = (p: ProjectInfo) => act(() => handOut(p))
 
 // The kinds to show, once there are projects of both.
 type Kind = 'all' | 'station' | 'exercise'

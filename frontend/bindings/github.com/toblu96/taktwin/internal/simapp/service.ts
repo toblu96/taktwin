@@ -148,14 +148,6 @@ export function Exercises(): $CancellablePromise<$models.ExerciseInfo[] | null> 
 }
 
 /**
- * ExportExercise writes a project on an exercise into a file to hand out, which the user
- * picks in the system's dialog; see ExportExerciseTo. Cancelling gives an empty path.
- */
-export function ExportExercise(file: string, programs: boolean): $CancellablePromise<string> {
-    return $Call.ByID(3690180174, file, programs);
-}
-
-/**
  * FindCODESYSList looks for the variable list of the app's CODESYS connection on the server
  * its form names, and gives the form's values with where the list is filled in.
  */
@@ -172,6 +164,15 @@ export function ForgetProject(file: string): $CancellablePromise<void> {
 }
 
 /**
+ * HandOut writes a copy of a project for others into a file the user picks: as it is now,
+ * with an id of its own, the programs only when asked, and without the last check. The
+ * copy's original is the state it is handed out in. Cancelling gives an empty path.
+ */
+export function HandOut(file: string, programs: boolean): $CancellablePromise<string> {
+    return $Call.ByID(2727256197, file, programs);
+}
+
+/**
  * InspectProjectFile says what opening a project file would do, without doing it.
  */
 export function InspectProjectFile($from: string): $CancellablePromise<$models.ProjectFileInfo> {
@@ -184,6 +185,14 @@ export function InspectProjectFile($from: string): $CancellablePromise<$models.P
  */
 export function Instructions(): $CancellablePromise<string> {
     return $Call.ByID(1889845795);
+}
+
+/**
+ * KeepAsOriginal makes the open project, as it is now, its original, which putting back goes
+ * back to.
+ */
+export function KeepAsOriginal(): $CancellablePromise<$models.OriginalInfo> {
+    return $Call.ByID(3172448884);
 }
 
 /**
@@ -240,6 +249,13 @@ export function Opened(file: string): $CancellablePromise<void> {
 }
 
 /**
+ * Original says what the open project's original is, and what differs from it.
+ */
+export function Original(): $CancellablePromise<$models.OriginalInfo> {
+    return $Call.ByID(2511548629);
+}
+
+/**
  * PLC returns which PLC the station uses, its first one.
  */
 export function PLC(): $CancellablePromise<$models.PLCConfig> {
@@ -283,6 +299,15 @@ export function Project(): $CancellablePromise<$models.ProjectInfo> {
  */
 export function Projects(): $CancellablePromise<$models.ProjectInfo[] | null> {
     return $Call.ByID(239662420);
+}
+
+/**
+ * PutBack puts a part of the open project back as its original has it: a PLC's connection or
+ * programs, by its module, "" for the first; the station; its settings; or everything. A
+ * changed station loads again, every PLC disconnected as on a restart.
+ */
+export function PutBack(part: string, plc: string): $CancellablePromise<$models.OriginalInfo> {
+    return $Call.ByID(510936836, part, plc);
 }
 
 /**

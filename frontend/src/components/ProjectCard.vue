@@ -59,7 +59,8 @@ const menu = computed<MenuEntry[]>(() =>
         { label: 'Rename', icon: IconRename, run: startRename },
         { label: 'Save a copy…', icon: IconCopy, run: () => emit('copy') },
         { label: 'Show in folder', icon: IconFolder, run: () => emit('reveal') },
-        ...(p.value.exercise ? [{}, { label: 'Hand out as exercise…', icon: IconShare, run: () => emit('handout') }] : []),
+        {},
+        { label: 'Hand out…', icon: IconShare, run: () => emit('handout') },
         {},
         p.value.inFolder
           ? { label: 'Delete…', icon: IconDelete, danger: true, run: () => emit('remove') }

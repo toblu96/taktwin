@@ -3,6 +3,7 @@ package simapp
 import (
 	"archive/zip"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -783,4 +784,135 @@ func TestAProjectCarriesWhatItIsBuiltFrom(t *testing.T) {
 func hasKey(m map[string]string, k string) bool {
 	_, ok := m[k]
 	return ok
+}
+
+// Every project keeps its original, as it was made: a PLC's connection, its programs, the
+// station and its settings are put back one at a time, or everything at once. Keeping the
+// project as its original sets a new one, and the original keeps the versions of the
+// collections it was made with.
+func TestAProjectKeepsItsOriginal(t *testing.T) {
+	s, _ := newService(t)
+	file := s.Project().Path
+	if o := s.Original(); o.At == "" || o.Changed {
+		t.Fatalf("a new project is its original: %+v", o)
+	}
+	prog := NewProgramService(s)
+	b := NewBuilderService(s)
+	t.Cleanup(b.Close)
+	change := func(name string) {
+		t.Helper()
+		if err := s.SetParameter("speed", 0.5); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal, Connection: "opcua", Values: map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}}); err != nil {
+			t.Fatal(err)
+		}
+		opened, err := prog.Open("")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := prog.SaveFile(opened.Project, "cabinet", "Extra.st", "PROGRAM Extra\nEND_PROGRAM\n"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := b.Edit(); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := b.SetStation(name, ""); err != nil {
+			t.Fatal(err)
+		}
+		b.Close()
+		if _, err := s.ReloadStation(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	change("Mine")
+	o := s.Original()
+	if !o.Station || !o.Settings || !slices.Equal(o.Connections, []string{""}) || !slices.Equal(o.Programs, []string{"cabinet"}) || !o.Changed {
+		t.Fatalf("what differs: %+v", o)
+	}
+
+	if o, err := s.PutBack(PartConnection, ""); err != nil || len(o.Connections) != 0 || !o.Station {
+		t.Fatalf("connection: %+v %v", o, err)
+	}
+	if got := s.PlannedPLC(""); got.Mode != PLCNone {
+		t.Errorf("the connection is not back: %+v", got)
+	}
+	if o, err := s.PutBack(PartPrograms, ""); err != nil || len(o.Programs) != 0 {
+		t.Fatalf("programs: %+v %v", o, err)
+	}
+	if exists(filepath.Join(s.proj.dir(), "programs", "cabinet")) {
+		t.Error("the programs are not back")
+	}
+	if o, err := s.PutBack(PartSettings, ""); err != nil || o.Settings {
+		t.Fatalf("settings: %+v %v", o, err)
+	}
+	if _, ok := s.Snapshot().Parameters["speed"]; ok && s.Snapshot().Parameters["speed"] == 0.5 {
+		t.Error("the setting is not back")
+	}
+	if o, err := s.PutBack(PartStation, ""); err != nil || o.Station || o.Changed {
+		t.Fatalf("station: %+v %v", o, err)
+	}
+	if s.Scene().Name != "Pallet loading" {
+		t.Errorf("the station is not back: %s", s.Scene().Name)
+	}
+	if _, err := s.PutBack("nothing", ""); err == nil {
+		t.Error("no part")
+	}
+
+	// A new original, and everything back to it.
+	change("Line 1")
+	if o, err := s.KeepAsOriginal(); err != nil || o.Changed {
+		t.Fatalf("kept: %+v %v", o, err)
+	}
+	if err := s.SetParameter("speed", 0.9); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCNone}); err != nil {
+		t.Fatal(err)
+	}
+	if o, err := s.PutBack(PartEverything, ""); err != nil || o.Changed {
+		t.Fatalf("everything: %+v %v", o, err)
+	}
+	if got := s.PlannedPLC(""); got.Mode != PLCExternal || s.Scene().Name != "Line 1" || s.Snapshot().Parameters["speed"] != 0.5 {
+		t.Errorf("not back to the new original: %+v %s %v", got, s.Scene().Name, s.Snapshot().Parameters)
+	}
+	s.SaveProject()
+	if files := zipFiles(t, file); files["original/"+ProjectFile] == "" || files["original/"+StationFile] == "" || files["original/programs/cabinet/Extra.st"] == "" {
+		t.Errorf("the file has no original: %v", slices.Sorted(maps.Keys(files)))
+	}
+
+	// The original keeps the version of a collection it was made with.
+	if _, err := InstallCollection(labCollectionWith(t, "1.0.0", nil)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.NewProject("Lab", Base{Station: "pallet-loading"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := InstallCollection(labCollectionWith(t, "1.1.0", nil)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpdateCollections(); err != nil {
+		t.Fatal(err)
+	}
+	if o := s.Original(); !o.Changed {
+		t.Errorf("the update is no change: %+v", o)
+	}
+	if o, err := s.PutBack(PartEverything, ""); err != nil || o.Changed {
+		t.Fatalf("everything: %+v %v", o, err)
+	}
+	s.SaveProject()
+	if got := carriedIn(t, s.Project().Path); got["lab"] != "1.0.0" {
+		t.Errorf("the original's version is not back: %v", got)
+	}
+	if len(s.Project().Updates) != 1 {
+		t.Errorf("the newer one is offered again: %+v", s.Project().Updates)
+	}
+
+	// An exercise's station cannot be put back, as it cannot be changed.
+	if _, err := s.NewProject("", Base{Exercise: "load-a-pallet"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.PutBack(PartStation, ""); err == nil {
+		t.Error("an exercise's station is put back")
+	}
 }

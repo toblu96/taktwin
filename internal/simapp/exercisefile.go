@@ -101,7 +101,7 @@ func allowed(name string) bool {
 	if rest, ok := strings.CutPrefix(name, collectionsDir); ok {
 		return !strings.Contains(rest, "/") && strings.HasSuffix(rest, model.PackageExtension)
 	}
-	return strings.HasPrefix(name, "programs/")
+	return strings.HasPrefix(name, "programs/") || originalPath(name)
 }
 
 // all are the file's files by their paths in it, the collections it brings among them.
@@ -263,31 +263,6 @@ func newer(a, b string) bool {
 	return false
 }
 
-// ExportExercise writes a project on an exercise into a file to hand out, which the user
-// picks in the system's dialog; see ExportExerciseTo. Cancelling gives an empty path.
-func (s *Service) ExportExercise(file string, programs bool) (string, error) {
-	files, err := s.projectFiles(file)
-	if err != nil {
-		return "", err
-	}
-	def, err := parseProject(files[ProjectFile])
-	if err != nil {
-		return "", err
-	}
-	name := nameOf(file)
-	if ex, err := projectLibrary(mapReader(files), def).Exercise(def.Base.Exercise); err == nil && def.Base.Exercise != "" {
-		name = cmpOr(freeFileName(ex.Name), name)
-	}
-	to, err := chooseSaveFile("Hand out the exercise", name)
-	if err != nil || to == "" {
-		return "", err
-	}
-	if !strings.EqualFold(filepath.Ext(to), ProjectExtension) {
-		to += ProjectExtension
-	}
-	return to, exportExercise(files, to, programs)
-}
-
 // freeFileName makes a name fit for a file, or "" if nothing of it is.
 func freeFileName(name string) string {
 	name = strings.TrimLeft(strings.TrimSpace(forbiddenName.ReplaceAllString(name, "-")), ".")
@@ -295,74 +270,6 @@ func freeFileName(name string) string {
 		return ""
 	}
 	return name
-}
-
-// ExportExerciseTo writes a project file on an exercise into a file to hand out as one: its
-// station and exercise as copies, the instructions, the station's settings, the programs if
-// asked to as a start, and the collections it is built from that students may not have. It
-// leaves out how the PLCs are connected and how checks went.
-func ExportExerciseTo(file, to string, programs bool) error {
-	pf, err := readProjectFileAt(file)
-	if err != nil {
-		return err
-	}
-	return exportExercise(pf.all(), to, programs)
-}
-
-func exportExercise(files map[string][]byte, to string, programs bool) error {
-	def, err := parseProject(files[ProjectFile])
-	if err != nil {
-		return err
-	}
-	id := def.Base.Exercise
-	if id == "" {
-		return errors.New("only a project on an exercise can be handed out")
-	}
-	read := mapReader(files)
-	lib := projectLibrary(read, def)
-	exercise, err := lib.ReadFile(path.Join("exercises", id, "exercise.json"))
-	if err != nil {
-		return err
-	}
-	station, err := lib.ReadFile(path.Join("stations", def.Base.Station, "station.json"))
-	if err != nil {
-		return err
-	}
-	bundle, _, err := lib.LoadExercise(id)
-	if err != nil {
-		return err
-	}
-	_, own := usedBy(lib, nil, bundle, def.Base)
-	if len(own) > 0 {
-		return fmt.Errorf("the station uses %s from your own folder, which students do not have: put them into a collection first", strings.Join(own, ", "))
-	}
-	raw, err := projectJSON(ProjectDef{ID: newID(), Base: def.Base, Parameters: def.Parameters, Collections: def.Collections})
-	if err != nil {
-		return err
-	}
-	out := map[string][]byte{ProjectFile: raw, StationFile: station, ExerciseFile: exercise}
-	if data, err := read(InstructionsFile); err == nil {
-		out[InstructionsFile] = data
-	} else if data, err := lib.ReadFile(path.Join("exercises", id, InstructionsFile)); err == nil {
-		out[InstructionsFile] = data
-	}
-	if data, err := read(ThumbnailFile); err == nil {
-		out[ThumbnailFile] = data
-	}
-	if programs {
-		for name, data := range files {
-			if strings.HasPrefix(name, "programs/") {
-				out[name] = data
-			}
-		}
-	}
-	// The collections go along as the project carries them.
-	for _, r := range def.Collections {
-		if data, ok := files[collectionsDir+r.Collection+model.PackageExtension]; ok {
-			out[collectionsDir+r.Collection+model.PackageExtension] = data
-		}
-	}
-	return writeZipOver(to, out)
 }
 
 // collectionPackage is a collection as a .taktwin file, for a project to carry: the first

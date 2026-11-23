@@ -93,7 +93,7 @@ Try it from the app: **New project › Exercise**, connect a PLC that solves it,
 
 To hand it out:
 
-- **as one file:** in the card menu of the project on the exercise, **Hand out as exercise…** writes a `.taktwin-project` with the station and the exercise as copies, the instructions and the collections the project carries, so students need nothing installed. Your programs go along only if you choose so. Students open it by double-clicking it.
+- **as one file:** **Hand out…** on the project on the exercise writes a `.taktwin-project` with the station and the exercise, the instructions, how the PLCs are connected and the collections the project carries, so students need nothing installed. Your programs go along only if you choose so. Students open it by double-clicking it, and can put it back as it was handed out.
 - **with a collection:** exercises in a collection show under **New project › Exercise** wherever the collection is installed.
 
 ## Before sharing

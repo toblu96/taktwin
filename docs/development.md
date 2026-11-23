@@ -77,11 +77,14 @@ Everything in the simulation belongs to a project: a `.taktwin-project` file, a 
 | `exercise.json`, `instructions.md` | For a project on an exercise, its copy of the exercise and its instructions |
 | `programs/<plc>/` | The soft PLCs' Structured Text |
 | `collections/<id>.taktwin` | Every collection the station, the exercise and their example programs come from, the base and the app's own among them, in the version the project was made with or last updated to |
+| `original/` | The project's original: `project.json` without the last check, the station, the exercise, the instructions and the programs as they were when it was set, and in `original/collections/` the older versions of collections the project has since been updated from |
 | `thumbnail.jpg` | A picture of the station as it was last closed |
 
 The app works in a working copy of the open project, in `projects/<id>/` of the settings folder, so the rest of the app reads and writes a project as a folder (`simapp.document`). Every second it looks for changes, and writes a change once it has stayed for a look: into a temporary file beside the project file, renamed over it. Before writing, it compares the file's size and time with when it last read or wrote it, and leaves a file changed from elsewhere alone (`SaveConflict`). A file it cannot write opens read only (`SaveReadOnly`). `projects/<id>.json` beside the working copy says which file it belongs to and what was last saved, so that changes a crash left behind are offered back when the file is opened again. Closing a project writes the file and removes its working copy. The state goes to the frontend as `project:save` events.
 
 `projectLibrary` puts the project's own `station.json` and `exercise.json` in front, then the collections it carries, then those installed for anything else, leaving out an installed collection whose id the project carries, also a hidden one. So the rest of the app loads a project's station like any other, and the same on every computer. Opening a project copies in what it lacks (`carry`): its station, its exercise, and the collections they come from, as installed here, for a new project and for a file made without them. `updatesOf` compares the carried versions with those installed, and `UpdateCollections` replaces them, letting the station and the exercise follow where the project's copies are those of the old version. A collection is only offered newer when its `version` is raised.
+
+The original (`original.go`) is made when a project without one is opened, by `KeepAsOriginal`, and by `HandOut` for the copy it writes, with a new id. `Original` compares the project with it, part by part, and `PutBack` puts a part back: a PLC's connection or programs, the station, the settings, or everything, the collections' versions too. Before `UpdateCollections` replaces a collection the original uses, `keepOlder` keeps its package under `original/collections/`.
 
 ## Commits, branches and releases
 

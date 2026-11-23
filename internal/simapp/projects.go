@@ -71,6 +71,8 @@ type ProjectDef struct {
 	// in the version it was made with or last updated to: every collection its station,
 	// exercise and their example programs come from, the app's own among them.
 	Collections []Requirement `json:"collections,omitempty"`
+	// Original is when the project's original, under original/, was set, as RFC 3339.
+	Original string `json:"original,omitempty"`
 }
 
 // Requirement is a collection a project needs, with the version it was made with.
@@ -656,6 +658,9 @@ func (s *Service) UpdateCollections() (model.Scene, error) {
 			if err != nil || !ok {
 				return cmpErr(err, fmt.Errorf("the collection %s is no longer here", u.Collection))
 			}
+			if err := keepOlder(dir, u.Collection, u.Version); err != nil {
+				return err
+			}
 			if old, err := os.ReadFile(file); err == nil {
 				oldLayer, err1 := model.ReadPackage(bytes.NewReader(old), int64(len(old)))
 				next, err2 := model.ReadPackage(bytes.NewReader(data), int64(len(data)))
@@ -762,8 +767,12 @@ func (s *Service) openFile(file string, pf *projectFile, restore bool) (model.Sc
 		err = fmt.Errorf("%s has no %s", filepath.Base(file), ProjectFile)
 	}
 	if err == nil && !doc.readOnly {
-		// What it lacks of what it is built from is copied in, to be saved with it.
+		// What it lacks of what it is built from is copied in, to be saved with it, and a
+		// project without an original takes itself as it is now.
 		def, err = carry(doc.dir, def)
+		if _, has, _ := readOriginal(doc.dir); err == nil && !has && exists(filepath.Join(doc.dir, StationFile)) {
+			def, err = keepOriginal(doc.dir, def)
+		}
 	}
 	var (
 		bundle   *model.Bundle

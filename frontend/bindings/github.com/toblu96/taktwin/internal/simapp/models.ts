@@ -332,6 +332,34 @@ export interface OpenOptions {
 }
 
 /**
+ * OriginalInfo says what the open project's original is, and which of its parts differ from it.
+ */
+export interface OriginalInfo {
+    /**
+     * At is when the original was set, as RFC 3339; "" for a project without one.
+     */
+    "at"?: string;
+
+    /**
+     * Station and Settings say that they differ from the original.
+     */
+    "station": boolean;
+    "settings": boolean;
+
+    /**
+     * Connections and Programs list the PLCs, by module, "" for the first, whose connection
+     * or programs differ from the original.
+     */
+    "connections": string[] | null;
+    "programs": string[] | null;
+
+    /**
+     * Changed says that anything differs, the exercise and collections' versions included.
+     */
+    "changed": boolean;
+}
+
+/**
  * PLCConfig says which PLC the station uses.
  */
 export interface PLCConfig {

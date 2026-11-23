@@ -38,6 +38,7 @@ export type {
     FolderInfo,
     LastCheck,
     OpenOptions,
+    OriginalInfo,
     PLCConfig,
     Preview,
     PreviewBinding,

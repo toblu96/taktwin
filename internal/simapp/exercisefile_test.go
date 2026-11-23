@@ -78,35 +78,39 @@ func TestAnExerciseIsHandedOutAsOneFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(s.proj.dir(), InstructionsFile), []byte("# Load a pallet\n\nWrite the program.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := ExportExerciseTo(station, filepath.Join(t.TempDir(), "x"+ProjectExtension), false); err == nil {
-		t.Error("a project on a station is handed out")
+	stationFiles, err := s.projectFiles(station)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := handOut(stationFiles, filepath.Join(t.TempDir(), "x"+ProjectExtension), false); err != nil {
+		t.Errorf("a project on a station is handed out too: %v", err)
 	}
 	files, err := s.projectFiles(s.Project().Path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	handout := filepath.Join(t.TempDir(), "Load a pallet"+ProjectExtension)
-	if err := exportExercise(files, handout, false); err != nil {
+	if err := handOut(files, handout, false); err != nil {
 		t.Fatal(err)
 	}
 	names := zipNames(t, handout)
-	for _, want := range []string{ProjectFile, StationFile, ExerciseFile, InstructionsFile, "collections/lab.taktwin"} {
+	for _, want := range []string{ProjectFile, StationFile, ExerciseFile, InstructionsFile, "collections/lab.taktwin", "original/" + ProjectFile, "original/" + StationFile, "original/" + ExerciseFile} {
 		if !slices.Contains(names, want) {
 			t.Errorf("the file has no %s: %v", want, names)
 		}
 	}
-	if slices.ContainsFunc(names, func(n string) bool { return strings.HasPrefix(n, "programs/") }) {
+	if slices.ContainsFunc(names, func(n string) bool { return strings.Contains(n, "programs/") }) {
 		t.Errorf("the teacher's programs are handed out: %v", names)
 	}
 	if defIn(t, handout).ID == defIn(t, s.Project().Path).ID {
 		t.Error("the handout has the teacher's project's id")
 	}
 	withPrograms := filepath.Join(t.TempDir(), "start"+ProjectExtension)
-	if err := exportExercise(files, withPrograms, true); err != nil {
+	if err := handOut(files, withPrograms, true); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(zipNames(t, withPrograms), "programs/cabinet/PLC_PRG.st") {
-		t.Error("the programs are handed out when asked")
+	if names := zipNames(t, withPrograms); !slices.Contains(names, "programs/cabinet/PLC_PRG.st") || !slices.Contains(names, "original/programs/cabinet/PLC_PRG.st") {
+		t.Error("the programs are handed out when asked, as the copy's original")
 	}
 	s.CloseProject()
 
