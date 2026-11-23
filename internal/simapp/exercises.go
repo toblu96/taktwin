@@ -131,7 +131,7 @@ func (s *Service) StartCheck(id string) error {
 		s.mu.Unlock()
 		return errNoProject
 	}
-	e, station, ctx, open, project := s.engine, s.bundle.Station.ID, s.ctx, s.exercise, s.proj.name
+	e, station, ctx, open, project := s.engine, s.bundle.Station.ID, s.ctx, s.exercise, s.proj.key()
 	s.mu.Unlock()
 	if ex.Station != station {
 		return fmt.Errorf("%s is an exercise for the %s station", ex.Name, ex.Station)
@@ -190,7 +190,7 @@ func passed(st CheckState) bool {
 func (s *Service) keepCheck(project string, c LastCheck) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if project == "" || s.proj.name != project {
+	if project == "" || s.proj.key() != project {
 		return
 	}
 	s.proj.def.LastCheck = &c

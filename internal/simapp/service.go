@@ -247,7 +247,7 @@ func (s *Service) controller(plc string, c PLCConfig) (plcio.Controller, error) 
 		if err != nil {
 			return nil, err
 		}
-		soft := softPLCs.Get(s.proj.name, id)
+		soft := softPLCs.Get(s.proj.key(), id)
 		soft.SetSpace(s.space(plc, id))
 		if err := soft.Serve(s.ctx); err != nil {
 			return nil, err

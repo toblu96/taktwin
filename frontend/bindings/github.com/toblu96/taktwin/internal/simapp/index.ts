@@ -46,6 +46,7 @@ export type {
     ProjectFileInfo,
     ProjectInfo,
     Requirement,
+    SaveState,
     SignalInfo,
     UpdateRelease,
     UpdateStatus,

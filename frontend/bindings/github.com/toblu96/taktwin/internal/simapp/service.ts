@@ -78,10 +78,19 @@ export function ClearTestOutputsFor(plc: string): $CancellablePromise<void> {
 
 /**
  * CloseProject leaves the project the simulation works in, which keeps everything it had:
- * every PLC is disconnected and its soft PLCs stop.
+ * every PLC is disconnected and its soft PLCs stop. Its file is written; changes that could
+ * not be written are offered back when it is opened again.
  */
 export function CloseProject(): $CancellablePromise<void> {
     return $Call.ByID(1783334027);
+}
+
+/**
+ * CloseProjectDiscarding leaves the project like CloseProject, dropping the changes that
+ * could not be written into its file.
+ */
+export function CloseProjectDiscarding(): $CancellablePromise<void> {
+    return $Call.ByID(1914885281);
 }
 
 /**
@@ -117,10 +126,10 @@ export function DeleteConnection(id: string): $CancellablePromise<void> {
 }
 
 /**
- * DeleteProject removes a project that is not open.
+ * DeleteProject removes a project file that is not open, and a working copy left of it.
  */
-export function DeleteProject(name: string): $CancellablePromise<void> {
-    return $Call.ByID(3876729138, name);
+export function DeleteProject(file: string): $CancellablePromise<void> {
+    return $Call.ByID(3876729138, file);
 }
 
 /**
@@ -130,13 +139,6 @@ export function DeleteProject(name: string): $CancellablePromise<void> {
  */
 export function DisconnectPLCFor(plc: string): $CancellablePromise<void> {
     return $Call.ByID(3460384912, plc);
-}
-
-/**
- * DuplicateProject copies a project, with its programs, under a name of its own.
- */
-export function DuplicateProject(name: string): $CancellablePromise<$models.ProjectInfo> {
-    return $Call.ByID(2653299964, name);
 }
 
 /**
@@ -158,16 +160,8 @@ export function Exercises(): $CancellablePromise<$models.ExerciseInfo[] | null> 
  * ExportExercise writes a project on an exercise into a file to hand out, which the user
  * picks in the system's dialog; see ExportExerciseTo. Cancelling gives an empty path.
  */
-export function ExportExercise(name: string, programs: boolean): $CancellablePromise<string> {
-    return $Call.ByID(3690180174, name, programs);
-}
-
-/**
- * ExportProject writes a project into a .taktwin-project file the user picks in the system's
- * dialog. Cancelling gives an empty path.
- */
-export function ExportProject(name: string): $CancellablePromise<string> {
-    return $Call.ByID(1242405113, name);
+export function ExportExercise(file: string, programs: boolean): $CancellablePromise<string> {
+    return $Call.ByID(3690180174, file, programs);
 }
 
 /**
@@ -176,6 +170,14 @@ export function ExportProject(name: string): $CancellablePromise<string> {
  */
 export function FindCODESYSList(plc: string, values: { [_ in string]?: any } | null): $CancellablePromise<{ [_ in string]?: any } | null> {
     return $Call.ByID(2840011845, plc, values);
+}
+
+/**
+ * ForgetProject takes a project file off the list of those opened from elsewhere, leaving
+ * the file where it is.
+ */
+export function ForgetProject(file: string): $CancellablePromise<void> {
+    return $Call.ByID(2438861188, file);
 }
 
 /**
@@ -191,6 +193,14 @@ export function InspectProjectFile($from: string): $CancellablePromise<$models.P
  */
 export function Instructions(): $CancellablePromise<string> {
     return $Call.ByID(1889845795);
+}
+
+/**
+ * KeepMine writes the open project over its file, which was changed from elsewhere, or
+ * where it was, if it was moved or deleted.
+ */
+export function KeepMine(): $CancellablePromise<$models.SaveState> {
+    return $Call.ByID(3676473216);
 }
 
 /**
@@ -213,21 +223,21 @@ export function NewProject(name: string, base: $models.Base): $CancellablePromis
 }
 
 /**
- * OpenProject opens a project by name: its station, its settings, and its PLCs' connections,
- * ready to connect.
- */
-export function OpenProject(name: string): $CancellablePromise<model$0.Scene> {
-    return $Call.ByID(3471766991, name);
-}
-
-/**
- * OpenProjectFile opens a .taktwin-project file, such as one dropped onto the window or
- * double-clicked: as a project of its own, after installing the collections it brings when
- * asked to, or as the project made from the same handout before. A project that is imported
- * but does not open, such as one whose station is missing, is listed all the same.
+ * OpenProjectFile opens a .taktwin-project file where it is, such as one in the user
+ * folder's projects, one dropped onto the window or one double-clicked, after installing
+ * the collections it brings when asked to. Its changes are saved into it. A file that does
+ * not open, such as one whose station is missing, is listed all the same.
  */
 export function OpenProjectFile($from: string, opts: $models.OpenOptions): $CancellablePromise<$models.ProjectInfo> {
     return $Call.ByID(2863485121, $from, opts);
+}
+
+/**
+ * OpenTheirs opens the open project's file again as it is now, changed from elsewhere,
+ * leaving what was changed here.
+ */
+export function OpenTheirs(): $CancellablePromise<model$0.Scene> {
+    return $Call.ByID(3704293747);
 }
 
 /**
@@ -277,7 +287,8 @@ export function Project(): $CancellablePromise<$models.ProjectInfo> {
 }
 
 /**
- * Projects lists the projects of the user folder, the latest first.
+ * Projects lists the project files in the user folder's projects and those opened from
+ * elsewhere, the latest first, and last those no longer where they were.
  */
 export function Projects(): $CancellablePromise<$models.ProjectInfo[] | null> {
     return $Call.ByID(239662420);
@@ -293,10 +304,10 @@ export function ReloadStation(): $CancellablePromise<model$0.Scene> {
 }
 
 /**
- * RenameProject gives a project that is not open another name.
+ * RenameProject gives a project file that is not open another name, in the same folder.
  */
-export function RenameProject(name: string, to: string): $CancellablePromise<$models.ProjectInfo> {
-    return $Call.ByID(3063905373, name, to);
+export function RenameProject(file: string, to: string): $CancellablePromise<$models.ProjectInfo> {
+    return $Call.ByID(3063905373, file, to);
 }
 
 /**
@@ -307,10 +318,10 @@ export function Reset(): $CancellablePromise<void> {
 }
 
 /**
- * RevealProject shows a project's folder in the system's file manager.
+ * RevealProject shows a project's file in the system's file manager.
  */
-export function RevealProject(name: string): $CancellablePromise<void> {
-    return $Call.ByID(3408525328, name);
+export function RevealProject(file: string): $CancellablePromise<void> {
+    return $Call.ByID(3408525328, file);
 }
 
 /**
@@ -326,6 +337,37 @@ export function RunAction(name: string, args: { [_ in string]?: string } | null)
  */
 export function SaveConnection(plc: string, doc: string, values: { [_ in string]?: any } | null): $CancellablePromise<$models.ConnectionInfo> {
     return $Call.ByID(606904059, plc, doc, values);
+}
+
+/**
+ * SaveProject writes the open project's file now, if it can, and says how it stands.
+ */
+export function SaveProject(): $CancellablePromise<$models.SaveState> {
+    return $Call.ByID(1764130616);
+}
+
+/**
+ * SaveProjectAs writes the open project into a new file the user picks, with an id of its
+ * own, and goes on working in that file: for a file that cannot be written, or one changed
+ * from elsewhere. Cancelling gives an empty path.
+ */
+export function SaveProjectAs(): $CancellablePromise<string> {
+    return $Call.ByID(4219157912);
+}
+
+/**
+ * SaveProjectCopy writes a copy of a project into a file the user picks, with an id of its
+ * own; for the open project, as it is now. Cancelling gives an empty path.
+ */
+export function SaveProjectCopy(file: string): $CancellablePromise<string> {
+    return $Call.ByID(1702327701, file);
+}
+
+/**
+ * SaveState says how the open project's file stands, with no state while none is open.
+ */
+export function SaveState(): $CancellablePromise<$models.SaveState> {
+    return $Call.ByID(1526259756);
 }
 
 /**

@@ -330,9 +330,10 @@ export interface OpenOptions {
     "install": boolean;
 
     /**
-     * Continue opens the project made from the same exercise handed out before instead.
+     * Restore goes on with the changes a working copy has that the file lacks; without it,
+     * they are dropped.
      */
-    "continue": boolean;
+    "restore": boolean;
 }
 
 /**
@@ -429,14 +430,7 @@ export interface ProgramStatus {
  */
 export interface ProjectFileInfo {
     "name": string;
-    "handout": boolean;
     "exerciseName"?: string;
-
-    /**
-     * Existing is the project made from the same exercise handed out before, which can be
-     * gone on with instead.
-     */
-    "existing"?: string;
 
     /**
      * Installs are the collections the file brings that are missing here, or older.
@@ -447,13 +441,32 @@ export interface ProjectFileInfo {
      * Missing are the collections it needs that are neither here, shown, nor in the file.
      */
     "missing": Requirement[] | null;
+
+    /**
+     * Unsaved is when a working copy was last changed that has changes the file lacks, such
+     * as one left by a crash, as RFC 3339; "" without one.
+     */
+    "unsaved"?: string;
+
+    /**
+     * HasUnsaved says that there is such a working copy, also when its time is not known.
+     */
+    "hasUnsaved"?: boolean;
 }
 
 /**
  * ProjectInfo is a project as the app lists it.
  */
 export interface ProjectInfo {
+    /**
+     * Name is that of its file, without the extension.
+     */
     "name": string;
+
+    /**
+     * Path is its file.
+     */
+    "path": string;
     "station": string;
     "stationName": string;
     "exercise"?: string;
@@ -464,11 +477,6 @@ export interface ProjectInfo {
      * that of a collection, which follows the collection's updates.
      */
     "own"?: boolean;
-
-    /**
-     * Folder is where it is kept.
-     */
-    "folder": string;
 
     /**
      * Modified is when its file was last written, as RFC 3339.
@@ -485,6 +493,17 @@ export interface ProjectInfo {
      */
     "thumbnail"?: string;
     "lastCheck"?: LastCheck | null;
+
+    /**
+     * InFolder says that the file is in the user folder's projects, where new ones are made;
+     * the others are listed because they were opened.
+     */
+    "inFolder"?: boolean;
+
+    /**
+     * Missing says that the file is no longer where it was opened from.
+     */
+    "missing"?: boolean;
 }
 
 /**
@@ -500,6 +519,29 @@ export interface Requirement {
      */
     "installed"?: string;
     "hidden"?: boolean;
+}
+
+/**
+ * SaveState says how the open project's file stands.
+ */
+export interface SaveState {
+    "state": string;
+
+    /**
+     * Problem says why the file is not saved, for a conflict or a failure.
+     */
+    "problem"?: string;
+
+    /**
+     * Saved is when the file was last written or read, as RFC 3339.
+     */
+    "saved"?: string;
+
+    /**
+     * Unsaved says that the project has changes its file lacks: always while pending, and
+     * for a file that is read only, in conflict or failed, once something was changed.
+     */
+    "unsaved"?: boolean;
 }
 
 /**

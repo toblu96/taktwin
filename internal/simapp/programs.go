@@ -72,7 +72,7 @@ func (p *ProgramService) project(plc string) (*plcprog.Project, string, string, 
 		return nil, "", "", "", err
 	}
 	scene := p.sim.engine.Plan().Scene
-	key, dir := p.sim.proj.name, p.sim.proj.dir()
+	key, dir := p.sim.proj.key(), p.sim.proj.dir()
 	p.sim.mu.Unlock()
 	table := scene.PLC
 	for _, sp := range scene.PLCs {
@@ -144,16 +144,15 @@ func (p *ProgramService) ReadFile(plc, name string) (string, error) {
 	return proj.Read(name)
 }
 
-// SaveFile saves a source file of the program of a PLC, by the name of its project and the
-// PLC, as ProgramProject names them: the file goes back to where it was opened from, also
-// when the simulation has changed to another project since.
+// SaveFile saves a source file of the program of a PLC, by the key of its project and the
+// PLC, as ProgramProject names them: the file goes back to the project it was opened from,
+// while that project is open.
 func (p *ProgramService) SaveFile(project, plc, name, src string) error {
-	if !projectName(project) || !folderName(plc) {
-		return fmt.Errorf("there is no program for %q in %q", plc, project)
-	}
-	dir := projectDir(project)
-	if _, ok, _ := readProject(dir); !ok {
-		return fmt.Errorf("there is no project %q: it was renamed or deleted", project)
+	p.sim.mu.Lock()
+	open, dir := p.sim.proj.key(), p.sim.proj.dir()
+	p.sim.mu.Unlock()
+	if project == "" || project != open || !folderName(plc) {
+		return fmt.Errorf("the program for %q is not of the open project: it was closed", plc)
 	}
 	proj := &plcprog.Project{Dir: filepath.Join(dir, "programs", plc)}
 	return proj.Write(name, src)
@@ -252,7 +251,7 @@ func (p *ProgramService) Download(plc string) (BuildResult, error) {
 func (p *ProgramService) soft(plc string) (*plcprog.Soft, error) {
 	p.sim.mu.Lock()
 	_, id, err := p.sim.plcOf(plc)
-	key := p.sim.proj.name
+	key := p.sim.proj.key()
 	p.sim.mu.Unlock()
 	if err != nil {
 		return nil, err
@@ -293,7 +292,7 @@ func (p *ProgramService) Reset(plc string, cold bool) error {
 func (p *ProgramService) Status(plc string) (ProgramStatus, error) {
 	p.sim.mu.Lock()
 	station, id, err := p.sim.plcOf(plc)
-	key := p.sim.proj.name
+	key := p.sim.proj.key()
 	p.sim.mu.Unlock()
 	if err != nil {
 		return ProgramStatus{}, err

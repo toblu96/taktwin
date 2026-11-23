@@ -20,6 +20,7 @@ declare module "@wailsio/runtime" {
             "files:opened": string;
             "library:snapshot": engine$0.Snapshot;
             "menu:command": string;
+            "project:save": simapp$0.SaveState;
             "sim:check": simapp$0.CheckState;
             "sim:snapshot": engine$0.Snapshot;
         }

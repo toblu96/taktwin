@@ -3,7 +3,7 @@ import { computed, inject, ref, shallowRef, watch, type InjectionKey } from 'vue
 import { Service } from '../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { ask, choose, tell } from './ask'
 import { openSettings, router } from './router'
-import type { Base, ProjectInfo } from '../bindings/github.com/toblu96/taktwin/internal/simapp/models'
+import type { Base, ProjectInfo, SaveState } from '../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import type { Snapshot } from '../bindings/github.com/toblu96/taktwin/internal/engine'
 import type { Scene, SceneInstance } from '../bindings/github.com/toblu96/taktwin/internal/model'
 
@@ -205,8 +205,47 @@ export async function reloadCollections() {
 export const project = ref<ProjectInfo | null>(null)
 
 export async function refreshProject() {
-  const p = await Service.Project()
+  const [p, st] = await Promise.all([Service.Project(), Service.SaveState()])
   project.value = p.name ? p : null
+  saveState.value = p.name ? st : null
+}
+
+// How the open project's file stands: saved, about to be, read only, changed from elsewhere,
+// or not written; null while no project is open. The project is saved into its file as it
+// changes.
+export const saveState = ref<SaveState | null>(null)
+
+// Asks what to do about a project file changed, moved or deleted from elsewhere while it is
+// open, once for each time it happens.
+let resolving = false
+async function resolveConflict() {
+  const p = project.value
+  if (resolving || !p || saveState.value?.state !== 'conflict') return
+  resolving = true
+  try {
+    const KEEP = 'Keep mine'
+    const THEIRS = 'Open theirs'
+    const COPY = 'Save mine as a copy…'
+    const gone = saveState.value.problem?.includes('moved or deleted')
+    const answer = await choose(
+      gone
+        ? `${p.name} was moved or deleted while it was open. Write your project back where it was, or save it as a copy somewhere else?`
+        : `${p.name} was changed from elsewhere while it was open. Keep your project and write it over the file, open the file as it is now and drop your changes, or save yours as a copy?`,
+      gone ? [KEEP, COPY] : [KEEP, THEIRS, COPY],
+    )
+    if (answer === KEEP) saveState.value = await Service.KeepMine()
+    else if (answer === THEIRS) await show(Service.OpenTheirs())
+    else if (answer === COPY) await saveProjectAs()
+  } catch (error) {
+    report(error)
+  } finally {
+    resolving = false
+  }
+}
+
+// Saves the open project as a copy the user picks, and goes on working in the copy.
+export async function saveProjectAs() {
+  if (await Service.SaveProjectAs()) await refreshProject()
 }
 
 // Shows the station the simulation has after opening something, and its project.
@@ -220,9 +259,7 @@ async function show(next: Promise<Scene>, to: 'simulate' | 'build' = 'simulate')
   await router.push({ name: to })
 }
 
-// Opens a project by name, or makes one of a station or an exercise, named after it unless
-// a name is given.
-export const openProject = (name: string) => show(Service.OpenProject(name))
+// Makes a project of a station or an exercise, named after it unless a name is given.
 export const newProject = (base: Base, name = '') => show(Service.NewProject(name, base))
 
 // Makes a project with an empty station of its own, standing on what a collection has to
@@ -234,18 +271,31 @@ export async function newEmptyProject(collection: string, name = '') {
 // What takes a picture of the simulation's 3D view, while it shows.
 export const thumbnails: { take: (() => string | null) | null } = { take: null }
 
-// Closes the project: it keeps a picture of its station to be shown by, its PLCs are
-// disconnected, and the app shows its projects.
+// Closes the project: it keeps a picture of its station to be shown by, its file is written,
+// its PLCs are disconnected, and the app shows its projects. Changes that cannot be written
+// into the file are saved as a copy or dropped, after asking; cancelling keeps it open.
 export async function closeProject() {
+  const name = project.value?.name ?? ''
+  // A file that cannot be written gets no new picture, which would be a change to ask about.
+  const picture = saveState.value?.state === 'readOnly' ? null : thumbnails.take?.()
+  if (picture) await Service.SaveThumbnail(picture).catch(() => undefined)
+  const st = await Service.SaveProject()
+  if (st.unsaved) {
+    const COPY = 'Save a copy…'
+    const why = st.state === 'readOnly' ? 'its file cannot be written' : st.problem || 'they could not be written into its file'
+    const answer = await choose(`${name} has changes that are not saved: ${why.replace(/\.$/, '')}. Save them as a copy, or close without them?`, [COPY, 'Close without saving'])
+    if (!answer) return
+    if (answer === COPY && !(await Service.SaveProjectAs())) return
+    if (answer !== COPY) await Service.CloseProjectDiscarding()
+  }
   programming.value = null
   editingConnection.value = null
-  const picture = thumbnails.take?.()
-  if (picture) await Service.SaveThumbnail(picture).catch(() => undefined)
   await Service.CloseProject()
   simulation.selection.value = null
   simulation.snapshot.value = null
   simulation.scene.value = null
   project.value = null
+  saveState.value = null
   await router.push({ name: 'projects' })
 }
 
@@ -255,8 +305,8 @@ export async function importProject() {
   if (path) await openProjectFile(path)
 }
 
-// Opens a project file, after asking what it needs: to install the collections an exercise
-// brings, and whether to go on with the project made from it before or to start again.
+// Opens a project file where it is, after asking what it needs: to install the collections an
+// exercise brings, and whether to go on with changes a crash left that its file lacks.
 export async function openProjectFile(path: string) {
   const info = await Service.InspectProjectFile(path)
   const list = (rs: { name?: string; collection: string; version?: string }[]) => rs.map((r) => `${r.name || r.collection}${r.version ? ` ${r.version}` : ''}`).join(', ')
@@ -269,7 +319,7 @@ export async function openProjectFile(path: string) {
         : `${info.name} needs the collection ${list(missing)}: import it in Settings › Collections first.`,
     )
   }
-  const options = { install: false, continue: false }
+  const options = { install: false, restore: false }
   const installs = info.installs ?? []
   if (installs.length) {
     const update = installs.every((r) => r.installed)
@@ -277,11 +327,12 @@ export async function openProjectFile(path: string) {
     if (!(await ask(`${what} ${update ? 'Update' : 'Install'} it?`, update ? 'Update and open' : 'Install and open'))) return
     options.install = true
   }
-  if (info.existing) {
-    const CONTINUE = 'Continue my work'
-    const answer = await choose(`You have worked on ${info.exerciseName || info.name} already, in the project ${info.existing}.`, [CONTINUE, 'Start again'])
+  if (info.hasUnsaved) {
+    const RESTORE = 'Restore them'
+    const when = info.unsaved ? ` from ${new Date(info.unsaved).toLocaleString()}` : ''
+    const answer = await choose(`${info.name} has changes${when} that were not saved into its file, such as when the app was stopped. Restore them?`, [RESTORE, 'Drop them'])
     if (!answer) return
-    options.continue = answer === CONTINUE
+    options.restore = answer === RESTORE
   }
   await show(Service.OpenProjectFile(path, options).then(() => Service.Scene()))
 }
@@ -330,6 +381,12 @@ export function connect() {
   })
   // A project file double-clicked opens, also when it started the app.
   Events.On('files:opened', () => void takeOpened())
+  // How the open project's file stands, as it changes.
+  Events.On('project:save', (event) => {
+    if (!project.value) return
+    saveState.value = event.data as SaveState
+    void resolveConflict()
+  })
   // A project stays open when the window is reloaded.
   refreshProject()
     .then(async () => {

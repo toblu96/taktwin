@@ -29,28 +29,35 @@ The app also reads stations from a `Taktwin` folder in your documents folder, wh
 
 ## Projects
 
-Everything you do in the simulation belongs to a project: the soft PLC's programs, how each PLC is connected, and the station's settings. A project is saved as it changes, so there is nothing to save.
+Everything you do in the simulation belongs to a project: the soft PLC's programs, how each PLC is connected, and the station's settings. A project is one `.taktwin-project` file, wherever it is: in your folder, in the downloads folder or on a shared drive. The app saves every change into that file shortly after it is made, so there is nothing to save, and the file can be moved, copied or sent as it is.
 
-The app starts on **Projects**: a card for each of your projects, the latest first, with a picture of its station as you left it and how its last exercise check went. Below them is the station each collection comes with, as an **Example**, until its collection is hidden in **Settings › Collections**. Clicking a project opens it; clicking an example makes a project of your own on it. With projects on stations and on exercises, tabs show either kind, and the filter field (⌘F / Ctrl+F) finds a project by its name, station or exercise.
+The app starts on **Projects**: a card for each project file in the `projects` folder of your folder and for each one opened from elsewhere, the latest first, with a picture of its station as you left it and how its last exercise check went. A file from elsewhere says which folder it is in. Below them is the station each collection comes with, as an **Example**, until its collection is hidden in **Settings › Collections**. Clicking a project opens it; clicking an example makes a project of your own on it. With projects on stations and on exercises, tabs show either kind, and the filter field (⌘F / Ctrl+F) finds a project by its name, station or exercise.
 
-- **New project** makes one from a station or from an exercise of your collections, or with an empty station to build. It is named after the station or exercise unless you give it a name, with a number where that name is taken. A project on an exercise has the station set up as the exercise says, and its check under **Exercise** in the panel.
-- A card's **⋯** menu renames, duplicates, shows the project's folder, exports or deletes it.
-- **Export…** writes a project into a `.taktwin-project` file, to hand it in or move it to another computer. **Open file…** opens such a file as a project of its own, as does dropping it onto the page; on a Mac also **File › Import Project File…** (⌘O).
-- **‹ Projects** in the top bar closes the project; on a Mac also **File › Close Project** (⌘W). Closing disconnects every PLC and stops its soft PLCs, so download the program again after opening the project.
+- **New project** makes one from a station or from an exercise of your collections, or with an empty station to build, as a file in the `projects` folder of your folder. It is named after the station or exercise unless you give it a name, with a number where that name is taken. A project on an exercise has the station set up as the exercise says, and its check under **Exercise** in the panel.
+- **Open file…** opens a project file where it is, as does dropping it onto the page or double-clicking it; on a Mac also **File › Import Project File…** (⌘O). Nothing is copied: the changes go into that file.
+- A card's **⋯** menu renames the file, saves a copy of it elsewhere, shows it in its folder, and deletes it. A file opened from elsewhere is not deleted but taken off the list. One that was moved or deleted since is listed as missing, with **Locate…** to find it again.
+- **‹ Projects** in the top bar closes the project; on a Mac also **File › Close Project** (⌘W). Closing writes the file, disconnects every PLC and stops its soft PLCs, so download the program again after opening the project.
+
+The status bar's last item says how the file stands: **Saved**, **Saving** while a change is about to be written, or **Not saved** when it could not be, with the reason when you point at it. A click on it shows the file in its folder.
+
+- **A file that cannot be written,** such as one on a read-only share, opens as **Read only**, with **Save a copy…** beside its name: the project goes on in the copy you save.
+- **A file changed from elsewhere** while it is open, such as by a colleague on a shared drive, is not overwritten. The app asks whether to keep your project and write it over the file, open the file as it is now, or save yours as a copy.
+- **Changes that could not be written** when the project is closed are saved as a copy or dropped, after asking.
+- **After a crash,** opening the file again offers the changes it does not have yet.
 
 Only a Mac has a menu bar, as every Mac app does: besides the **File** menu it has **Taktwin › Settings…** (⌘,). On Windows everything is on the app's pages.
 
-Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. A project whose station or exercise is in none of your collections, for example because the collection is hidden, is listed with the reason and does not open. Projects are kept in the `projects` folder of your folder, one folder each, with `project.json`, the programs in `programs/<plc>/`, `thumbnail.jpg`, `station.json` once the project has a station of its own, and `exercise.json` and `instructions.md` for an exercise handed out. A project file holds only these, and an import refuses anything else.
+Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. A project whose station or exercise is in none of your collections, for example because the collection is hidden, is listed with the reason and does not open. A project file is a zip with `project.json`, the programs in `programs/<plc>/`, `thumbnail.jpg`, `station.json` once the project has a station of its own, and `exercise.json` and `instructions.md` for an exercise handed out. It holds only these, and the app refuses a file with anything else. Project files of format 1, from earlier versions, no longer open.
 
 ### Exercises as one file
 
 A teacher hands an exercise out as one file: in the card menu of a project on an exercise, **Hand out as exercise…** writes a `.taktwin-project` file with the station and the exercise as copies, the station's settings, the instructions, and the collections students may not have, those you imported. It asks whether this project's programs go along as a start; by default they do not, so that a solution does not go out by mistake. How the PLCs are connected and how checks went stay behind. A station that uses modules from your own folder cannot be handed out: put them into a collection first.
 
-The instructions are Markdown: `instructions.md` in the project's folder, or beside the exercise in its collection (`exercises/<id>/instructions.md`). They show under the exercise, beside its **Check**.
+The instructions are Markdown: `instructions.md` in the project file, or beside the exercise in its collection (`exercises/<id>/instructions.md`). They show under the exercise, beside its **Check**.
 
-Students open the file by double-clicking it, dropping it onto **Projects**, or with **Open file…**. When it brings a collection they do not have, or a newer one, the app asks to install it first; one it needs but does not bring must be imported in **Settings › Collections**. The project keeps the exercise's station as it is. Opening the file again asks whether to go on with the project made from it before or to start again.
+Students open the file by double-clicking it, dropping it onto **Projects**, or with **Open file…**, and work in it where it is. When it brings a collection they do not have, or a newer one, the app asks to install it first; one it needs but does not bring must be imported in **Settings › Collections**. The project keeps the exercise's station as it is.
 
-To hand in, students use **Export…** on their project. A teacher opening that file gets a project named after the file, such as `Anna.taktwin-project`, and presses **Check**.
+To hand in, students send that file, renamed if the teacher asks, such as `Anna.taktwin-project`. The teacher opens it and presses **Check**.
 
 ## Running a station
 

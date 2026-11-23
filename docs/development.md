@@ -68,17 +68,20 @@ The app starts on **Projects**, with **Library** beside it, which browses the co
 
 The library is a stack of layers, front first: the user folder's own files, imported collections (`collections/` of the user folder), those named by `TAKTWIN_COLLECTIONS`, the built-in reference collection, and the base. Hidden collections are left out. A file is taken from the first layer that has it (`simapp.Library`).
 
-Everything in the simulation belongs to a project, a folder under `projects/` of the user folder:
+Everything in the simulation belongs to a project: a `.taktwin-project` file, a zip of data only, wherever it is ([ADR 0002](adr/0002-projects-as-documents.md)). New ones are made in `projects/` of the user folder; the settings keep a list of those opened from elsewhere. A project file holds:
 
 | File | What it is |
 |---|---|
-| `project.json` | What it is based on (a station, or an exercise and its station), how its PLCs are connected, its settings, its last check, and for exercises handed out `handout`, `fromHandout` and `requires` |
+| `project.json` | Format 2: its id, what it is based on (a station, or an exercise and its station), how its PLCs are connected, its settings, its last check, and for exercises handed out `requires` |
 | `station.json` | The project's own station, once it was built on or came with an exercise file. Without it, the station is the collection's and follows its updates |
 | `exercise.json`, `instructions.md` | The exercise and its instructions, for an exercise handed out as a file |
 | `programs/<plc>/` | The soft PLCs' Structured Text |
+| `collections/<id>.taktwin` | For an exercise handed out, the imported collections its station is built from. Opening it asks to install them first |
 | `thumbnail.jpg` | A picture of the station as it was last closed |
 
-`projectLibrary` puts the project's own `station.json` and `exercise.json` in front of the collections, so the rest of the app loads a project's station like any other. A `.taktwin-project` file is a zip of such a folder. One handed out also brings the imported collections its station is built from, under `collections/`. Opening it asks to install them first.
+The app works in a working copy of the open project, in `projects/<id>/` of the settings folder, so the rest of the app reads and writes a project as a folder (`simapp.document`). Every second it looks for changes, and writes a change once it has stayed for a look: into a temporary file beside the project file, renamed over it. Before writing, it compares the file's size and time with when it last read or wrote it, and leaves a file changed from elsewhere alone (`SaveConflict`). A file it cannot write opens read only (`SaveReadOnly`). `projects/<id>.json` beside the working copy says which file it belongs to and what was last saved, so that changes a crash left behind are offered back when the file is opened again. Closing a project writes the file and removes its working copy. The state goes to the frontend as `project:save` events.
+
+`projectLibrary` puts the project's own `station.json` and `exercise.json` in front of the collections, so the rest of the app loads a project's station like any other.
 
 ## Commits, branches and releases
 

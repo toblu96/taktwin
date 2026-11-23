@@ -351,6 +351,18 @@ func (m *Manager) Drop(project string) {
 	}
 }
 
+// Rename keeps the soft PLCs of a project, running, under the project's new name.
+func (m *Manager) Rename(project, to string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for key, s := range m.plcs {
+		if plc, ok := strings.CutPrefix(key, project+"/"); ok {
+			delete(m.plcs, key)
+			m.plcs[to+"/"+plc] = s
+		}
+	}
+}
+
 // Close stops every soft PLC's server.
 func (m *Manager) Close() {
 	m.mu.Lock()

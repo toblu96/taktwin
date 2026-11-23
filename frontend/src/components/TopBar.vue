@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { Service as service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { useRoute } from 'vue-router'
-import { closeProject, project, simulation } from '../sim'
+import { closeProject, project, saveProjectAs, saveState, simulation } from '../sim'
 import { expert } from '../expert'
 import { setEditing } from '../project-view'
 import { editing, viewProblem } from '../router'
@@ -63,7 +63,13 @@ const speeds = computed(() =>
   <header v-if="project" class="flex h-10 shrink-0 items-center gap-2 border-b border-line bg-s1 px-3">
     <button class="t-btn t-btn-ghost h-7 px-1.5" title="Close the project and go back to your projects" @click="closeProject">Projects</button>
     <IconChevron class="size-3.5 shrink-0 text-faint" />
-    <span class="min-w-0 truncate font-semibold" :title="project.folder">{{ project.name }}</span>
+    <span class="min-w-0 truncate font-semibold" :title="project.path">{{ project.name }}</span>
+    <template v-if="saveState?.state === 'readOnly'">
+      <span class="shrink-0 rounded-sm border border-control px-1.5 text-[11px] leading-4 text-muted" :title="`${project.path} cannot be written`">Read only</span>
+      <button class="t-btn h-6 shrink-0 px-2 text-xs" title="Save the project as a copy that can be written, and go on in it" @click="saveProjectAs().catch(() => undefined)">
+        Save a copy…
+      </button>
+    </template>
     <span v-if="project.exerciseName" class="shrink-0 rounded-sm bg-accent-soft px-1.5 text-[11px] leading-4.5 font-medium text-accent-ink">Exercise</span>
     <span v-if="(project.exerciseName || project.stationName) !== project.name" class="min-w-0 truncate text-muted">{{ project.exerciseName || project.stationName }}</span>
     <span v-if="viewProblem" class="flex min-w-0 items-center gap-1.5 truncate text-danger"><IconWarning class="size-4 shrink-0" />{{ viewProblem }}</span>

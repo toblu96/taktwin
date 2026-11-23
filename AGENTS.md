@@ -40,7 +40,7 @@ The frontend's TypeScript bindings in `frontend/bindings/` are generated from th
 - **Use the framework's own features** before writing your own: Wails menus with `CmdOrCtrl` accelerators, Wails dialogs, file drops and file associations. Don't write your own platform detection.
 - **No `confirm()`, `alert()` or `prompt()` in the frontend.** Wails' macOS webview never shows them, and `confirm()` answers no at once. Ask through `ask()` or `choose()` in `frontend/src/ask.ts`, which use Wails' native dialogs.
 - **No links out of the app, and no feedback form.** The repository's issues are not open to the public.
-- **File formats carry a version.** Stations are format 5, modules and parts 2, exercises and projects 1 (`StationFormat`, `FormatVersion`, `ExerciseFormat`, `ProjectFormat`). The app refuses any other with a message saying so. A change that an older app cannot read raises the format, so the older app refuses the file rather than misreading it. That includes new files inside a project file, which older imports refuse.
+- **File formats carry a version.** Stations are format 5, modules and parts 2, exercises 1 and projects 2 (`StationFormat`, `FormatVersion`, `ExerciseFormat`, `ProjectFormat`). The app refuses any other with a message saying so. A change that an older app cannot read raises the format, so the older app refuses the file rather than misreading it. That includes new files inside a project file, which older imports refuse.
 - **Projects and collections are data only.** Imports refuse anything but the expected files, paths leading out of the folder, and too much data. Keep it that way: a file someone hands out must never run code on the computer. Structured Text runs only in the app's own sandboxed runtime.
 
 ## Style

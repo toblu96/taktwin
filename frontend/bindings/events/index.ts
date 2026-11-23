@@ -34,6 +34,11 @@ export const LibrarySnapshot = "library:snapshot";
 export const MenuCommand = "menu:command";
 
 /**
+ * Name of the custom event "project:save".
+ */
+export const ProjectSave = "project:save";
+
+/**
  * Name of the custom event "sim:check".
  */
 export const SimCheck = "sim:check";

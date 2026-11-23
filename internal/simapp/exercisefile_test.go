@@ -2,7 +2,6 @@ package simapp
 
 import (
 	"archive/zip"
-	"encoding/json"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -13,8 +12,8 @@ import (
 	"github.com/toblu96/taktwin/catalog"
 )
 
-// zipped lists the files of a zip file.
-func zipped(t *testing.T, file string) []string {
+// zipNames lists the files of a zip file.
+func zipNames(t *testing.T, file string) []string {
 	t.Helper()
 	z, err := zip.OpenReader(file)
 	if err != nil {
@@ -45,7 +44,7 @@ func labCollection(t *testing.T, version string) string {
 	}
 	files["collection.json"] = []byte(`{"id":"lab","name":"Lab","version":"` + version + `"}`)
 	file := filepath.Join(t.TempDir(), "lab.taktwin")
-	if err := writeZip(file, files); err != nil {
+	if err := writeZipOver(file, files); err != nil {
 		t.Fatal(err)
 	}
 	return file
@@ -53,30 +52,35 @@ func labCollection(t *testing.T, version string) string {
 
 // An exercise is handed out as one file, with its station and exercise, the instructions
 // and the collections students may not have, but not the teacher's programs unless asked.
-// Students open it as a project of their own and go on with it when they open it again; what
-// they hand in comes back as a project named after its file.
+// Students open it where it is and work in it; what they hand in is that file, named as
+// they like.
 func TestAnExerciseIsHandedOutAsOneFile(t *testing.T) {
 	s, home := newService(t)
 	if _, err := InstallCollection(labCollection(t, "1.0.0")); err != nil {
 		t.Fatal(err)
 	}
+	station := s.Project().Path
 	if _, err := s.NewProject("", Base{Exercise: "load-a-pallet"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := NewProgramService(s).Open(""); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(projectDir("Load a pallet"), InstructionsFile), []byte("# Load a pallet\n\nWrite the program.\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(s.proj.dir(), InstructionsFile), []byte("# Load a pallet\n\nWrite the program.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := ExportExerciseTo("Test", filepath.Join(t.TempDir(), "x"+ProjectExtension), false); err == nil {
+	if err := ExportExerciseTo(station, filepath.Join(t.TempDir(), "x"+ProjectExtension), false); err == nil {
 		t.Error("a project on a station is handed out")
 	}
-	handout := filepath.Join(t.TempDir(), "Load a pallet"+ProjectExtension)
-	if err := ExportExerciseTo("Load a pallet", handout, false); err != nil {
+	files, err := s.projectFiles(s.Project().Path)
+	if err != nil {
 		t.Fatal(err)
 	}
-	names := zipped(t, handout)
+	handout := filepath.Join(t.TempDir(), "Load a pallet"+ProjectExtension)
+	if err := exportExercise(files, handout, false); err != nil {
+		t.Fatal(err)
+	}
+	names := zipNames(t, handout)
 	for _, want := range []string{ProjectFile, StationFile, ExerciseFile, InstructionsFile, "collections/lab.taktwin"} {
 		if !slices.Contains(names, want) {
 			t.Errorf("the file has no %s: %v", want, names)
@@ -85,11 +89,14 @@ func TestAnExerciseIsHandedOutAsOneFile(t *testing.T) {
 	if slices.ContainsFunc(names, func(n string) bool { return strings.HasPrefix(n, "programs/") }) {
 		t.Errorf("the teacher's programs are handed out: %v", names)
 	}
+	if defIn(t, handout).ID == defIn(t, s.Project().Path).ID {
+		t.Error("the handout has the teacher's project's id")
+	}
 	withPrograms := filepath.Join(t.TempDir(), "start"+ProjectExtension)
-	if err := ExportExerciseTo("Load a pallet", withPrograms, true); err != nil {
+	if err := exportExercise(files, withPrograms, true); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(zipped(t, withPrograms), "programs/cabinet/PLC_PRG.st") {
+	if !slices.Contains(zipNames(t, withPrograms), "programs/cabinet/PLC_PRG.st") {
 		t.Error("the programs are handed out when asked")
 	}
 	s.CloseProject()
@@ -102,7 +109,7 @@ func TestAnExerciseIsHandedOutAsOneFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !info.Handout || info.ExerciseName != "Load a pallet" || info.Existing != "" || len(info.Missing) != 0 ||
+	if info.ExerciseName != "Load a pallet" || info.HasUnsaved || len(info.Missing) != 0 ||
 		len(info.Installs) != 1 || info.Installs[0].Collection != "lab" || info.Installs[0].Version != "1.0.0" {
 		t.Fatalf("inspected: %+v", info)
 	}
@@ -110,7 +117,7 @@ func TestAnExerciseIsHandedOutAsOneFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if opened.Name != "Load a pallet (2)" || opened.Exercise != "load-a-pallet" || !opened.Own || opened.Problem != "" {
+	if opened.Name != "Load a pallet" || opened.Path != handout || opened.Exercise != "load-a-pallet" || !opened.Own || opened.Problem != "" {
 		t.Errorf("opened: %+v", opened)
 	}
 	if got := s.Instructions(); !strings.Contains(got, "Write the program.") {
@@ -125,42 +132,27 @@ func TestAnExerciseIsHandedOutAsOneFile(t *testing.T) {
 	if info, _ := s.InspectProjectFile(handout); len(info.Installs) != 0 {
 		t.Errorf("the collection is installed: %+v", info.Installs)
 	}
-	s.CloseProject()
-
-	// Opening it again goes on with that project.
-	info, _ = s.InspectProjectFile(handout)
-	if info.Existing != "Load a pallet (2)" {
-		t.Fatalf("existing: %+v", info)
-	}
-	if p, err := s.OpenProjectFile(handout, OpenOptions{Continue: true}); err != nil || p.Name != "Load a pallet (2)" {
-		t.Fatalf("continued: %+v %v", p, err)
-	}
-	s.CloseProject()
-	if p, err := s.OpenProjectFile(handout, OpenOptions{}); err != nil || p.Name != "Load a pallet (3)" {
-		t.Fatalf("started again: %+v %v", p, err)
-	}
-	s.CloseProject()
-
-	// What a student hands in is named after its file, and is no handout.
-	handIn := filepath.Join(t.TempDir(), "Anna"+ProjectExtension)
-	if err := ExportProjectTo(projectDir("Load a pallet (2)"), handIn); err != nil {
+	if _, err := NewProgramService(s).Open(""); err != nil {
 		t.Fatal(err)
 	}
-	if info, _ := s.InspectProjectFile(handIn); info.Handout || info.Existing != "" || info.Name != "Anna" {
-		t.Errorf("hand-in: %+v", info)
+	s.CloseProject()
+	if !slices.Contains(zipNames(t, handout), "programs/cabinet/PLC_PRG.st") {
+		t.Error("the student's work is in the file")
+	}
+
+	// What a student hands in is the file, named after them.
+	handIn := filepath.Join(t.TempDir(), "Anna"+ProjectExtension)
+	if err := os.Rename(handout, handIn); err != nil {
+		t.Fatal(err)
 	}
 	if p, err := s.OpenProjectFile(handIn, OpenOptions{}); err != nil || p.Name != "Anna" || p.Exercise != "load-a-pallet" {
 		t.Errorf("handed in: %+v %v", p, err)
 	}
-	if def, _, _ := readProject(projectDir("Anna")); def.FromHandout || def.Handout {
-		t.Errorf("a hand-in is no handout: %+v", def)
-	}
 
 	// A collection that is neither here nor in the file is missing.
-	def := ProjectDef{Format: ProjectFormat, Name: "Odd", Base: Base{Station: "pallet-loading"}, Handout: true, Requires: []Requirement{{Collection: "nope", Name: "Nope", Version: "2.0.0"}}}
-	raw, _ := json.Marshal(def)
+	raw, _ := projectJSON(ProjectDef{ID: newID(), Base: Base{Station: "pallet-loading"}, Requires: []Requirement{{Collection: "nope", Name: "Nope", Version: "2.0.0"}}})
 	odd := filepath.Join(home, "odd"+ProjectExtension)
-	if err := writeZip(odd, map[string][]byte{ProjectFile: raw}); err != nil {
+	if err := writeZipOver(odd, map[string][]byte{ProjectFile: raw}); err != nil {
 		t.Fatal(err)
 	}
 	if info, _ := s.InspectProjectFile(odd); len(info.Missing) != 1 || info.Missing[0].Collection != "nope" {
@@ -170,7 +162,7 @@ func TestAnExerciseIsHandedOutAsOneFile(t *testing.T) {
 
 func TestNewerVersions(t *testing.T) {
 	for _, c := range []struct {
-		a, b string
+		a, b  string
 		newer bool
 	}{{"1.10.0", "1.9.2", true}, {"1.0.0", "1.0.0", false}, {"1.0", "1.0.1", false}, {"2", "", true}, {"", "1.0.0", false}} {
 		if newer(c.a, c.b) != c.newer {

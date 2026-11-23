@@ -4,7 +4,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { Example, ProjectInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import { ask, choose } from '../ask'
-import { filesRead, importProject, newProject, openProject, projectError } from '../sim'
+import { filesRead, importProject, newProject, openProjectFile, projectError } from '../sim'
 import NewProjectDialog from './NewProjectDialog.vue'
 import ProjectCard from './ProjectCard.vue'
 import UiSegmented from '../ui/UiSegmented.vue'
@@ -53,8 +53,16 @@ async function act(what: () => Promise<unknown>) {
 }
 
 async function remove(p: ProjectInfo) {
-  if (!(await ask(`Delete the project ${p.name}, with its programs? This cannot be undone.`, 'Delete'))) return
-  await act(() => Service.DeleteProject(p.name))
+  if (!(await ask(`Delete the project ${p.name}, with its programs? Its file is deleted, which cannot be undone.`, 'Delete'))) return
+  await act(() => Service.DeleteProject(p.path))
+}
+
+// Finds a project file that was moved: the one picked opens, and takes the old place in the list.
+async function locate(p: ProjectInfo) {
+  const path = await Service.ChooseProjectFile()
+  if (!path) return
+  Service.ForgetProject(p.path)
+  await openProjectFile(path)
 }
 
 // Hands an exercise out as one file, with the programs as a start only when asked to, so
@@ -65,7 +73,7 @@ async function handout(p: ProjectInfo) {
     `Hand out ${p.exerciseName || p.name} as one file? It brings the station, the exercise and the collections students may not have. Should the programs of this project go along as a start?`,
     ['Without programs', WITH],
   )
-  if (answer) await act(() => Service.ExportExercise(p.name, answer === WITH))
+  if (answer) await act(() => Service.ExportExercise(p.path, answer === WITH))
 }
 
 // The kinds to show, once there are projects of both.
@@ -110,7 +118,7 @@ onUnmounted(() => window.removeEventListener('keydown', key))
       <header class="mb-5 flex items-end gap-3">
         <div>
           <h1 class="m-0 text-xl font-semibold tracking-tight">Projects</h1>
-          <p class="m-0 mt-0.5 text-muted">Your work on stations and exercises, saved as you go.</p>
+          <p class="m-0 mt-0.5 text-muted">Your work on stations and exercises, saved into its file as you go.</p>
         </div>
         <span class="flex-1" />
         <button class="t-btn t-btn-ghost" :disabled="busy" title="Open a .taktwin-project file, or drop one onto this page" @click="act(importProject)">
@@ -136,16 +144,17 @@ onUnmounted(() => window.removeEventListener('keydown', key))
       <div v-if="shown.length" class="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
         <ProjectCard
           v-for="p in shown"
-          :key="p.name"
+          :key="p.path"
           :project="p"
           :busy="busy"
-          @open="act(() => openProject(p.name))"
-          @rename="(to) => act(() => Service.RenameProject(p.name, to))"
-          @duplicate="act(() => Service.DuplicateProject(p.name))"
-          @reveal="act(() => Service.RevealProject(p.name))"
-          @export="act(() => Service.ExportProject(p.name))"
+          @open="act(() => openProjectFile(p.path))"
+          @rename="(to) => act(() => Service.RenameProject(p.path, to))"
+          @copy="act(() => Service.SaveProjectCopy(p.path))"
+          @reveal="act(() => Service.RevealProject(p.path))"
           @handout="handout(p)"
           @remove="remove(p)"
+          @forget="act(() => Service.ForgetProject(p.path))"
+          @locate="act(() => locate(p))"
         />
       </div>
       <p v-else-if="query" class="m-0 text-muted">No project matches “{{ query }}”.</p>

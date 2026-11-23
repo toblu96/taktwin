@@ -4,9 +4,12 @@ import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/sima
 import { edits } from '../builder'
 import { useRoute } from 'vue-router'
 import { openSettings } from '../router'
-import { project, simulation } from '../sim'
+import { project, saveState, simulation } from '../sim'
 import { update, updateAvailable } from '../update'
 import IconSaved from '~icons/fluent/checkmark-16-regular'
+import IconSaving from '~icons/fluent/arrow-sync-16-regular'
+import IconLocked from '~icons/fluent/lock-closed-16-regular'
+import IconUnsaved from '~icons/fluent/warning-16-regular'
 import IconPanel from '~icons/fluent/panel-bottom-20-regular'
 import { panelHere, panelOpen, togglePanel } from '../panel'
 
@@ -27,11 +30,28 @@ const problem = ref('')
 async function reveal() {
   problem.value = ''
   try {
-    if (project.value) await Service.RevealProject(project.value.name)
+    if (project.value) await Service.RevealProject(project.value.path)
   } catch (e) {
     problem.value = (e as Error).message ?? String(e)
   }
 }
+
+// How the project's file stands, as the item on the right says it.
+const saving = computed(() => {
+  const st = saveState.value
+  const where = project.value?.path ?? ''
+  switch (st?.state) {
+    case 'pending':
+      return { icon: IconSaving, text: 'Saving', title: `Saved into ${where} in a moment: click to show the file`, warn: false }
+    case 'readOnly':
+      return { icon: IconLocked, text: st.unsaved ? 'Read only · not saved' : 'Read only', title: `${where} cannot be written: save a copy to keep changes`, warn: !!st.unsaved }
+    case 'conflict':
+      return { icon: IconUnsaved, text: 'Not saved', title: `${st.problem ?? ''} Click to show the file.`, warn: true }
+    case 'failed':
+      return { icon: IconUnsaved, text: 'Not saved', title: `${where} could not be written, and is tried again: ${st.problem ?? ''}`, warn: true }
+  }
+  return { icon: IconSaved, text: 'Saved', title: `Saved into ${where} as it changes: click to show the file`, warn: false }
+})
 
 const base = 'flex h-6 shrink-0 cursor-default items-center gap-1.5 rounded-sm border-0 px-1.5 text-xs'
 const item = `${base} bg-transparent text-muted`
@@ -72,8 +92,8 @@ const button = `${item} hover:bg-hover hover:text-fg focus-visible:-outline-offs
     <button v-if="panelHere" :class="button" :aria-pressed="panelOpen" title="Show or hide the panel (⌘J or Ctrl+J)" @click="togglePanel">
       <IconPanel class="size-3.5" />Panel
     </button>
-    <button v-if="project" :class="button" :title="`Kept as it changes, in ${project.folder}: click to show the folder`" @click="reveal">
-      <IconSaved class="size-3.5" />Saved
+    <button v-if="project" :class="[button, saving.warn ? 'text-danger hover:text-danger' : '']" :title="saving.title" @click="reveal">
+      <component :is="saving.icon" class="size-3.5" />{{ saving.text }}
     </button>
   </footer>
 </template>
