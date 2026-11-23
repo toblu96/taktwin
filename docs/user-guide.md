@@ -35,9 +35,9 @@ A project carries what it is built from: a copy of its station, and of its exerc
 
 The app starts on **Projects**: a card for each project file in the `projects` folder of your folder and for each one opened from elsewhere, the latest first, with a picture of its station as you left it and how its last exercise check went. A file from elsewhere says which folder it is in. Below them is the station each collection comes with, as an **Example**, until its collection is hidden in **Settings › Collections**. Clicking a project opens it; clicking an example makes a project of your own on it. With projects on stations and on exercises, tabs show either kind, and the filter field (⌘F / Ctrl+F) finds a project by its name, station or exercise.
 
-- **New project** makes one from a station or from an exercise of your collections, or with an empty station to build, as a file in the `projects` folder of your folder. It is named after the station or exercise unless you give it a name, with a number where that name is taken. A project on an exercise has the station set up as the exercise says, and its check under **Exercise** in the panel.
+- **New project** makes one from a station or from an exercise of your collections, or with an empty station to build, as a file in the `projects` folder of your folder. It is named after the station or exercise unless you give it a name, with a number where that name is taken. A project on an exercise has the station set up as the exercise says, and its check in the **Exercise** view.
 - **Open file…** opens a project file where it is, as does dropping it onto the page or double-clicking it; on a Mac also **File › Import Project File…** (⌘O). Nothing is copied: the changes go into that file.
-- A card's **⋯** menu renames the file, saves a copy of it elsewhere, hands it out, shows it in its folder, and deletes it. A file opened from elsewhere is not deleted but taken off the list. One that was moved or deleted since is listed as missing, with **Locate…** to find it again.
+- A card's **⋯** menu renames the file, saves a copy of it elsewhere, hands it out, shows it in its folder, and deletes it, for good. A file opened from elsewhere is not deleted but taken off the list. One that was moved or deleted since is listed as missing, with **Locate…** to find it again.
 - **‹ Projects** in the top bar closes the project; on a Mac also **File › Close Project** (⌘W). Closing writes the file, disconnects every PLC and stops its soft PLCs, so download the program again after opening the project.
 
 The status bar's last item says how the file stands: **Saved**, **Saving** while a change is about to be written, or **Not saved** when it could not be, with the reason when you point at it. A click on it shows the file in its folder.
@@ -48,6 +48,8 @@ The status bar's last item says how the file stands: **Saved**, **Saving** while
 - **After a crash,** opening the file again offers the changes it does not have yet.
 
 Only a Mac has a menu bar, as every Mac app does: besides the **File** menu it has **Taktwin › Settings…** (⌘,). On Windows everything is on the app's pages.
+
+Opening a project restores its PLCs' connections without connecting them: select the PLC in **Wiring** and press **Connect**. A project whose station cannot be found, neither in it nor in your collections, is listed with the reason and does not open. A project file is a zip with `project.json`, its station as `station.json`, the collections it carries in `collections/`, the programs in `programs/<plc>/`, its original in `original/`, `thumbnail.jpg`, and for an exercise `exercise.json` and `instructions.md`. It holds only these, and the app refuses a file with anything else. Project files of format 1, from earlier versions, no longer open.
 
 ### The original, and putting back
 
@@ -62,8 +64,6 @@ Every project keeps its original: the state it started from, which it can go bac
 In expert mode, **Keep this as the original** makes the project as it is now its original, such as a station built from an empty one once it is finished. Putting back then goes back to that state.
 
 **Hand out…**, in the same menu and in the card's, writes a copy of the project for others: as it is now, with its station, how its PLCs are connected and the collections it carries, and with this state as the copy's original. It asks whether the programs go along; by default they do not, so that a solution does not go out by mistake. How checks went stays behind. A station that uses modules from your own folder cannot be handed out: put them into a collection first.
-
-Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. A project whose station cannot be found, neither in it nor in your collections, is listed with the reason and does not open. A project file is a zip with `project.json`, its station as `station.json`, the collections it carries in `collections/`, the programs in `programs/<plc>/`, its original in `original/`, `thumbnail.jpg`, and for an exercise `exercise.json` and `instructions.md`. It holds only these, and the app refuses a file with anything else. Project files of format 1, from earlier versions, no longer open.
 
 ### Exercises as one file
 

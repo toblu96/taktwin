@@ -1,6 +1,6 @@
 # ADR 0002: Projects as documents
 
-- **Status:** Accepted
+- **Status:** Accepted and built, with the differences listed under [As built](#as-built)
 - **Date:** 2026-11-23
 - **Scope:** what a project file holds, where it lives and how it is saved; exercises as projects; how a PLC keeps its connection; what the user folder is for
 - **Replaces:** parts of [ADR 0001](0001-signals-mapping-and-connection-drivers.md): its sections 5 (projects as overlays that follow updates), 6 (exercises as files of their own, installed into the user folder) and the choice of a connection from a list in section 7
@@ -238,3 +238,17 @@ No release with projects is in use yet, so nothing is converted. The project for
 4. **One connection per PLC:** state per mode, kinds, the editor saving into the project, the PLC's panel without the list, and `plc.maps` dropped.
 5. **Exercises:** the hash, the locks, the teacher's check with their own definition, and handing out without the last check.
 6. **Documentation:** the user guide, the authoring guide, the collection format and AGENTS.md (the project format).
+
+## As built
+
+Steps 1 to 6 are built. Where the app differs from the decision above:
+
+- **Delete** removes a project file for good, after asking, and only one in the user folder's `projects/`. Wails has no way to move a file to the bin.
+- **Vars** stay with a project's connection: the connection keeps its JSON Schema and the values of its form, which the PLC's panel shows and keeps as they are typed.
+- **FluidSIM: input and output ports**, the base collection's kind, names FluidSIM's nodes by namespace index, `ns=2` unless the form says otherwise.
+- **`plc.maps`** stay readable in station files, so that collections that have them still load, and are left out.
+- **A template's binding** for a signal with no symbol, whose node the controller lacks, is left out without being reported, so that a controller needs no item for signals the station does not use.
+- **The teacher's definition** is the exercise of the same id in the collections installed here. Handing out does not yet put the exercise into the teacher's own collection, which comes with expert mode's own collection.
+- **Unlocking parts of an exercise** waits for exercise editing; an exercise's station stays locked as a whole.
+- **The user folder's `stations/`** is still read, until the teacher's own collection takes its place. `connections/` and `programs/` are no longer read.
+

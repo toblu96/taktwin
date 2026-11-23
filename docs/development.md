@@ -51,7 +51,7 @@ Tests do not show whether a page works. `go build -tags server` builds the app i
 | `internal/opcsim` | An OPC UA server around any controller, the soft PLC's |
 | `st/` | Structured Text compiler and runtime, a Go module of its own with no dependencies. See [st/README.md](../st/README.md) |
 | `internal/plcprog` | A PLC's ST project in your folder, and the soft PLC that runs it behind an OPC UA server |
-| `internal/simapp` | The Wails services the frontend calls: the simulation and its projects (`service.go`, `projects.go`), exercise files and their checks (`exercisefile.go`, `exercises.go`), the builder (`builder.go`, `wiring.go`), the library and collections (`library.go`, `collections.go`), connections (`connections.go`, `editor.go`), the programming tool (`programs.go`), settings and updates |
+| `internal/simapp` | The Wails services the frontend calls: the simulation and its projects (`service.go`, `projects.go`), saving a project file in place (`document.go`), the list of files opened (`recent.go`), a project's original and handing it out (`original.go`), project files and exercise checks (`exercisefile.go`, `exercises.go`), the builder (`builder.go`, `wiring.go`), the library and collections (`library.go`, `collections.go`), connections (`connections.go`, `editor.go`), the programming tool (`programs.go`), settings and updates |
 | `internal/version` | The app's version; `scripts/set-version.sh` changes it with the build files |
 | `frontend/src` | The Vue app. `router.ts` says where the app is (projects, the open project simulated or built, library, settings) and guards those pages, `sim.ts` holds the open project, `builder.ts` the station being built, `update.ts` the updates; `ask.ts` asks in Wails' native dialogs |
 | `frontend/src/ui` | The shared components on UI SDK and the design tokens (`theme.css`); `lab.html` shows them. See [AGENTS.md](../AGENTS.md#the-ui) |
@@ -72,7 +72,7 @@ Everything in the simulation belongs to a project: a `.taktwin-project` file, a 
 
 | File | What it is |
 |---|---|
-| `project.json` | Format 2: its id, what it is based on (a station, or an exercise and its station), the collections it carries with their versions, how its PLCs are connected, its settings, and its last check |
+| `project.json` | Format 2: its id, what it is based on (a station, or an exercise and its station), the collections it carries with their versions, how its PLCs are connected with each one's external connection, its settings, its last check, when its original was set, and for an exercise `exerciseHash` |
 | `station.json` | The project's copy of its station, made with the project and built on in it |
 | `exercise.json`, `instructions.md` | For a project on an exercise, its copy of the exercise and its instructions |
 | `programs/<plc>/` | The soft PLCs' Structured Text |
