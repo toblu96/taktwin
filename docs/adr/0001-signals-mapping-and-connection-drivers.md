@@ -1,6 +1,6 @@
 # ADR 0001: Signals, I/O mapping and connection drivers
 
-- **Status:** Accepted
+- **Status:** Accepted; sections 5 and 6, the choice of a connection in section 7, and `plc.maps` as presets (section 11), replaced by [ADR 0002](0002-projects-as-documents.md)
 - **Date:** 2026-11-15
 - **Scope:** everything between a simulated device and a controller outside the simulation, and the files that carry it: collections, exercises and projects
 
@@ -168,6 +168,8 @@ This covers digital I/O, analogue sensors and actuators, positioning setpoints a
 
 ### 5. Layers and overrides
 
+> Replaced in part by [ADR 0002](0002-projects-as-documents.md): a project keeps a copy of its station and of the collections it is built from, and updates are offered rather than followed. The layers and the locked physical part below still hold.
+
 ```mermaid
 flowchart TB
   M["Module (collection)<br/>pin default symbol + description"] --> S["Station (collection, exercise or user)<br/>wiring → addresses<br/>plc.signals: symbol, description"]
@@ -189,6 +191,8 @@ flowchart TB
 - **Projects follow updates.** A project references its base by id, not by a copy. When the exercise or collection is updated, the project opens on the new version. Its overlay is applied again; bindings to signals that no longer exist are reported, not dropped silently. The project records the version it was last opened with, so the update is shown to the learner.
 
 ### 6. Exercises are standalone files
+
+> Replaced by [ADR 0002](0002-projects-as-documents.md): an exercise is a project file with an exercise definition in it. There is no `.taktwin-exercise` file, and nothing is installed into the user folder.
 
 An exercise and a project both describe "this station, set up like this, with this coupling". So they share **one overlay format**. What differs is who owns them and what else they carry.
 
@@ -258,6 +262,8 @@ Project:
 "Turn a project into an exercise" is an export: its overlay, plus a task and a check, becomes an exercise file. Keeping the word *exercise* is still worth it, because it marks the read-only, gradable part.
 
 ### 7. Connections and bindings
+
+> Changed by [ADR 0002](0002-projects-as-documents.md): a PLC keeps one connection per mode in the project itself. Presets are kinds of connection, by technology, chosen once; a mapping for one station is made in a project and shared with it.
 
 **One connection per PLC.** A station with two PLCs has two connections. A connection is either a preset from an exercise, which the project uses with its own values, or one the learner makes.
 
@@ -494,14 +500,14 @@ What FluidSIM 6.3 shows (from UaExpert):
 | Question | Decision |
 |---|---|
 | May a learner change wiring and symbols in an exercise project? | No. The physical part is locked, otherwise the exercise and its check break |
-| Does a project follow updates of its exercise? | Yes, by id; changes are reported |
+| Does a project follow updates of its exercise? | Yes, by id; changes are reported. Replaced by ADR 0002: a project keeps a copy, and updates are offered |
 | Connections per PLC | One |
 | Taktwin as a server | Not needed. The simulation is an OPC UA client to FluidSIM, CODESYS or the soft PLC |
 | Soft PLC | Keeps its own OPC UA server, reached through the normal `opcua` driver, observable with UaExpert |
 | Analogue | Inputs and outputs from the start |
 | Secrets | OS keychain, at user level, without admin rights |
 | FluidSIM | Only `state_man` is writable; this is part of the bindings. NodeIds are stable. The namespace URI is known and goes into the presets |
-| Exercises in collections | No: standalone files; collections may hold examples |
+| Exercises in collections | No: standalone files; collections may hold examples. Replaced by ADR 0002: an exercise is a project file |
 | Vars | JSON Schema, draft 2020-12 |
 | Address display | Decided by the PLC module only |
 | Exercise ids | Free text; defaults and examples suggest a `ch.swissskills.` style prefix |
