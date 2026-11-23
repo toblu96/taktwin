@@ -29,9 +29,6 @@ func TestTheWiringOfARunningStationIsShownWithoutBuilding(t *testing.T) {
 	if kinds["plc"] != 1 || kinds["terminal"] == 0 || len(w.Cables) == 0 {
 		t.Errorf("it shows the PLC, the terminals and the cables: %v boxes, %d cables", kinds, len(w.Cables))
 	}
-	if p := s.Project(); p.Own {
-		t.Errorf("the project builds on no station of its own: %+v", p)
-	}
 }
 
 // An exercise that swaps two pins of a terminal shows them swapped in the wiring, as its

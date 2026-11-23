@@ -72,16 +72,16 @@ Everything in the simulation belongs to a project: a `.taktwin-project` file, a 
 
 | File | What it is |
 |---|---|
-| `project.json` | Format 2: its id, what it is based on (a station, or an exercise and its station), how its PLCs are connected, its settings, its last check, and for exercises handed out `requires` |
-| `station.json` | The project's own station, once it was built on or came with an exercise file. Without it, the station is the collection's and follows its updates |
-| `exercise.json`, `instructions.md` | The exercise and its instructions, for an exercise handed out as a file |
+| `project.json` | Format 2: its id, what it is based on (a station, or an exercise and its station), the collections it carries with their versions, how its PLCs are connected, its settings, and its last check |
+| `station.json` | The project's copy of its station, made with the project and built on in it |
+| `exercise.json`, `instructions.md` | For a project on an exercise, its copy of the exercise and its instructions |
 | `programs/<plc>/` | The soft PLCs' Structured Text |
-| `collections/<id>.taktwin` | For an exercise handed out, the imported collections its station is built from. Opening it asks to install them first |
+| `collections/<id>.taktwin` | Every collection the station, the exercise and their example programs come from, the base and the app's own among them, in the version the project was made with or last updated to |
 | `thumbnail.jpg` | A picture of the station as it was last closed |
 
 The app works in a working copy of the open project, in `projects/<id>/` of the settings folder, so the rest of the app reads and writes a project as a folder (`simapp.document`). Every second it looks for changes, and writes a change once it has stayed for a look: into a temporary file beside the project file, renamed over it. Before writing, it compares the file's size and time with when it last read or wrote it, and leaves a file changed from elsewhere alone (`SaveConflict`). A file it cannot write opens read only (`SaveReadOnly`). `projects/<id>.json` beside the working copy says which file it belongs to and what was last saved, so that changes a crash left behind are offered back when the file is opened again. Closing a project writes the file and removes its working copy. The state goes to the frontend as `project:save` events.
 
-`projectLibrary` puts the project's own `station.json` and `exercise.json` in front of the collections, so the rest of the app loads a project's station like any other.
+`projectLibrary` puts the project's own `station.json` and `exercise.json` in front, then the collections it carries, then those installed for anything else, leaving out an installed collection whose id the project carries, also a hidden one. So the rest of the app loads a project's station like any other, and the same on every computer. Opening a project copies in what it lacks (`carry`): its station, its exercise, and the collections they come from, as installed here, for a new project and for a file made without them. `updatesOf` compares the carried versions with those installed, and `UpdateCollections` replaces them, letting the station and the exercise follow where the project's copies are those of the old version. A collection is only offered newer when its `version` is raised.
 
 ## Commits, branches and releases
 

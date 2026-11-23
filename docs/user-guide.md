@@ -14,7 +14,7 @@ The app also reads stations from a `Taktwin` folder in your documents folder, wh
 
 ## The builder
 
-**Expert mode**, for teachers, is switched on in **Settings › General › Experimental**. It adds a switch to the top bar of an open project between running its views and editing them: edited, **Simulation** builds the station and **Wiring** rewires it. It shows more, but locks nothing away from students. Building puts a station together without editing files. A project made from an empty station opens there. A project on a collection's station builds on a copy of it that the project keeps, after asking, and no longer follows the collection's updates. The station of an exercise stays as the exercise has it. Then:
+**Expert mode**, for teachers, is switched on in **Settings › General › Experimental**. It adds a switch to the top bar of an open project between running its views and editing them: edited, **Simulation** builds the station and **Wiring** rewires it. It shows more, but locks nothing away from students. Building puts a station together without editing files. A project made from an empty station opens there. Every project builds on its own copy of its station. The station of an exercise stays as the exercise has it. Then:
 
 - The left side has the station's name and what it is about, then **In the station**, its modules as a tree, each stand with what stands on it, and **Add**, what can be put in, from one collection at a time, with a search.
 - Under **Add**, click a module to pick it: every place it fits shows as a line, and a see-through copy follows the pointer, on the 5 mm grid or in whole mm with Shift. It is green where it fits and red where it does not, with the reason. A click puts it down, R turns it, Esc puts it back.
@@ -30,6 +30,8 @@ The app also reads stations from a `Taktwin` folder in your documents folder, wh
 ## Projects
 
 Everything you do in the simulation belongs to a project: the soft PLC's programs, how each PLC is connected, and the station's settings. A project is one `.taktwin-project` file, wherever it is: in your folder, in the downloads folder or on a shared drive. The app saves every change into that file shortly after it is made, so there is nothing to save, and the file can be moved, copied or sent as it is.
+
+A project carries what it is built from: a copy of its station, and of its exercise, and every collection they come from, the app's own among them, in the version it was made with. It opens from them, so it opens the same on another computer, after an update of the app, and when those collections are hidden or not there. When a newer version of one of them is installed, the side bar of **Simulation** offers it under the station's description; the project takes it only on **Update…**. Its station then follows the new version, unless the project changed it, and stays as it was if it does not load with it.
 
 The app starts on **Projects**: a card for each project file in the `projects` folder of your folder and for each one opened from elsewhere, the latest first, with a picture of its station as you left it and how its last exercise check went. A file from elsewhere says which folder it is in. Below them is the station each collection comes with, as an **Example**, until its collection is hidden in **Settings › Collections**. Clicking a project opens it; clicking an example makes a project of your own on it. With projects on stations and on exercises, tabs show either kind, and the filter field (⌘F / Ctrl+F) finds a project by its name, station or exercise.
 
@@ -47,15 +49,15 @@ The status bar's last item says how the file stands: **Saved**, **Saving** while
 
 Only a Mac has a menu bar, as every Mac app does: besides the **File** menu it has **Taktwin › Settings…** (⌘,). On Windows everything is on the app's pages.
 
-Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. A project whose station or exercise is in none of your collections, for example because the collection is hidden, is listed with the reason and does not open. A project file is a zip with `project.json`, the programs in `programs/<plc>/`, `thumbnail.jpg`, `station.json` once the project has a station of its own, and `exercise.json` and `instructions.md` for an exercise handed out. It holds only these, and the app refuses a file with anything else. Project files of format 1, from earlier versions, no longer open.
+Opening a project restores its PLCs' connections without connecting them: press **Connect** in the PLC's panel. A project whose station cannot be found, neither in it nor in your collections, is listed with the reason and does not open. A project file is a zip with `project.json`, its station as `station.json`, the collections it carries in `collections/`, the programs in `programs/<plc>/`, `thumbnail.jpg`, and for an exercise `exercise.json` and `instructions.md`. It holds only these, and the app refuses a file with anything else. Project files of format 1, from earlier versions, no longer open.
 
 ### Exercises as one file
 
-A teacher hands an exercise out as one file: in the card menu of a project on an exercise, **Hand out as exercise…** writes a `.taktwin-project` file with the station and the exercise as copies, the station's settings, the instructions, and the collections students may not have, those you imported. It asks whether this project's programs go along as a start; by default they do not, so that a solution does not go out by mistake. How the PLCs are connected and how checks went stay behind. A station that uses modules from your own folder cannot be handed out: put them into a collection first.
+A teacher hands an exercise out as one file: in the card menu of a project on an exercise, **Hand out as exercise…** writes a `.taktwin-project` file with the station and the exercise as copies, the station's settings, the instructions, and the collections the project carries. It asks whether this project's programs go along as a start; by default they do not, so that a solution does not go out by mistake. How the PLCs are connected and how checks went stay behind. A station that uses modules from your own folder cannot be handed out: put them into a collection first.
 
-The instructions are Markdown: `instructions.md` in the project file, or beside the exercise in its collection (`exercises/<id>/instructions.md`). They show under the exercise, beside its **Check**.
+The instructions are Markdown: `instructions.md` in the project file, copied from beside the exercise in its collection (`exercises/<id>/instructions.md`). They show under the exercise, beside its **Check**.
 
-Students open the file by double-clicking it, dropping it onto **Projects**, or with **Open file…**, and work in it where it is. When it brings a collection they do not have, or a newer one, the app asks to install it first; one it needs but does not bring must be imported in **Settings › Collections**. The project keeps the exercise's station as it is.
+Students open the file by double-clicking it, dropping it onto **Projects**, or with **Open file…**, and work in it where it is. They need no collection installed for it: it opens from those it carries. The project keeps the exercise's station as it is.
 
 To hand in, students send that file, renamed if the teacher asks, such as `Anna.taktwin-project`. The teacher opens it and presses **Check**.
 

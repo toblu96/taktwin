@@ -67,9 +67,10 @@ type ProjectDef struct {
 	Parameters map[string]float64 `json:"parameters,omitempty"`
 	// LastCheck is how the last check of an exercise that ran to its end went.
 	LastCheck *LastCheck `json:"lastCheck,omitempty"`
-	// Requires lists the collections the station is built from, as they were when the file
-	// was handed out.
-	Requires []Requirement `json:"requires,omitempty"`
+	// Collections are those the project carries, each as a .taktwin file in collections/,
+	// in the version it was made with or last updated to: every collection its station,
+	// exercise and their example programs come from, the app's own among them.
+	Collections []Requirement `json:"collections,omitempty"`
 }
 
 // Requirement is a collection a project needs, with the version it was made with.
@@ -138,9 +139,6 @@ type ProjectInfo struct {
 	StationName  string `json:"stationName"`
 	Exercise     string `json:"exercise,omitempty"`
 	ExerciseName string `json:"exerciseName,omitempty"`
-	// Own says that the project has a station of its own, which it builds on, rather than
-	// that of a collection, which follows the collection's updates.
-	Own bool `json:"own,omitempty"`
 	// Modified is when its file was last written, as RFC 3339.
 	Modified string `json:"modified,omitempty"`
 	// Problem says why it does not open, such as its station's collection being hidden or gone.
@@ -153,6 +151,9 @@ type ProjectInfo struct {
 	InFolder bool `json:"inFolder,omitempty"`
 	// Missing says that the file is no longer where it was opened from.
 	Missing bool `json:"missing,omitempty"`
+	// Updates are the collections it carries of which a newer version is installed here,
+	// with the version it has and the one installed.
+	Updates []Requirement `json:"updates,omitempty"`
 }
 
 // reader reads a project's files by their paths in it.
@@ -171,11 +172,10 @@ func mapReader(files map[string][]byte) reader {
 	}
 }
 
-func projectInfo(lib *model.Library, file string, read reader, def ProjectDef) ProjectInfo {
+func projectInfo(srcs []source, file string, read reader, def ProjectDef) ProjectInfo {
 	info := ProjectInfo{Name: nameOf(file), Path: file, Station: def.Base.Station, Exercise: def.Base.Exercise, InFolder: inProjectsDir(file)}
-	_, err := read(StationFile)
-	info.Own = err == nil
-	lib = projectLibraryFrom(lib, read, def.Base)
+	lib := libraryFrom(srcs, projectLayers(read, def))
+	info.Updates = updatesOf(srcs, def)
 	info.StationName = cmpOr(lib.StationName(def.Base.Station), def.Base.Station)
 	if !slices.Contains(lib.Stations(), def.Base.Station) {
 		info.Problem = fmt.Sprintf("Its station %s is in none of your collections.", def.Base.Station)
@@ -263,7 +263,7 @@ func (s *Service) Project() ProjectInfo {
 	if p.name == "" {
 		return ProjectInfo{}
 	}
-	return projectInfo(Library(), p.key(), dirReader(p.dir()), p.def)
+	return projectInfo(sources(), p.key(), dirReader(p.dir()), p.def)
 }
 
 // SaveState says how the open project's file stands, with no state while none is open.
@@ -419,35 +419,300 @@ func (s *Service) saveProject() error {
 	return writeProject(s.proj.dir(), s.proj.def)
 }
 
-// projectLibrary is the library a project's station loads from: the collections, with the
-// project's own station and exercise in front of them if it has them.
-func projectLibrary(read reader, b Base) *model.Library {
-	return projectLibraryFrom(Library(), read, b)
+// projectLayers are what a project puts in front of the installed collections: its own
+// station and exercise, then the collections it carries.
+func projectLayers(read reader, def ProjectDef) []fs.FS {
+	own := fstest.MapFS{}
+	if data, err := read(StationFile); err == nil {
+		own[path.Join("stations", def.Base.Station, "station.json")] = &fstest.MapFile{Data: data}
+	}
+	if data, err := read(ExerciseFile); err == nil && def.Base.Exercise != "" {
+		own[path.Join("exercises", def.Base.Exercise, "exercise.json")] = &fstest.MapFile{Data: data}
+	}
+	var layers []fs.FS
+	if len(own) > 0 {
+		layers = append(layers, own)
+	}
+	return append(layers, carried(read, def)...)
 }
 
-func projectLibraryFrom(lib *model.Library, read reader, b Base) *model.Library {
-	layer := fstest.MapFS{}
-	if data, err := read(StationFile); err == nil {
-		layer[path.Join("stations", b.Station, "station.json")] = &fstest.MapFile{Data: data}
+// carried are the collections a project carries, as library layers. One that cannot be read
+// is left out, and the installed one of its id stands in for it.
+func carried(read reader, def ProjectDef) []fs.FS {
+	var layers []fs.FS
+	for _, c := range def.Collections {
+		data, err := read(collectionsDir + c.Collection + model.PackageExtension)
+		if err != nil {
+			continue
+		}
+		if layer, err := model.ReadPackage(bytes.NewReader(data), int64(len(data))); err == nil {
+			layers = append(layers, layer)
+		}
 	}
-	if data, err := read(ExerciseFile); err == nil && b.Exercise != "" {
-		layer[path.Join("exercises", b.Exercise, "exercise.json")] = &fstest.MapFile{Data: data}
-	}
-	if len(layer) == 0 {
-		return lib
-	}
-	return lib.With(layer)
+	return layers
+}
+
+// projectLibrary is the library a project's station loads from: its own station and
+// exercise, the collections it carries, and then those installed here for anything else.
+func projectLibrary(read reader, def ProjectDef) *model.Library {
+	return libraryFrom(sources(), projectLayers(read, def))
 }
 
 // library is the library of the open project, or the collections while none is open.
 func (s *Service) library() *model.Library {
 	s.mu.Lock()
-	dir, b := s.proj.dir(), s.proj.def.Base
+	p := s.proj
 	s.mu.Unlock()
-	if dir == "" {
+	return libraryOf(p)
+}
+
+// libraryOf is the library of a project, or the collections for none.
+func libraryOf(p project) *model.Library {
+	if p.dir() == "" {
 		return Library()
 	}
-	return projectLibrary(dirReader(dir), b)
+	return projectLibrary(dirReader(p.dir()), p.def)
+}
+
+// usedBy are the collections a station is built from, by their ids, with the collections its
+// own file and its exercise's come from; own lists what comes from the user's own folder.
+// from is the library the station and exercise came from, before the project had copies.
+func usedBy(lib, from *model.Library, bundle *model.Bundle, b Base) (ids, own []string) {
+	add := func(collection, what string) {
+		switch {
+		case collection == "":
+			if what != "" && !slices.Contains(own, what) {
+				own = append(own, what)
+			}
+		case !slices.Contains(ids, collection):
+			ids = append(ids, collection)
+		}
+	}
+	add("base", "")
+	for id := range bundle.Modules {
+		add(lib.ModuleCollection(id), id)
+	}
+	for id := range bundle.Parts {
+		add(lib.FileCollection(path.Join("parts", id+".json")), id)
+	}
+	if w := bundle.Station.Workpieces; w != "" {
+		add(lib.FileCollection(path.Join("workpieces", w+".json")), w)
+	}
+	if from != nil {
+		add(from.FileCollection(path.Join("stations", b.Station, "station.json")), "")
+		if b.Exercise != "" {
+			add(from.FileCollection(path.Join("exercises", b.Exercise, "exercise.json")), "")
+		}
+	}
+	slices.Sort(ids)
+	slices.Sort(own)
+	return ids, own
+}
+
+// carry copies into a project's folder what it lacks of what it is built from: its station,
+// its exercise with the instructions, and the collections they come from, each as the
+// collections here have it now. What cannot be found is left out, for opening the project
+// to say. It gives the project as it then is.
+func carry(dir string, def ProjectDef) (ProjectDef, error) {
+	srcs := sources()
+	read := dirReader(dir)
+	from := libraryFrom(srcs, carried(read, def))
+	b := def.Base
+	copyIn := func(name, from string, lib *model.Library) error {
+		if exists(filepath.Join(dir, name)) {
+			return nil
+		}
+		data, err := lib.ReadFile(from)
+		if err != nil {
+			return nil
+		}
+		return writeIfChanged(filepath.Join(dir, name), data)
+	}
+	if b.Exercise != "" {
+		if err := copyIn(ExerciseFile, path.Join("exercises", b.Exercise, "exercise.json"), from); err != nil {
+			return def, err
+		}
+		if err := copyIn(InstructionsFile, path.Join("exercises", b.Exercise, InstructionsFile), from); err != nil {
+			return def, err
+		}
+	}
+	if err := copyIn(StationFile, path.Join("stations", b.Station, "station.json"), from); err != nil {
+		return def, err
+	}
+	lib := libraryFrom(srcs, projectLayers(read, def))
+	var (
+		bundle *model.Bundle
+		err    error
+	)
+	if b.Exercise != "" {
+		bundle, _, err = lib.LoadExercise(b.Exercise)
+	} else {
+		bundle, err = lib.Load(b.Station)
+	}
+	if err != nil {
+		return def, nil
+	}
+	ids, _ := usedBy(lib, from, bundle, b)
+	changed := false
+	for _, id := range ids {
+		file := filepath.Join(dir, collectionsDir, id+model.PackageExtension)
+		if slices.ContainsFunc(def.Collections, func(r Requirement) bool { return r.Collection == id }) && exists(file) {
+			continue
+		}
+		data, c, ok, err := collectionPackage(srcs, id)
+		if err != nil {
+			return def, err
+		}
+		if !ok {
+			continue
+		}
+		if err := writeIfChanged(file, data); err != nil {
+			return def, err
+		}
+		def.Collections = slices.DeleteFunc(def.Collections, func(r Requirement) bool { return r.Collection == id })
+		def.Collections = append(def.Collections, Requirement{Collection: id, Name: c.Name, Version: c.Version})
+		changed = true
+	}
+	if changed {
+		slices.SortFunc(def.Collections, func(a, b Requirement) int { return strings.Compare(a.Collection, b.Collection) })
+		return def, writeProject(dir, def)
+	}
+	return def, nil
+}
+
+// updatesOf are the collections a project carries of which a newer version is installed and
+// shown here.
+func updatesOf(srcs []source, def ProjectDef) []Requirement {
+	hidden := readSettings().Hidden
+	var out []Requirement
+	for _, r := range def.Collections {
+		for _, src := range srcs {
+			if src.collection.ID != r.Collection || src.err != nil || src.kind != SourceBase && slices.Contains(hidden, r.Collection) {
+				continue
+			}
+			if newer(src.collection.Version, r.Version) {
+				out = append(out, Requirement{Collection: r.Collection, Name: cmpOr(src.collection.Name, r.Name), Version: r.Version, Installed: src.collection.Version})
+			}
+			break
+		}
+	}
+	return out
+}
+
+// UpdateCollections brings the collections the open project carries up to the newer
+// versions installed here, and loads its station again. Its station and exercise follow
+// where the project has not changed them; what it changed stays. When the station no longer
+// loads, everything is put back as it was.
+func (s *Service) UpdateCollections() (model.Scene, error) {
+	s.mu.Lock()
+	dir, def := s.proj.dir(), s.proj.def
+	s.mu.Unlock()
+	if dir == "" {
+		return model.Scene{}, errNoProject
+	}
+	srcs := sources()
+	ups := updatesOf(srcs, def)
+	if len(ups) == 0 {
+		return s.Scene(), nil
+	}
+	// What is changed, to put back if the station does not load.
+	names := []string{ProjectFile, StationFile, ExerciseFile}
+	for _, u := range ups {
+		names = append(names, collectionsDir+u.Collection+model.PackageExtension)
+	}
+	before := map[string][]byte{}
+	for _, name := range names {
+		if data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(name))); err == nil {
+			before[name] = data
+		}
+	}
+	restore := func() {
+		for _, name := range names {
+			if data, ok := before[name]; ok {
+				_ = os.WriteFile(filepath.Join(dir, filepath.FromSlash(name)), data, 0o644)
+			} else {
+				_ = os.Remove(filepath.Join(dir, filepath.FromSlash(name)))
+			}
+		}
+	}
+	follow := func(old, next fs.FS, name, from string) error {
+		mine, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			return nil
+		}
+		was, err := fs.ReadFile(old, from)
+		if err != nil || !bytes.Equal(mine, was) {
+			return nil
+		}
+		if now, err := fs.ReadFile(next, from); err == nil {
+			return os.WriteFile(filepath.Join(dir, name), now, 0o644)
+		}
+		return nil
+	}
+	err := func() error {
+		for _, u := range ups {
+			file := filepath.Join(dir, collectionsDir, u.Collection+model.PackageExtension)
+			data, c, ok, err := collectionPackage(srcs, u.Collection)
+			if err != nil || !ok {
+				return cmpErr(err, fmt.Errorf("the collection %s is no longer here", u.Collection))
+			}
+			if old, err := os.ReadFile(file); err == nil {
+				oldLayer, err1 := model.ReadPackage(bytes.NewReader(old), int64(len(old)))
+				next, err2 := model.ReadPackage(bytes.NewReader(data), int64(len(data)))
+				if err1 == nil && err2 == nil {
+					if err := follow(oldLayer, next, StationFile, path.Join("stations", def.Base.Station, "station.json")); err != nil {
+						return err
+					}
+					if def.Base.Exercise != "" {
+						if err := follow(oldLayer, next, ExerciseFile, path.Join("exercises", def.Base.Exercise, "exercise.json")); err != nil {
+							return err
+						}
+					}
+				}
+			}
+			if err := os.WriteFile(file, data, 0o644); err != nil {
+				return err
+			}
+			for i := range def.Collections {
+				if def.Collections[i].Collection == u.Collection {
+					def.Collections[i].Name, def.Collections[i].Version = c.Name, c.Version
+				}
+			}
+		}
+		if err := writeProject(dir, def); err != nil {
+			return err
+		}
+		var err error
+		def, err = carry(dir, def)
+		return err
+	}()
+	if err != nil {
+		restore()
+		return model.Scene{}, err
+	}
+	s.mu.Lock()
+	old := s.proj.def.Collections
+	s.proj.def.Collections = def.Collections
+	s.mu.Unlock()
+	scene, err := s.ReloadStation()
+	if err != nil {
+		restore()
+		s.mu.Lock()
+		s.proj.def.Collections = old
+		s.mu.Unlock()
+		if _, again := s.ReloadStation(); again != nil {
+			return model.Scene{}, fmt.Errorf("%w; and as it was: %v", err, again)
+		}
+		return model.Scene{}, fmt.Errorf("the station does not load with the newer collections, so the project stays as it was: %w", err)
+	}
+	return scene, nil
+}
+
+func cmpErr(err, otherwise error) error {
+	if err != nil {
+		return err
+	}
+	return otherwise
 }
 
 // loadBase loads what a project is based on: its station, set up as its exercise changes it.
@@ -496,13 +761,17 @@ func (s *Service) openFile(file string, pf *projectFile, restore bool) (model.Sc
 	if err == nil && !ok {
 		err = fmt.Errorf("%s has no %s", filepath.Base(file), ProjectFile)
 	}
+	if err == nil && !doc.readOnly {
+		// What it lacks of what it is built from is copied in, to be saved with it.
+		def, err = carry(doc.dir, def)
+	}
 	var (
 		bundle   *model.Bundle
 		e        *engine.Engine
 		exercise string
 	)
 	if err == nil {
-		bundle, e, exercise, err = loadBase(projectLibrary(dirReader(doc.dir), def.Base), def.Base)
+		bundle, e, exercise, err = loadBase(projectLibrary(dirReader(doc.dir), def), def.Base)
 	}
 	if err != nil {
 		if !restore {
@@ -541,7 +810,7 @@ func (s *Service) ReloadStation() (model.Scene, error) {
 	if key == "" {
 		return model.Scene{}, errNoProject
 	}
-	bundle, e, exercise, err := loadBase(projectLibrary(dirReader(dir), def.Base), def.Base)
+	bundle, e, exercise, err := loadBase(projectLibrary(dirReader(dir), def), def.Base)
 	if err != nil {
 		return model.Scene{}, err
 	}
@@ -568,38 +837,16 @@ func (s *Service) ReloadStation() (model.Scene, error) {
 	return e.Scene(), nil
 }
 
-// CustomizeStation gives the open project a station of its own, a copy of its collection's,
-// to build on. It no longer follows the collection's updates. The station of an exercise
-// stays as the exercise has it.
-func (s *Service) CustomizeStation() (ProjectInfo, error) {
-	s.mu.Lock()
-	dir, b := s.proj.dir(), s.proj.def.Base
-	s.mu.Unlock()
-	switch {
-	case dir == "":
-		return ProjectInfo{}, errNoProject
-	case b.Exercise != "":
-		return ProjectInfo{}, errors.New("the station of an exercise stays as the exercise has it")
-	}
-	if !exists(filepath.Join(dir, StationFile)) {
-		data, err := Library().ReadFile(path.Join("stations", b.Station, "station.json"))
-		if err != nil {
-			return ProjectInfo{}, err
-		}
-		if err := os.WriteFile(filepath.Join(dir, StationFile), data, 0o644); err != nil {
-			return ProjectInfo{}, err
-		}
-	}
-	return s.Project(), nil
-}
-
 // editedStation gives the open project's own station, to build on, with the project's key.
 func (s *Service) editedStation() (string, []byte, error) {
 	s.mu.Lock()
-	key, dir := s.proj.key(), s.proj.dir()
+	key, dir, exercise := s.proj.key(), s.proj.dir(), s.proj.def.Base.Exercise
 	s.mu.Unlock()
-	if key == "" {
+	switch {
+	case key == "":
 		return "", nil, errNoProject
+	case exercise != "":
+		return "", nil, errors.New("the station of an exercise stays as the exercise has it")
 	}
 	data, err := os.ReadFile(filepath.Join(dir, StationFile))
 	if err != nil {
@@ -613,12 +860,12 @@ func (s *Service) editedStation() (string, []byte, error) {
 // set up, such as pins swapped.
 func (s *Service) runningStation() ([]byte, *model.Bundle, *model.Plan, error) {
 	s.mu.Lock()
-	dir, b, bundle, e := s.proj.dir(), s.proj.def.Base, s.bundle, s.engine
+	p, bundle, e := s.proj, s.bundle, s.engine
 	s.mu.Unlock()
-	if dir == "" || bundle == nil || e == nil {
+	if p.dir() == "" || bundle == nil || e == nil {
 		return nil, nil, nil, errNoProject
 	}
-	data, err := projectLibrary(dirReader(dir), b).ReadFile(path.Join("stations", bundle.Station.ID, "station.json"))
+	data, err := libraryOf(p).ReadFile(path.Join("stations", bundle.Station.ID, "station.json"))
 	return data, bundle, e.Plan(), err
 }
 
@@ -817,7 +1064,7 @@ func (s *Service) Projects() []ProjectInfo {
 	out := []ProjectInfo{}
 	var seen []os.FileInfo
 	seenPath := map[string]bool{}
-	lib := Library()
+	srcs := sources()
 	for _, file := range files {
 		if seenPath[file] {
 			continue
@@ -838,7 +1085,7 @@ func (s *Service) Projects() []ProjectInfo {
 			out = append(out, ProjectInfo{Name: nameOf(file), Path: file, InFolder: inProjectsDir(file), Modified: fi.ModTime().UTC().Format(time.RFC3339), Problem: err.Error()})
 			continue
 		}
-		out = append(out, projectInfo(lib, file, mapReader(pf.files), pf.def))
+		out = append(out, projectInfo(srcs, file, mapReader(pf.all()), pf.def))
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].Missing != out[j].Missing {
@@ -925,7 +1172,7 @@ func (s *Service) RenameProject(file, to string) (ProjectInfo, error) {
 	if err != nil {
 		return ProjectInfo{Name: to, Path: target}, err
 	}
-	return projectInfo(Library(), target, mapReader(pf.files), pf.def), nil
+	return projectInfo(sources(), target, mapReader(pf.all()), pf.def), nil
 }
 
 // SaveProjectCopy writes a copy of a project into a file the user picks, with an id of its

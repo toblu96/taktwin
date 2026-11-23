@@ -586,26 +586,13 @@ func TestAProjectShowsItsPictureAndLastCheck(t *testing.T) {
 	}
 }
 
-// A project can have a station of its own: an empty one to build, or a copy of its
-// collection's. The builder keeps every change in the project, the simulation loads it again
-// on request, and the project file keeps it. An exercise's station stays as it is.
+// A project's station is its own: an empty one to build, or the copy of a collection's it was
+// made with. The builder keeps every change in the project, the simulation loads it again on
+// request, and the project file keeps it. An exercise's station stays as it is.
 func TestAProjectBuildsAStationOfItsOwn(t *testing.T) {
 	s, _ := newService(t)
 	b := NewBuilderService(s)
 	t.Cleanup(b.Close)
-	if p := s.Project(); p.Own {
-		t.Fatalf("a collection's station is not the project's own: %+v", p)
-	}
-	if _, err := b.Edit(); err == nil {
-		t.Error("the builder builds on a collection's station")
-	}
-	p, err := s.CustomizeStation()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !p.Own || p.StationName != "Pallet loading" {
-		t.Fatalf("customized: %+v", p)
-	}
 	st, err := b.Edit()
 	if err != nil {
 		t.Fatal(err)
@@ -627,7 +614,7 @@ func TestAProjectBuildsAStationOfItsOwn(t *testing.T) {
 		t.Fatal(err)
 	}
 	empty := s.Project()
-	if empty.Name != "New station" || !empty.Own || empty.Station != "new-station" || empty.Problem != "" {
+	if empty.Name != "New station" || empty.Station != "new-station" || empty.Problem != "" {
 		t.Fatalf("empty: %+v", empty)
 	}
 	st, err = b.Edit()
@@ -662,14 +649,138 @@ func TestAProjectBuildsAStationOfItsOwn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !opened.Own || opened.Name != "New station" {
+	if opened.Name != "New station" || opened.StationName != "New station" {
 		t.Errorf("opened: %+v", opened)
 	}
 
 	if _, err := s.NewProject("", Base{Exercise: "load-a-pallet"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CustomizeStation(); err == nil {
-		t.Error("an exercise's station is customized")
+	if _, err := b.Edit(); err == nil {
+		t.Error("an exercise's station is built on")
 	}
+}
+
+// carriedIn lists the collections a project file carries, as its project.json says and as
+// files in it, by id and version.
+func carriedIn(t *testing.T, file string) map[string]string {
+	t.Helper()
+	files := zipFiles(t, file)
+	out := map[string]string{}
+	for _, r := range defIn(t, file).Collections {
+		if _, ok := files[collectionsDir+r.Collection+".taktwin"]; !ok {
+			t.Errorf("%s is listed but not in the file", r.Collection)
+		}
+		out[r.Collection] = r.Version
+	}
+	return out
+}
+
+// A project carries what it is built from: a copy of its station and every collection it
+// comes from, the app's own among them, in the versions it was made with. It opens from them
+// when those here are gone, and offers newer ones when they are installed: its
+// station follows them unless the project changed it.
+func TestAProjectCarriesWhatItIsBuiltFrom(t *testing.T) {
+	s, _ := newService(t)
+	file := s.Project().Path
+	s.SaveProject()
+	if _, ok := zipFiles(t, file)[StationFile]; !ok {
+		t.Error("the station is not copied")
+	}
+	if got := carriedIn(t, file); len(got) != 2 || got["taktwin"] != "0.1.0" || !hasKey(got, "base") {
+		t.Errorf("carried: %v", got)
+	}
+
+	named := func(version string) func(map[string][]byte) {
+		return func(files map[string][]byte) {
+			p := "stations/pallet-loading/station.json"
+			files[p] = []byte(strings.Replace(string(files[p]), `"name": "Pallet loading"`, `"name": "Lab line `+version+`"`, 1))
+		}
+	}
+	lib := NewLibraryService()
+	if _, err := InstallCollection(labCollectionWith(t, "1.0.0", named("1.0.0"))); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.NewProject("Lab", Base{Station: "pallet-loading"}); err != nil {
+		t.Fatal(err)
+	}
+	lab := s.Project()
+	if lab.StationName != "Lab line 1.0.0" || len(lab.Updates) != 0 {
+		t.Fatalf("lab: %+v", lab)
+	}
+	s.SaveProject()
+	if got := carriedIn(t, lab.Path); got["lab"] != "1.0.0" {
+		t.Errorf("carried: %v", got)
+	}
+
+	// A newer version is offered, and the station follows it.
+	if _, err := InstallCollection(labCollectionWith(t, "1.1.0", named("1.1.0"))); err != nil {
+		t.Fatal(err)
+	}
+	if p := s.Project(); len(p.Updates) != 1 || p.Updates[0].Collection != "lab" || p.Updates[0].Version != "1.0.0" || p.Updates[0].Installed != "1.1.0" {
+		t.Fatalf("updates: %+v", p.Updates)
+	}
+	if s.Scene().Name != "Lab line 1.0.0" {
+		t.Errorf("the project changed before it was updated: %s", s.Scene().Name)
+	}
+	scene, err := s.UpdateCollections()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scene.Name != "Lab line 1.1.0" || len(s.Project().Updates) != 0 {
+		t.Errorf("updated: %s %+v", scene.Name, s.Project().Updates)
+	}
+	s.SaveProject()
+	if got := carriedIn(t, lab.Path); got["lab"] != "1.1.0" {
+		t.Errorf("carried: %v", got)
+	}
+
+	// A station the project changed stays as it is.
+	b := NewBuilderService(s)
+	t.Cleanup(b.Close)
+	if _, err := b.Edit(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.SetStation("Mine", ""); err != nil {
+		t.Fatal(err)
+	}
+	b.Close()
+	if _, err := InstallCollection(labCollectionWith(t, "1.2.0", named("1.2.0"))); err != nil {
+		t.Fatal(err)
+	}
+	if scene, err := s.UpdateCollections(); err != nil || scene.Name != "Mine" {
+		t.Errorf("the project's own station did not stay: %s %v", scene.Name, err)
+	}
+	s.SaveProject()
+	if got := carriedIn(t, lab.Path); got["lab"] != "1.2.0" {
+		t.Errorf("carried: %v", got)
+	}
+
+	// With its collection gone here, it opens from what it carries.
+	s.CloseProject()
+	if err := lib.RemoveCollection("lab"); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range s.Projects() {
+		if p.Problem != "" {
+			t.Errorf("%s does not open: %s", p.Name, p.Problem)
+		}
+	}
+	if _, err := s.OpenProjectFile(lab.Path, OpenOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Scene().Name != "Mine" {
+		t.Errorf("opened: %s", s.Scene().Name)
+	}
+	if _, err := s.OpenProjectFile(file, OpenOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Scene().Name != "Pallet loading" {
+		t.Errorf("opened: %s", s.Scene().Name)
+	}
+}
+
+func hasKey(m map[string]string, k string) bool {
+	_, ok := m[k]
+	return ok
 }

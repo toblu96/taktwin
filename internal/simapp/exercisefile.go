@@ -117,9 +117,8 @@ func (pf *projectFile) all() map[string][]byte {
 type ProjectFileInfo struct {
 	Name         string `json:"name"`
 	ExerciseName string `json:"exerciseName,omitempty"`
-	// Installs are the collections the file brings that are missing here, or older.
-	Installs []Requirement `json:"installs"`
-	// Missing are the collections it needs that are neither here, shown, nor in the file.
+	// Missing are the collections it needs that it does not carry and that are not here and
+	// shown either.
 	Missing []Requirement `json:"missing"`
 	// Unsaved is when a working copy was last changed that has changes the file lacks, such
 	// as one left by a crash, as RFC 3339; "" without one.
@@ -142,7 +141,7 @@ func (s *Service) InspectProjectFile(from string) (ProjectFileInfo, error) {
 		_ = json.Unmarshal(raw, &ex)
 		info.ExerciseName = ex.Name
 	}
-	info.Installs, info.Missing = pf.needs()
+	info.Missing = pf.missing()
 	s.mu.Lock()
 	open := s.proj.key() != "" && sameFile(s.proj.key(), from)
 	s.mu.Unlock()
@@ -161,26 +160,19 @@ func readProjectFileAt(from string) (*projectFile, error) {
 
 // OpenOptions are the answers to what InspectProjectFile asks.
 type OpenOptions struct {
-	// Install installs the collections the file brings that are missing here, or older.
-	Install bool `json:"install"`
 	// Restore goes on with the changes a working copy has that the file lacks; without it,
 	// they are dropped.
 	Restore bool `json:"restore"`
 }
 
 // OpenProjectFile opens a .taktwin-project file where it is, such as one in the user
-// folder's projects, one dropped onto the window or one double-clicked, after installing
-// the collections it brings when asked to. Its changes are saved into it. A file that does
-// not open, such as one whose station is missing, is listed all the same.
+// folder's projects, one dropped onto the window or one double-clicked. Its station loads
+// from the collections it carries; its changes are saved into it. A file that does not
+// open, such as one whose station is missing, is listed all the same.
 func (s *Service) OpenProjectFile(from string, opts OpenOptions) (ProjectInfo, error) {
 	pf, err := readProjectFileAt(from)
 	if err != nil {
 		return ProjectInfo{}, err
-	}
-	if opts.Install {
-		if err := pf.install(); err != nil {
-			return ProjectInfo{}, err
-		}
 	}
 	if _, err := s.openFile(from, pf, opts.Restore); err != nil {
 		return ProjectInfo{Name: nameOf(from), Path: from}, err
@@ -216,68 +208,25 @@ func installed() map[string]Requirement {
 	return out
 }
 
-// needs says which collections the file brings that are missing here or older, and which it
-// needs that are neither here and shown nor in the file.
-func (pf *projectFile) needs() (installs, missing []Requirement) {
+// missing are the collections the file needs that it does not carry and that are not here
+// and shown either.
+func (pf *projectFile) missing() []Requirement {
 	here := installed()
-	installs, missing = []Requirement{}, []Requirement{}
-	brought := map[string]bool{}
-	for _, file := range slices.Sorted(func(yield func(string) bool) {
-		for n := range pf.collections {
-			if !yield(n) {
-				return
-			}
-		}
-	}) {
-		c, err := collectionOf(pf.collections[file])
-		if err != nil {
+	out := []Requirement{}
+	for _, r := range pf.def.Collections {
+		if _, ok := pf.collections[r.Collection+model.PackageExtension]; ok {
 			continue
 		}
-		brought[c.ID] = true
-		have, ok := here[c.ID]
-		if !ok || newer(c.Version, have.Installed) {
-			installs = append(installs, Requirement{Collection: c.ID, Name: c.Name, Version: c.Version, Installed: have.Installed})
-		}
-	}
-	for _, r := range pf.def.Requires {
 		have, ok := here[r.Collection]
 		switch {
-		case brought[r.Collection] && !have.Hidden:
 		case !ok:
-			missing = append(missing, r)
+			out = append(out, r)
 		case have.Hidden:
 			r.Installed, r.Hidden = have.Installed, true
-			missing = append(missing, r)
+			out = append(out, r)
 		}
 	}
-	return installs, missing
-}
-
-// install installs the collections the file brings that are missing here, or older.
-func (pf *projectFile) install() error {
-	installs, _ := pf.needs()
-	for _, r := range installs {
-		for _, data := range pf.collections {
-			if c, err := collectionOf(data); err != nil || c.ID != r.Collection {
-				continue
-			}
-			tmp, err := os.CreateTemp("", "taktwin-*"+model.PackageExtension)
-			if err != nil {
-				return err
-			}
-			_, err = tmp.Write(data)
-			tmp.Close()
-			if err == nil {
-				_, err = InstallCollection(tmp.Name())
-			}
-			os.Remove(tmp.Name())
-			if err != nil {
-				return fmt.Errorf("installing %s: %w", cmpOr(r.Name, r.Collection), err)
-			}
-			break
-		}
-	}
-	return nil
+	return out
 }
 
 func collectionOf(data []byte) (model.CollectionDef, error) {
@@ -326,7 +275,7 @@ func (s *Service) ExportExercise(file string, programs bool) (string, error) {
 		return "", err
 	}
 	name := nameOf(file)
-	if ex, err := projectLibrary(mapReader(files), def.Base).Exercise(def.Base.Exercise); err == nil && def.Base.Exercise != "" {
+	if ex, err := projectLibrary(mapReader(files), def).Exercise(def.Base.Exercise); err == nil && def.Base.Exercise != "" {
 		name = cmpOr(freeFileName(ex.Name), name)
 	}
 	to, err := chooseSaveFile("Hand out the exercise", name)
@@ -370,7 +319,7 @@ func exportExercise(files map[string][]byte, to string, programs bool) error {
 		return errors.New("only a project on an exercise can be handed out")
 	}
 	read := mapReader(files)
-	lib := projectLibrary(read, def.Base)
+	lib := projectLibrary(read, def)
 	exercise, err := lib.ReadFile(path.Join("exercises", id, "exercise.json"))
 	if err != nil {
 		return err
@@ -383,11 +332,11 @@ func exportExercise(files map[string][]byte, to string, programs bool) error {
 	if err != nil {
 		return err
 	}
-	requires, own := requirements(lib, bundle)
+	_, own := usedBy(lib, nil, bundle, def.Base)
 	if len(own) > 0 {
 		return fmt.Errorf("the station uses %s from your own folder, which students do not have: put them into a collection first", strings.Join(own, ", "))
 	}
-	raw, err := projectJSON(ProjectDef{ID: newID(), Base: def.Base, Parameters: def.Parameters, Requires: requires})
+	raw, err := projectJSON(ProjectDef{ID: newID(), Base: def.Base, Parameters: def.Parameters, Collections: def.Collections})
 	if err != nil {
 		return err
 	}
@@ -407,96 +356,55 @@ func exportExercise(files map[string][]byte, to string, programs bool) error {
 			}
 		}
 	}
-	for _, r := range requires {
-		data, ok, err := collectionPackage(r.Collection)
-		if err != nil {
-			return err
-		}
-		if ok {
+	// The collections go along as the project carries them.
+	for _, r := range def.Collections {
+		if data, ok := files[collectionsDir+r.Collection+model.PackageExtension]; ok {
 			out[collectionsDir+r.Collection+model.PackageExtension] = data
 		}
 	}
 	return writeZipOver(to, out)
 }
 
-// requirements are the collections a station is built from, besides the base every app
-// has, with their names and versions; own lists what comes from the user's own folder.
-func requirements(lib *model.Library, bundle *model.Bundle) (out []Requirement, own []string) {
-	ids := map[string]bool{}
-	add := func(collection, what string) {
-		switch collection {
-		case "":
-			if !slices.Contains(own, what) {
-				own = append(own, what)
-			}
-		case "base":
-		default:
-			ids[collection] = true
-		}
-	}
-	for id := range bundle.Modules {
-		add(lib.ModuleCollection(id), id)
-	}
-	for id := range bundle.Parts {
-		add(lib.FileCollection(path.Join("parts", id+".json")), id)
-	}
-	if w := bundle.Station.Workpieces; w != "" {
-		add(lib.FileCollection(path.Join("workpieces", w+".json")), w)
-	}
-	for _, id := range slices.Sorted(func(yield func(string) bool) {
-		for id := range ids {
-			if !yield(id) {
-				return
-			}
-		}
-	}) {
-		c, _ := lib.Collection(id)
-		out = append(out, Requirement{Collection: id, Name: c.Name, Version: c.Version})
-	}
-	slices.Sort(own)
-	return out, own
-}
-
-// collectionPackage is a collection as a .taktwin file, to hand out with an exercise: one
-// imported or given for development. The app's own needs none, as every app has it.
-func collectionPackage(id string) ([]byte, bool, error) {
-	for _, src := range sources() {
-		if src.collection.ID != id || src.err != nil || src.path == "" || (src.kind != SourceInstalled && src.kind != SourceDevelopment) {
+// collectionPackage is a collection as a .taktwin file, for a project to carry: the first
+// of that id among the sources that is not hidden, the app's own and the base among them.
+// It also gives the collection's name and version.
+func collectionPackage(srcs []source, id string) ([]byte, model.CollectionDef, bool, error) {
+	hidden := readSettings().Hidden
+	for _, src := range srcs {
+		if src.collection.ID != id || src.err != nil || src.layer == nil || src.kind != SourceBase && slices.Contains(hidden, id) {
 			continue
 		}
-		info, err := os.Stat(src.path)
-		if err != nil {
-			return nil, false, err
-		}
-		if !info.IsDir() {
-			data, err := os.ReadFile(src.path)
-			return data, err == nil, err
+		if src.path != "" {
+			if info, err := os.Stat(src.path); err == nil && !info.IsDir() {
+				data, err := os.ReadFile(src.path)
+				return data, src.collection, err == nil, err
+			}
 		}
 		files := map[string][]byte{}
-		err = filepath.WalkDir(src.path, func(p string, d fs.DirEntry, err error) error {
+		err := fs.WalkDir(src.layer, ".", func(p string, d fs.DirEntry, err error) error {
 			if err != nil || d.IsDir() || !d.Type().IsRegular() || strings.HasPrefix(d.Name(), ".") {
 				return err
 			}
-			rel, _ := filepath.Rel(src.path, p)
-			data, err := os.ReadFile(p)
-			files[filepath.ToSlash(rel)] = data
+			data, err := fs.ReadFile(src.layer, p)
+			files[p] = data
 			return err
 		})
 		if err != nil {
-			return nil, false, err
+			return nil, src.collection, false, err
 		}
 		data, err := zipped(files)
-		return data, err == nil, err
+		return data, src.collection, err == nil, err
 	}
-	return nil, false, nil
+	return nil, model.CollectionDef{}, false, nil
 }
 
 // Instructions are what the open project's exercise asks for, in Markdown: the project's own
 // instructions.md, or else the one beside the exercise in its collection; "" without.
 func (s *Service) Instructions() string {
 	s.mu.Lock()
-	dir, b := s.proj.dir(), s.proj.def.Base
+	p := s.proj
 	s.mu.Unlock()
+	dir, b := p.dir(), p.def.Base
 	if dir == "" {
 		return ""
 	}
@@ -504,7 +412,7 @@ func (s *Service) Instructions() string {
 		return string(data)
 	}
 	if b.Exercise != "" {
-		if data, err := projectLibrary(dirReader(dir), b).ReadFile(path.Join("exercises", b.Exercise, InstructionsFile)); err == nil {
+		if data, err := libraryOf(p).ReadFile(path.Join("exercises", b.Exercise, InstructionsFile)); err == nil {
 			return string(data)
 		}
 	}

@@ -1,7 +1,7 @@
 import { Events } from '@wailsio/runtime'
 import { computed, inject, ref, shallowRef, watch, type InjectionKey } from 'vue'
 import { Service } from '../bindings/github.com/toblu96/taktwin/internal/simapp'
-import { ask, choose, tell } from './ask'
+import { choose, tell } from './ask'
 import { openSettings, router } from './router'
 import type { Base, ProjectInfo, SaveState } from '../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import type { Snapshot } from '../bindings/github.com/toblu96/taktwin/internal/engine'
@@ -305,8 +305,8 @@ export async function importProject() {
   if (path) await openProjectFile(path)
 }
 
-// Opens a project file where it is, after asking what it needs: to install the collections an
-// exercise brings, and whether to go on with changes a crash left that its file lacks.
+// Opens a project file where it is, after asking whether to go on with changes a crash left
+// that its file lacks. Its station loads from the collections it carries.
 export async function openProjectFile(path: string) {
   const info = await Service.InspectProjectFile(path)
   const list = (rs: { name?: string; collection: string; version?: string }[]) => rs.map((r) => `${r.name || r.collection}${r.version ? ` ${r.version}` : ''}`).join(', ')
@@ -319,14 +319,7 @@ export async function openProjectFile(path: string) {
         : `${info.name} needs the collection ${list(missing)}: import it in Settings › Collections first.`,
     )
   }
-  const options = { install: false, restore: false }
-  const installs = info.installs ?? []
-  if (installs.length) {
-    const update = installs.every((r) => r.installed)
-    const what = `${info.exerciseName || info.name} brings the collection ${list(installs)}${update ? ', newer than the one you have' : ''}.`
-    if (!(await ask(`${what} ${update ? 'Update' : 'Install'} it?`, update ? 'Update and open' : 'Install and open'))) return
-    options.install = true
-  }
+  const options = { restore: false }
   if (info.hasUnsaved) {
     const RESTORE = 'Restore them'
     const when = info.unsaved ? ` from ${new Date(info.unsaved).toLocaleString()}` : ''

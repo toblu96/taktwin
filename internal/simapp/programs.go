@@ -100,7 +100,7 @@ func (p *ProgramService) Open(plc string) (ProgramProject, error) {
 		name = p.sim.bundle.Station.Name
 	}
 	p.sim.mu.Unlock()
-	example, _ := Library().Folder(exampleDir(station, id))
+	example, _ := p.sim.library().Folder(exampleDir(station, id))
 	names := slices.Sorted(maps.Keys(example))
 	if names == nil {
 		names = []string{}
@@ -119,7 +119,7 @@ func (p *ProgramService) LoadExample(plc string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	files, err := Library().Folder(exampleDir(station, id))
+	files, err := p.sim.library().Folder(exampleDir(station, id))
 	if err != nil {
 		return nil, err
 	}

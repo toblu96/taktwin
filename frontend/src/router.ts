@@ -59,16 +59,15 @@ export function projectRoute(view: ProjectView, edit: boolean) {
 }
 
 // The pages of a project need one open, and the projects page shows only while none is. Only
-// expert mode edits, never an exercise's station, and a station from a collection only once it
-// is the project's own copy, which the switch in the top bar asks for. After editing, the
-// station loads again as it was built.
+// expert mode edits, never an exercise's station. After editing, the station loads again as it
+// was built.
 let built = false
 router.beforeEach(async (to, from) => {
   await Promise.all([ready, expertRead])
   const p = project.value
   if (to.meta.project && !p) return { name: 'projects' }
   if (to.name === 'projects' && p) return { name: 'simulate' }
-  if (to.meta.edit && (!expert.value || p?.exercise || !p?.own)) return projectRoute(to.meta.view ?? 'simulation', false)
+  if (to.meta.edit && (!expert.value || !p || p.exercise)) return projectRoute(to.meta.view ?? 'simulation', false)
   // Changes made while editing, also in one view and then another, load the station again
   // once it runs.
   if (from.meta.edit && edits.value) built = true

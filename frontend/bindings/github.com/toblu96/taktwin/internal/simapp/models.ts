@@ -325,11 +325,6 @@ export interface LastCheck {
  */
 export interface OpenOptions {
     /**
-     * Install installs the collections the file brings that are missing here, or older.
-     */
-    "install": boolean;
-
-    /**
      * Restore goes on with the changes a working copy has that the file lacks; without it,
      * they are dropped.
      */
@@ -433,12 +428,8 @@ export interface ProjectFileInfo {
     "exerciseName"?: string;
 
     /**
-     * Installs are the collections the file brings that are missing here, or older.
-     */
-    "installs": Requirement[] | null;
-
-    /**
-     * Missing are the collections it needs that are neither here, shown, nor in the file.
+     * Missing are the collections it needs that it does not carry and that are not here and
+     * shown either.
      */
     "missing": Requirement[] | null;
 
@@ -473,12 +464,6 @@ export interface ProjectInfo {
     "exerciseName"?: string;
 
     /**
-     * Own says that the project has a station of its own, which it builds on, rather than
-     * that of a collection, which follows the collection's updates.
-     */
-    "own"?: boolean;
-
-    /**
      * Modified is when its file was last written, as RFC 3339.
      */
     "modified"?: string;
@@ -504,6 +489,12 @@ export interface ProjectInfo {
      * Missing says that the file is no longer where it was opened from.
      */
     "missing"?: boolean;
+
+    /**
+     * Updates are the collections it carries of which a newer version is installed here,
+     * with the version it has and the one installed.
+     */
+    "updates"?: Requirement[] | null;
 }
 
 /**

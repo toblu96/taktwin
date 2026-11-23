@@ -110,15 +110,6 @@ export function ConnectionsFor(plc: string): $CancellablePromise<$models.Connect
 }
 
 /**
- * CustomizeStation gives the open project a station of its own, a copy of its collection's,
- * to build on. It no longer follows the collection's updates. The station of an exercise
- * stays as the exercise has it.
- */
-export function CustomizeStation(): $CancellablePromise<$models.ProjectInfo> {
-    return $Call.ByID(2956331995);
-}
-
-/**
  * DeleteConnection removes a connection file of the user's folder, by id.
  */
 export function DeleteConnection(id: string): $CancellablePromise<void> {
@@ -224,9 +215,9 @@ export function NewProject(name: string, base: $models.Base): $CancellablePromis
 
 /**
  * OpenProjectFile opens a .taktwin-project file where it is, such as one in the user
- * folder's projects, one dropped onto the window or one double-clicked, after installing
- * the collections it brings when asked to. Its changes are saved into it. A file that does
- * not open, such as one whose station is missing, is listed all the same.
+ * folder's projects, one dropped onto the window or one double-clicked. Its station loads
+ * from the collections it carries; its changes are saved into it. A file that does not
+ * open, such as one whose station is missing, is listed all the same.
  */
 export function OpenProjectFile($from: string, opts: $models.OpenOptions): $CancellablePromise<$models.ProjectInfo> {
     return $Call.ByID(2863485121, $from, opts);
@@ -516,4 +507,14 @@ export function TakeOpenedFile(): $CancellablePromise<string> {
  */
 export function TakeWorkpiece(id: number): $CancellablePromise<void> {
     return $Call.ByID(2634260378, id);
+}
+
+/**
+ * UpdateCollections brings the collections the open project carries up to the newer
+ * versions installed here, and loads its station again. Its station and exercise follow
+ * where the project has not changed them; what it changed stays. When the station no longer
+ * loads, everything is put back as it was.
+ */
+export function UpdateCollections(): $CancellablePromise<model$0.Scene> {
+    return $Call.ByID(2469036780);
 }

@@ -67,7 +67,7 @@ func (s *Service) connections(plc string) ([]offered, error) {
 		}
 	}
 	out = append(out, offered{genericOPCUA(), "Taktwin"})
-	lib := Library()
+	lib := libraryOf(s.proj)
 	names := map[string]string{}
 	for _, c := range lib.Collections() {
 		names[c.ID] = c.Name

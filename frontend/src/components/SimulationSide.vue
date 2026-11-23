@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import { programming, project, simulation } from '../sim'
+import { ask } from '../ask'
+import { programming, project, refreshProject, simulation } from '../sim'
 import StationDock from './StationDock.vue'
 import IconCode from '~icons/fluent/code-16-regular'
 import IconTest from '~icons/fluent/toggle-left-16-regular'
@@ -49,6 +50,31 @@ const plcs = computed(() => {
   })
 })
 
+// Newer versions of the collections the project carries, installed here, which it takes only
+// when asked: its station follows them unless the project changed it.
+const updates = computed(() => project.value?.updates ?? [])
+const updateText = computed(() => updates.value.map((u) => `${u.name || u.collection} ${u.installed}`).join(', '))
+const updating = ref(false)
+const updateProblem = ref('')
+async function update() {
+  const was = updates.value.map((u) => `${u.name || u.collection} ${u.version}`).join(', ')
+  const ok = await ask(
+    `Update this project to ${updateText.value}? It has ${was} now. The station follows the new version unless you changed it in this project; what you changed stays.`,
+    'Update',
+  )
+  if (!ok) return
+  updating.value = true
+  updateProblem.value = ''
+  try {
+    simulation.scene.value = await Service.UpdateCollections()
+    await refreshProject()
+  } catch (e) {
+    updateProblem.value = (e as Error).message ?? String(e)
+  } finally {
+    updating.value = false
+  }
+}
+
 const hasControls = computed(() => (scene.value?.docks ?? []).some((d) => d.widgets?.length))
 </script>
 
@@ -59,6 +85,11 @@ const hasControls = computed(() => (scene.value?.docks ?? []).some((d) => d.widg
         <p class="m-0 text-[11px] font-semibold tracking-wide text-muted uppercase">{{ project?.exercise ? 'Exercise' : 'Station' }}</p>
         <h2 class="m-0 mt-1 text-[15px] leading-snug font-semibold">{{ title }}</h2>
         <p v-if="about" class="m-0 mt-1.5 line-clamp-4 text-muted" :title="about">{{ about }}</p>
+        <div v-if="updates.length" class="mt-3 rounded-card border border-line bg-s0 px-2.5 py-2">
+          <p class="m-0 text-xs text-muted">A newer version is installed: {{ updateText }}. This project keeps the one it was made with until you update it.</p>
+          <button class="t-btn mt-2 h-6 px-2 text-xs" :disabled="updating" @click="update">Update…</button>
+          <p v-if="updateProblem" class="m-0 mt-2 text-xs text-danger" role="alert">{{ updateProblem }}</p>
+        </div>
       </section>
       <section v-if="plcs.length" class="t-section">
         <h3 class="t-section-title">{{ plcs.length > 1 ? 'PLCs' : 'PLC' }}</h3>

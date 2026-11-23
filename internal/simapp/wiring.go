@@ -102,7 +102,7 @@ func (s *BuilderService) StationWiring() (WiringState, error) {
 	if err := json.Unmarshal(data, d); err != nil {
 		return WiringState{}, fmt.Errorf("%s: %w", StationFile, err)
 	}
-	view := &BuilderService{lib: Library(), draft: d, bundle: bundle, plan: plan}
+	view := &BuilderService{lib: s.sim.library(), draft: d, bundle: bundle, plan: plan}
 	return view.wiring(), nil
 }
 

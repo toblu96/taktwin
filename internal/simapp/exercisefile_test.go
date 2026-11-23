@@ -30,6 +30,12 @@ func zipNames(t *testing.T, file string) []string {
 // labCollection writes the app's reference collection as another one, lab, of a version.
 func labCollection(t *testing.T, version string) string {
 	t.Helper()
+	return labCollectionWith(t, version, nil)
+}
+
+// labCollectionWith writes lab with its files changed by edit.
+func labCollectionWith(t *testing.T, version string, edit func(files map[string][]byte)) string {
+	t.Helper()
 	files := map[string][]byte{}
 	err := fs.WalkDir(catalog.Reference, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -43,6 +49,9 @@ func labCollection(t *testing.T, version string) string {
 		t.Fatal(err)
 	}
 	files["collection.json"] = []byte(`{"id":"lab","name":"Lab","version":"` + version + `"}`)
+	if edit != nil {
+		edit(files)
+	}
 	file := filepath.Join(t.TempDir(), "lab.taktwin")
 	if err := writeZipOver(file, files); err != nil {
 		t.Fatal(err)
@@ -101,7 +110,7 @@ func TestAnExerciseIsHandedOutAsOneFile(t *testing.T) {
 	}
 	s.CloseProject()
 
-	// A student without the lab collection is asked to install it.
+	// A student without the lab collection opens it all the same: the file carries it.
 	if err := NewLibraryService().RemoveCollection("lab"); err != nil {
 		t.Fatal(err)
 	}
@@ -109,15 +118,14 @@ func TestAnExerciseIsHandedOutAsOneFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.ExerciseName != "Load a pallet" || info.HasUnsaved || len(info.Missing) != 0 ||
-		len(info.Installs) != 1 || info.Installs[0].Collection != "lab" || info.Installs[0].Version != "1.0.0" {
+	if info.ExerciseName != "Load a pallet" || info.HasUnsaved || len(info.Missing) != 0 {
 		t.Fatalf("inspected: %+v", info)
 	}
-	opened, err := s.OpenProjectFile(handout, OpenOptions{Install: true})
+	opened, err := s.OpenProjectFile(handout, OpenOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if opened.Name != "Load a pallet" || opened.Path != handout || opened.Exercise != "load-a-pallet" || !opened.Own || opened.Problem != "" {
+	if opened.Name != "Load a pallet" || opened.Path != handout || opened.Exercise != "load-a-pallet" || opened.Problem != "" {
 		t.Errorf("opened: %+v", opened)
 	}
 	if got := s.Instructions(); !strings.Contains(got, "Write the program.") {
@@ -126,11 +134,11 @@ func TestAnExerciseIsHandedOutAsOneFile(t *testing.T) {
 	if got := s.Exercises(); len(got) != 1 || !got[0].Open {
 		t.Errorf("the exercise is there to check: %+v", got)
 	}
-	if _, err := s.CustomizeStation(); err == nil {
-		t.Error("the exercise's station is changed")
+	if _, err := NewBuilderService(s).Edit(); err == nil {
+		t.Error("the exercise's station is built on")
 	}
-	if info, _ := s.InspectProjectFile(handout); len(info.Installs) != 0 {
-		t.Errorf("the collection is installed: %+v", info.Installs)
+	if _, ok := installed()["lab"]; ok {
+		t.Error("opening the file installed the collection")
 	}
 	if _, err := NewProgramService(s).Open(""); err != nil {
 		t.Fatal(err)
@@ -150,7 +158,7 @@ func TestAnExerciseIsHandedOutAsOneFile(t *testing.T) {
 	}
 
 	// A collection that is neither here nor in the file is missing.
-	raw, _ := projectJSON(ProjectDef{ID: newID(), Base: Base{Station: "pallet-loading"}, Requires: []Requirement{{Collection: "nope", Name: "Nope", Version: "2.0.0"}}})
+	raw, _ := projectJSON(ProjectDef{ID: newID(), Base: Base{Station: "pallet-loading"}, Collections: []Requirement{{Collection: "nope", Name: "Nope", Version: "2.0.0"}}})
 	odd := filepath.Join(home, "odd"+ProjectExtension)
 	if err := writeZipOver(odd, map[string][]byte{ProjectFile: raw}); err != nil {
 		t.Fatal(err)
