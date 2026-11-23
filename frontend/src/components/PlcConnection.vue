@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { ConnectionInfo, PLCConfig } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { ask } from '../ask'
-import { editingConnection, savedConnection, simulation } from '../sim'
+import { connectionsChanged, editingConnection, savedConnection, simulation } from '../sim'
 import UiSegmented from '../ui/UiSegmented.vue'
 import UiSelect from '../ui/UiSelect.vue'
 import UiSwitch from '../ui/UiSwitch.vue'
@@ -135,10 +135,18 @@ async function load() {
   }
 }
 
-onMounted(async () => {
+// The mode shown is the one that runs, or for a PLC not connected yet what the project has for
+// it, ready to connect.
+async function show() {
   await load()
-  // A PLC not connected yet offers what the project has for it, ready to connect.
   mode.value = running.value?.mode !== 'none' ? (running.value?.mode ?? 'none') : (planned.value?.mode ?? 'none')
+}
+onMounted(show)
+
+// A connection put back as the project's original has it, or changed elsewhere, shows as it is.
+watch(connectionsChanged, () => {
+  justSaved.value = false
+  void show()
 })
 
 // Gives the PLC a new connection of a kind, in place of the one it had, after asking.
