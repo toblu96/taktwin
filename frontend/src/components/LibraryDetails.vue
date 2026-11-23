@@ -126,7 +126,7 @@ const startProject = () => current.value && newProject({ station: current.value.
       </div>
     </header>
 
-    <div v-if="current" class="details-body min-h-0 flex-1 overflow-y-auto">
+    <div v-if="current" class="min-h-0 flex-1 overflow-y-auto">
       <p v-if="entry?.error" class="t-section m-0 flex items-start gap-2 text-danger"><IconWarning class="mt-0.5 size-4 shrink-0" />{{ entry.error }}</p>
       <p v-if="actionMessage" class="t-section m-0 text-danger" role="status">{{ actionMessage }}</p>
 
@@ -163,14 +163,3 @@ const startProject = () => current.value && newProject({ station: current.value.
     </div>
   </aside>
 </template>
-
-<style scoped>
-.details-body :deep(.section) {
-  border-bottom: 1px solid var(--t-line);
-  padding: 12px;
-}
-
-.details-body :deep(.section:last-child) {
-  border-bottom: 0;
-}
-</style>

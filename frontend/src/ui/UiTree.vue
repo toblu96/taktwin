@@ -21,6 +21,8 @@ export type TreeRow = {
   parent?: string
   title?: string
   count?: number
+  // A word or two after the name, quieter, such as a node's type.
+  hint?: string
   danger?: boolean
   strong?: boolean
 }
@@ -95,6 +97,7 @@ const indent = (depth = 0) => ({ paddingLeft: `${4 + depth * 16}px` })
         </span>
         <component :is="item.icon" v-if="item.icon" class="size-4 shrink-0" :class="item.danger ? '' : 'text-muted'" />
         <span class="min-w-0 flex-1 truncate" :class="item.strong ? 'font-medium' : ''">{{ item.label }}</span>
+        <span v-if="item.hint" class="shrink-0 font-mono text-[11px] text-muted">{{ item.hint }}</span>
         <span v-if="item.count !== undefined" class="shrink-0 text-xs text-faint">{{ item.count }}</span>
       </button>
       <h3 v-else class="m-0 mt-3 mb-1 flex items-center pr-2 text-[11px] font-medium text-faint first:mt-1" :style="{ paddingLeft: `${8 + (item.depth ?? 0) * 16}px` }">

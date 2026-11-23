@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { signals } from './data'
-import ProjectsLayout from './layouts/ProjectsLayout.vue'
-import ProjectWindow from './layouts/ProjectWindow.vue'
 import UiDialog from '../ui/UiDialog.vue'
 import UiIoList from '../ui/UiIoList.vue'
 import UiMenu from '../ui/UiMenu.vue'
 import UiSegmented from '../ui/UiSegmented.vue'
 import UiSelect from '../ui/UiSelect.vue'
 import UiSwitch from '../ui/UiSwitch.vue'
+import UiCheckbox from '../ui/UiCheckbox.vue'
 import UiModeToggle from '../ui/UiModeToggle.vue'
 import IconRun from '~icons/fluent/play-16-regular'
 import IconEdit from '~icons/fluent/edit-16-regular'
@@ -20,11 +19,10 @@ import IconWrench from '~icons/fluent/wrench-20-regular'
 import IconRename from '~icons/fluent/rename-20-regular'
 import IconDelete from '~icons/fluent/delete-20-regular'
 
-// The lab: the app's components from src/ui on their own, and layouts in the new look before they
-// reach the app, in dark and light. The query string picks what shows, such as
-// ?view=window&theme=light, for screenshots.
+// The lab: the app's components from src/ui on their own, in dark and light, to see and try a
+// control before and while it is used in the app. The query string picks the theme, such as
+// ?theme=light, for screenshots.
 const params = new URLSearchParams(location.search)
-const view = ref(params.get('view') ?? 'components')
 const theme = ref(params.get('theme') ?? 'system')
 watch(
   theme,
@@ -41,6 +39,7 @@ const station = ref<string | null>(null)
 const open = ref(false)
 const on = ref(true)
 const editMode = ref(false)
+const ticked = ref(true)
 const treeOpen = ref(true)
 const picked = ref('b2')
 const tree = computed<(TreeRow | TreeHeading)[]>(() => [
@@ -62,11 +61,6 @@ const menu = [{ label: 'Rename', icon: IconRename, shortcut: 'F2' }, {}, { label
   <div class="flex h-full flex-col">
     <div class="flex h-9 shrink-0 items-center gap-3 border-b border-line bg-s2 px-3 text-xs">
       <strong class="text-[13px]">UI lab</strong>
-      <select v-model="view" class="t-input h-6 w-auto py-0 text-xs" aria-label="View">
-        <option value="components">Components</option>
-        <option value="projects">Projects page</option>
-        <option value="window">Project window</option>
-      </select>
       <select v-model="theme" class="t-input h-6 w-auto py-0 text-xs" aria-label="Theme">
         <option value="system">System</option>
         <option value="dark">Dark</option>
@@ -75,9 +69,7 @@ const menu = [{ label: 'Rename', icon: IconRename, shortcut: 'F2' }, {}, { label
     </div>
 
     <div class="min-h-0 flex-1">
-      <ProjectsLayout v-if="view === 'projects'" />
-      <ProjectWindow v-else-if="view === 'window'" />
-      <div v-else class="flex h-full flex-col gap-7 overflow-auto p-6">
+      <div class="flex h-full flex-col gap-7 overflow-auto p-6">
         <section class="flex flex-wrap items-center gap-3">
           <UiSegmented
             v-model="seg"
@@ -93,6 +85,7 @@ const menu = [{ label: 'Rename', icon: IconRename, shortcut: 'F2' }, {}, { label
           <button class="t-btn t-btn-ghost">Ghost</button>
           <input class="t-input w-56" placeholder="An input" aria-label="An input" />
           <UiSwitch v-model="on" label="A switch" />
+          <UiCheckbox v-model="ticked" label="A checkbox" />
           <UiModeToggle v-model="editMode" label="Edit" :off="{ icon: IconRun, label: 'Running' }" :on="{ icon: IconEdit, label: 'Editing' }" />
         </section>
         <section class="w-72">

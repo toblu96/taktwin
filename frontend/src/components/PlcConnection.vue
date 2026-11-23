@@ -8,6 +8,7 @@ import UiSelect from '../ui/UiSelect.vue'
 import UiSwitch from '../ui/UiSwitch.vue'
 import IconSearch from '~icons/fluent/search-16-regular'
 import IconBindings from '~icons/fluent/arrow-swap-16-regular'
+import IconDisconnect from '~icons/fluent/plug-disconnected-16-regular'
 
 // How a PLC of the station is connected: none, the app's soft PLC, or a controller outside the
 // app through a connection, with that connection's form, and how the connection is doing. It is
@@ -172,10 +173,13 @@ function editBindings() {
 }
 
 // After the editor saved a connection, or deleted one, the list shows it as it is now.
+// After the bindings were saved, connecting again makes the PLC exchange with them.
+const justSaved = ref(false)
 watch(savedConnection, async (saved) => {
   if (!saved || saved.plc !== plcId.value) return
   await loadConnections()
   if (saved.id) {
+    justSaved.value = true
     connection.value = saved.id
     // The form keeps what was filled in to edit it, once the new connection's form is up.
     await nextTick()
@@ -230,7 +234,23 @@ function setValue(f: Field, v: unknown) {
   values.value = next
 }
 
+// Lets go of the PLC that runs, also one that cannot be reached, and keeps its form filled in,
+// so that Connect brings it back.
+async function disconnect() {
+  busy.value = true
+  message.value = ''
+  try {
+    await Service.DisconnectPLCFor(plcId.value)
+    applied.value = { mode: 'none', connection: '', values: '{}' }
+  } catch (error) {
+    message.value = (error as Error).message
+  } finally {
+    busy.value = false
+  }
+}
+
 async function apply() {
+  justSaved.value = false
   busy.value = true
   message.value = ''
   const external = mode.value === 'external'
@@ -298,6 +318,7 @@ async function apply() {
       </div>
     </div>
 
+    <p v-if="pending && justSaved" class="m-0 mt-3 text-xs text-accent-ink" role="status">The bindings are saved. Connect to exchange with them.</p>
     <button v-if="pending" class="t-btn t-btn-primary mt-3 w-full justify-center" :disabled="busy || (mode === 'external' && !connection)" @click="apply">
       {{ mode === 'none' ? 'Disconnect the PLC' : 'Connect' }} and restart the station
     </button>
@@ -328,5 +349,8 @@ async function apply() {
         </ul>
       </details>
     </div>
+    <button v-if="applied.mode !== 'none' && !pending" class="t-btn mt-3" :disabled="busy" title="Let go of the PLC, keeping its form to connect again" @click="disconnect">
+      <IconDisconnect class="size-4" />Disconnect
+    </button>
   </section>
 </template>

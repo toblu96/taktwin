@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import WidgetList from '../components/WidgetList.vue'
+import IconClose from '~icons/fluent/dismiss-16-regular'
 import { thumbnails, useSim } from '../sim'
 import type { SceneInstance } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 import type { GhostPose, Handle, Overlay, SiteLine } from './build'
@@ -58,6 +59,8 @@ let loadTimer = 0
 let view: CameraView | undefined
 let builtFrom = ''
 const canvasKey = ref(0)
+// The hint and the draw calls sit on the view in small labels that stay readable over the station.
+const chip = 'pointer-events-none absolute top-2 m-0 rounded-sm bg-s1/85 px-1.5 py-0.5 text-[11px] text-muted'
 
 function start() {
   if (scene || !sceneData.value || !canvas.value) return
@@ -200,109 +203,27 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="host" class="viewer">
-    <canvas :key="canvasKey" ref="canvas" aria-label="3D view" />
-    <p v-if="failed" class="failed">3D view unavailable: this machine could not start WebGL.</p>
-    <p v-else class="hint">{{ hint }}</p>
-    <p v-if="!building" class="load mono">{{ load }}</p>
-    <div v-if="popupWidgets.length" ref="popup" class="popup" role="dialog" :aria-label="selected?.name">
-      <header>
-        <strong>{{ selected?.name }}</strong>
-        <button class="close" aria-label="Close" @click="selection = null">×</button>
+  <!-- The 3D view keeps its own colours in a light and a dark look, as the station does. -->
+  <div ref="host" class="relative min-h-0 bg-[#d5dcdc]">
+    <canvas :key="canvasKey" ref="canvas" class="absolute inset-0 block size-full touch-none" aria-label="3D view" />
+    <p v-if="failed" class="absolute top-1/2 left-1/2 m-0 -translate-1/2 rounded-card bg-s1 px-4 py-3 text-danger shadow-pop" role="alert">
+      3D view unavailable: this machine could not start WebGL.
+    </p>
+    <p v-else-if="hint" :class="chip" class="left-2 max-w-[calc(100%-14rem)]">{{ hint }}</p>
+    <p v-if="!building && load" :class="chip" class="right-2 font-mono">{{ load }}</p>
+    <div v-if="popupWidgets.length" ref="popup" class="t-popup absolute top-0 left-0 min-w-44 p-3" role="dialog" :aria-label="selected?.name">
+      <header class="mb-2 flex items-center justify-between gap-3">
+        <strong class="font-semibold">{{ selected?.name }}</strong>
+        <button class="t-icon-btn size-6" aria-label="Close" @click="selection = null"><IconClose class="size-4" /></button>
       </header>
       <WidgetList :widgets="popupWidgets" />
     </div>
-    <p v-if="actionMessage" class="message" role="status">
+    <p
+      v-if="actionMessage"
+      class="absolute bottom-3 left-1/2 m-0 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-card border border-danger/40 bg-s2 px-3 py-1.5 text-danger shadow-pop first-letter:uppercase"
+      role="status"
+    >
       {{ actionMessage }}
     </p>
   </div>
 </template>
-
-<style scoped>
-.popup {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  box-shadow: 0 6px 20px #0005;
-  left: 0;
-  min-width: 170px;
-  padding: 10px 12px 12px;
-  position: absolute;
-  top: 0;
-}
-
-.popup header {
-  align-items: center;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.close {
-  background: none;
-  border: 0;
-  color: var(--text-dim);
-  font-size: 16px;
-  line-height: 1;
-  padding: 0 2px;
-}
-
-.message {
-  background: var(--panel);
-  border: 1px solid var(--danger);
-  border-radius: 2px;
-  bottom: 12px;
-  color: var(--danger);
-  left: 50%;
-  margin: 0;
-  padding: 6px 12px;
-  position: absolute;
-  transform: translateX(-50%);
-}
-
-.message::first-letter {
-  text-transform: uppercase;
-}
-
-.viewer {
-  background: #d5dcdc;
-  min-height: 0;
-  position: relative;
-}
-
-canvas {
-  display: block;
-  height: 100%;
-  inset: 0;
-  position: absolute;
-  touch-action: none;
-  width: 100%;
-}
-
-.hint,
-.failed {
-  color: #3f5356;
-  font-size: 11px;
-  left: 12px;
-  margin: 0;
-  pointer-events: none;
-  position: absolute;
-  top: 10px;
-}
-
-.load {
-  color: #3f5356;
-  font-size: 11px;
-  margin: 0;
-  pointer-events: none;
-  position: absolute;
-  right: 12px;
-  top: 10px;
-}
-
-.failed {
-  color: #8c2318;
-  font-size: 13px;
-}
-</style>

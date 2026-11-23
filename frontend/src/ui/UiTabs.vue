@@ -5,7 +5,8 @@ import { Tabs, TabsList, TabsPanel, TabsTab } from '@ui-sdk/vue/tabs'
 // rounded top corners and an amber line along its top that follows them, joins the content
 // below. Each tab's content goes into the slot of its value; the slot actions sits at the end of
 // the row, outside the list of tabs, for buttons such as closing a panel.
-defineProps<{ tabs: { value: string; label: string; count?: number }[]; label: string }>()
+// Flush, as in a side bar, a panel has no padding of its own and keeps the surface around it.
+defineProps<{ tabs: { value: string; label: string; count?: number }[]; label: string; flush?: boolean }>()
 const model = defineModel<string>({ required: true })
 </script>
 
@@ -25,7 +26,13 @@ const model = defineModel<string>({ required: true })
       </TabsList>
       <div v-if="$slots.actions" class="flex h-full items-center gap-0.5 pl-2"><slot name="actions" /></div>
     </div>
-    <TabsPanel v-for="t in tabs" :key="t.value" :value="t.value" class="min-h-0 flex-1 overflow-auto bg-s0 p-3 focus-visible:-outline-offset-2">
+    <TabsPanel
+      v-for="t in tabs"
+      :key="t.value"
+      :value="t.value"
+      :class="flush ? 'bg-transparent p-0' : 'bg-s0 p-3'"
+      class="min-h-0 flex-1 overflow-auto focus-visible:-outline-offset-2"
+    >
       <slot :name="t.value" />
     </TabsPanel>
   </Tabs>
