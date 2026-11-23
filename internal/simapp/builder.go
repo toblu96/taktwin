@@ -208,7 +208,7 @@ func (s *BuilderService) Edit() (BuilderState, error) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.lib, s.project, s.saved = Library(), name, ""
+	s.lib, s.project, s.saved = s.sim.library(), name, ""
 	return s.commit(d)
 }
 

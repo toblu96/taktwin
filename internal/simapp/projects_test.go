@@ -2,11 +2,14 @@ package simapp
 
 import (
 	"archive/zip"
+	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/toblu96/taktwin/internal/model"
 )
@@ -52,12 +55,45 @@ func TestTheAppStartsWithNoProject(t *testing.T) {
 	}
 }
 
+// zipFiles reads the files of a zip file by their names.
+func zipFiles(t *testing.T, file string) map[string]string {
+	t.Helper()
+	z, err := zip.OpenReader(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer z.Close()
+	out := map[string]string{}
+	for _, f := range z.File {
+		r, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, _ := io.ReadAll(r)
+		r.Close()
+		out[f.Name] = string(data)
+	}
+	return out
+}
+
+// defIn reads the project.json of a project file.
+func defIn(t *testing.T, file string) ProjectDef {
+	t.Helper()
+	def, err := parseProject([]byte(zipFiles(t, file)[ProjectFile]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return def
+}
+
 // A project keeps what is changed in it: how the PLC is connected, without connecting it
-// again, and the station's settings. Closing it disconnects the PLC and stops its soft PLC.
+// again, and the station's settings. Closing it writes its file, disconnects the PLC and
+// stops its soft PLC, and leaves no working copy behind.
 func TestAProjectKeepsItsWork(t *testing.T) {
 	s, home := newService(t)
 	p := s.Project()
-	if p.Name != "Test" || p.Station != "pallet-loading" || p.StationName != "Pallet loading" || p.Folder != filepath.Join(home, ProjectsFolder, "Test") || p.Problem != "" {
+	file := filepath.Join(home, ProjectsFolder, "Test"+ProjectExtension)
+	if p.Name != "Test" || p.Path != file || !p.InFolder || p.Station != "pallet-loading" || p.StationName != "Pallet loading" || p.Problem != "" {
 		t.Fatalf("project: %+v", p)
 	}
 	// The reference station has no settings of its own; the engine keeps one by any id.
@@ -66,8 +102,13 @@ func TestAProjectKeepsItsWork(t *testing.T) {
 	if err := s.SetParameter(param.ID, value); err != nil {
 		t.Fatal(err)
 	}
-	config := PLCConfig{Mode: PLCExternal, Connection: "opcua", Values: map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}}
-	if err := s.SetPLCFor("", config); err != nil {
+	if _, err := s.NewConnection("", "opcua"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetConnectionValues("", map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal}); err != nil {
 		t.Fatal(err)
 	}
 	prog := NewProgramService(s)
@@ -77,15 +118,22 @@ func TestAProjectKeepsItsWork(t *testing.T) {
 	if res, err := prog.Download(""); err != nil || !res.OK {
 		t.Fatalf("the template downloads: %+v %v", res, err)
 	}
+	id := defIn(t, file).ID
 
 	s.CloseProject()
 	if p := s.Project(); p.Name != "" || s.Scene().ID != "" {
 		t.Fatalf("closed: %+v", p)
 	}
-	if _, err := s.OpenProject("Test"); err != nil {
+	if exists(filepath.Join(workingDir(), id)) || exists(metaFile(id)) {
+		t.Error("a working copy is left behind")
+	}
+	if _, ok := zipFiles(t, file)["programs/cabinet/PLC_PRG.st"]; !ok {
+		t.Error("the program is in the file")
+	}
+	if _, err := s.OpenProjectFile(file, OpenOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	if got := s.PlannedPLC(""); got.Mode != PLCExternal || got.Connection != "opcua" || got.Values["endpoint"] != "opc.tcp://127.0.0.1:1" {
+	if got := s.PlannedPLC(""); got.Mode != PLCExternal || got.External == nil || got.External.Kind != "opcua" || got.External.Values["endpoint"] != "opc.tcp://127.0.0.1:1" {
 		t.Errorf("the PLC's connection is kept: %+v", got)
 	}
 	if got := s.PLCFor(""); got.Mode != PLCNone {
@@ -97,15 +145,17 @@ func TestAProjectKeepsItsWork(t *testing.T) {
 	if st, err := prog.Status(""); err != nil || st.Loaded {
 		t.Errorf("the soft PLC stopped with the project and starts empty: %+v %v", st, err)
 	}
-	if _, err := os.Stat(filepath.Join(home, ProjectsFolder, "Test", "programs", "cabinet", "PLC_PRG.st")); err != nil {
-		t.Errorf("the program is kept: %v", err)
+	if got := defIn(t, file).ID; got != id {
+		t.Errorf("the id changed from %s to %s", id, got)
 	}
 }
 
-// A new project is named after its station or exercise unless it is given a name; projects
-// that are not open can be renamed, duplicated and deleted.
+// A new project is a file in the user folder's projects, named after its station or exercise
+// unless it is given a name; project files that are not open can be renamed, copied and
+// deleted.
 func TestProjectsAreMadeAndManaged(t *testing.T) {
 	s, home := newService(t)
+	in := func(name string) string { return filepath.Join(home, ProjectsFolder, name+ProjectExtension) }
 	for _, bad := range []string{".hidden", "a/b", "x:y", strings.Repeat("x", 81)} {
 		if _, err := s.NewProject(bad, Base{Station: "pallet-loading"}); err == nil {
 			t.Errorf("%q is no name", bad)
@@ -117,10 +167,13 @@ func TestProjectsAreMadeAndManaged(t *testing.T) {
 	if _, err := s.NewProject("", Base{Station: "nope"}); err == nil {
 		t.Error("a station that does not exist")
 	}
+	if p := s.Project(); p.Name != "Test" {
+		t.Errorf("the open project stays open: %+v", p)
+	}
 	if _, err := s.NewProject("", Base{Station: "pallet-loading"}); err != nil {
 		t.Fatal(err)
 	}
-	if p := s.Project(); p.Name != "Pallet loading" {
+	if p := s.Project(); p.Name != "Pallet loading" || p.Path != in("Pallet loading") {
 		t.Errorf("named after the station: %+v", p)
 	}
 	if _, err := s.NewProject("", Base{Station: "pallet-loading"}); err != nil {
@@ -139,33 +192,29 @@ func TestProjectsAreMadeAndManaged(t *testing.T) {
 		t.Errorf("the exercise is set up: %+v", got)
 	}
 
-	if err := s.DeleteProject("Load a pallet"); err == nil {
+	if err := s.DeleteProject(in("Load a pallet")); err == nil {
 		t.Error("the open project cannot be deleted")
 	}
-	if _, err := s.RenameProject("Load a pallet", "Mine"); err == nil {
+	if _, err := s.RenameProject(in("Load a pallet"), "Mine"); err == nil {
 		t.Error("the open project cannot be renamed")
 	}
-	if _, err := s.RenameProject("Test", "Pallet loading"); err == nil {
+	if _, err := s.RenameProject(in("Test"), "Pallet loading"); err == nil {
 		t.Error("renamed onto another project")
 	}
-	renamed, err := s.RenameProject("Test", "Line 1")
+	renamed, err := s.RenameProject(in("Test"), "Line 1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if renamed.Name != "Line 1" || !exists(filepath.Join(home, ProjectsFolder, "Line 1", ProjectFile)) || exists(filepath.Join(home, ProjectsFolder, "Test")) {
+	if renamed.Name != "Line 1" || renamed.Path != in("Line 1") || exists(in("Test")) {
 		t.Errorf("renamed: %+v", renamed)
 	}
-	if def, _, _ := readProject(projectDir("Line 1")); def.Name != "Line 1" {
-		t.Errorf("its file has the new name: %+v", def)
-	}
-	copied, err := s.DuplicateProject("Line 1")
-	if err != nil {
+	if err := s.copyProject(in("Line 1"), in("Line 1 (copy)")); err != nil {
 		t.Fatal(err)
 	}
-	if copied.Name != "Line 1 (copy)" || copied.Station != "pallet-loading" {
-		t.Errorf("duplicated: %+v", copied)
+	if a, b := defIn(t, in("Line 1")), defIn(t, in("Line 1 (copy)")); a.ID == b.ID || b.Base.Station != "pallet-loading" {
+		t.Errorf("a copy has an id of its own: %+v %+v", a, b)
 	}
-	if err := s.DeleteProject("Pallet loading (2)"); err != nil {
+	if err := s.DeleteProject(in("Pallet loading (2)")); err != nil {
 		t.Fatal(err)
 	}
 	var names []string
@@ -176,41 +225,43 @@ func TestProjectsAreMadeAndManaged(t *testing.T) {
 	if !slices.Equal(names, []string{"Line 1", "Line 1 (copy)", "Load a pallet", "Pallet loading"}) {
 		t.Errorf("projects: %v", names)
 	}
-	if _, err := s.OpenProject("Pallet loading (2)"); err == nil {
+	if _, err := s.OpenProjectFile(in("Pallet loading (2)"), OpenOptions{}); err == nil {
 		t.Error("it is gone")
 	}
 
-	// A program is saved back into the project it was opened from, which must exist.
+	// A program is saved back into the project it was opened from, while it is open.
 	prog := NewProgramService(s)
 	opened, err := prog.Open("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if opened.Project != "Load a pallet" || !strings.HasPrefix(opened.Folder, projectDir("Load a pallet")) {
+	if opened.Project != in("Load a pallet") {
 		t.Errorf("the program is the project's: %+v", opened)
 	}
 	if err := prog.SaveFile(opened.Project, "cabinet", "Extra.st", "PROGRAM Extra\nEND_PROGRAM\n"); err != nil {
 		t.Fatal(err)
 	}
-	if !exists(filepath.Join(projectDir("Load a pallet"), "programs", "cabinet", "Extra.st")) {
+	if st := s.SaveProject(); st.State != SaveSaved {
+		t.Fatalf("saved: %+v", st)
+	}
+	if _, ok := zipFiles(t, in("Load a pallet"))["programs/cabinet/Extra.st"]; !ok {
 		t.Error("saved into the project it came from")
 	}
-	for _, name := range []string{"../x", "a/b", "", "Test", ".unsaved/pallet-loading"} {
+	for _, name := range []string{"../x", "a/b", "", "Test", in("Line 1")} {
 		if err := prog.SaveFile(name, "cabinet", "X.st", ""); err == nil {
-			t.Errorf("no project %q", name)
+			t.Errorf("no open project %q", name)
 		}
 	}
 
 	// A project whose station is gone is listed with the problem, and does not open.
-	if err := writeProject(projectDir("Gone"), ProjectDef{Base: Base{Station: "gone"}}); err != nil {
+	gone, err := newProjectFile("Gone", ProjectDef{Base: Base{Station: "gone"}}, nil)
+	if err != nil {
 		t.Fatal(err)
 	}
-	for _, p := range s.Projects() {
-		if p.Name == "Gone" && p.Problem == "" {
-			t.Errorf("no problem: %+v", p)
-		}
+	if i := slices.IndexFunc(s.Projects(), func(p ProjectInfo) bool { return p.Name == "Gone" }); i < 0 || s.Projects()[i].Problem == "" {
+		t.Errorf("listed with no problem: %+v", s.Projects())
 	}
-	if _, err := s.OpenProject("Gone"); err == nil {
+	if _, err := s.OpenProjectFile(gone, OpenOptions{}); err == nil {
 		t.Error("it opens")
 	}
 	if p := s.Project(); p.Name != "Load a pallet" {
@@ -218,30 +269,254 @@ func TestProjectsAreMadeAndManaged(t *testing.T) {
 	}
 }
 
-// A project travels as a file and comes back as a project of its own.
-func TestAProjectIsExportedAndImported(t *testing.T) {
+// A project file opened from anywhere, such as the downloads folder, is the project: its
+// changes are saved into it, nothing is copied into the user folder, and the projects page
+// lists it until it is taken off the list.
+func TestAProjectIsSavedWhereItIs(t *testing.T) {
 	s, home := newService(t)
-	if _, err := NewProgramService(s).Open(""); err != nil {
+	downloads := t.TempDir()
+	file := filepath.Join(downloads, "Mine"+ProjectExtension)
+	if err := s.copyProject(filepath.Join(home, ProjectsFolder, "Test"+ProjectExtension), file); err != nil {
 		t.Fatal(err)
 	}
-	file := filepath.Join(t.TempDir(), "Test"+ProjectExtension)
-	if err := ExportProjectTo(s.Project().Folder, file); err != nil {
+	if _, err := s.OpenProjectFile(file, OpenOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	name, err := ImportProjectFile(file)
+	if p := s.Project(); p.Name != "Mine" || p.Path != file || p.InFolder {
+		t.Errorf("opened where it is: %+v", p)
+	}
+	if err := s.SetParameter("speed", 0.5); err != nil {
+		t.Fatal(err)
+	}
+	if st := s.SaveState(); st.State != SaveSaved && st.State != SavePending {
+		t.Errorf("state: %+v", st)
+	}
+	if st := s.SaveProject(); st.State != SaveSaved {
+		t.Fatalf("saved: %+v", st)
+	}
+	if got := defIn(t, file).Parameters["speed"]; got != 0.5 {
+		t.Errorf("the file has the setting: %v", got)
+	}
+	s.CloseProject()
+	items, _ := os.ReadDir(filepath.Join(home, ProjectsFolder))
+	if len(items) != 1 {
+		t.Errorf("only the user folder's own project is there: %v", items)
+	}
+	listed := func() *ProjectInfo {
+		for _, p := range s.Projects() {
+			if p.Name == "Mine" {
+				return &p
+			}
+		}
+		return nil
+	}
+	if p := listed(); p == nil || p.Path != file || p.InFolder || p.Missing {
+		t.Fatalf("listed: %+v", p)
+	}
+
+	// A file moved away is listed as missing, until it is taken off the list.
+	if err := os.Rename(file, file+".moved"); err != nil {
+		t.Fatal(err)
+	}
+	if p := listed(); p == nil || !p.Missing {
+		t.Errorf("not missing: %+v", p)
+	}
+	if got := s.Projects(); !got[len(got)-1].Missing {
+		t.Errorf("a missing file is listed last: %+v", got)
+	}
+	s.ForgetProject(file)
+	if p := listed(); p != nil {
+		t.Errorf("still listed: %+v", p)
+	}
+}
+
+// A change is written into the file shortly after it is made, without closing the project.
+func TestAChangeIsSavedShortlyAfter(t *testing.T) {
+	saveEvery = 10 * time.Millisecond
+	t.Cleanup(func() { saveEvery = time.Second })
+	s, _ := newService(t)
+	file := s.Project().Path
+	if err := s.SetParameter("speed", 0.25); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for defIn(t, file).Parameters["speed"] != 0.25 {
+		if time.Now().After(deadline) {
+			t.Fatalf("not saved: %+v", s.SaveState())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if st := s.SaveState(); st.State != SaveSaved || st.Saved == "" {
+		t.Errorf("state: %+v", st)
+	}
+}
+
+// A file changed from elsewhere while the project is open is not overwritten: the project
+// can be written over it, the file opened as it is now, or the project saved as a copy.
+func TestAFileChangedElsewhereIsNotOverwritten(t *testing.T) {
+	s, _ := newService(t)
+	file := s.Project().Path
+	theirs := func(speed float64) {
+		t.Helper()
+		files := map[string][]byte{}
+		for name, data := range zipFiles(t, file) {
+			files[name] = []byte(data)
+		}
+		def := defIn(t, file)
+		def.Parameters = map[string]float64{"speed": speed}
+		files[ProjectFile], _ = projectJSON(def)
+		later := time.Now().Add(2 * time.Second)
+		if err := writeZipOver(file, files); err != nil {
+			t.Fatal(err)
+		}
+		_ = os.Chtimes(file, later, later)
+	}
+	theirs(0.9)
+	if err := s.SetParameter("speed", 0.1); err != nil {
+		t.Fatal(err)
+	}
+	if st := s.SaveProject(); st.State != SaveConflict || st.Problem == "" {
+		t.Fatalf("not a conflict: %+v", st)
+	}
+	if got := defIn(t, file).Parameters["speed"]; got != 0.9 {
+		t.Errorf("their change was overwritten: %v", got)
+	}
+	if st := s.KeepMine(); st.State != SaveSaved {
+		t.Fatalf("kept: %+v", st)
+	}
+	if got := defIn(t, file).Parameters["speed"]; got != 0.1 {
+		t.Errorf("mine is not written: %v", got)
+	}
+
+	theirs(0.8)
+	if _, err := s.OpenTheirs(); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Snapshot().Parameters["speed"]; got != 0.8 {
+		t.Errorf("theirs is not open: %v", got)
+	}
+
+	theirs(0.7)
+	if err := s.SetParameter("speed", 0.2); err != nil {
+		t.Fatal(err)
+	}
+	if st := s.SaveProject(); st.State != SaveConflict {
+		t.Fatalf("not a conflict: %+v", st)
+	}
+	id := defIn(t, file).ID
+	copied := filepath.Join(t.TempDir(), "Mine")
+	if err := s.saveProjectAs(copied); err != nil {
+		t.Fatal(err)
+	}
+	copied += ProjectExtension
+	if p := s.Project(); p.Path != copied || p.Name != "Mine" || s.SaveState().State != SaveSaved {
+		t.Errorf("working in the copy: %+v %+v", p, s.SaveState())
+	}
+	if def := defIn(t, copied); def.ID == id || def.Parameters["speed"] != 0.2 {
+		t.Errorf("the copy: %+v", def)
+	}
+	if got := defIn(t, file).Parameters["speed"]; got != 0.7 {
+		t.Errorf("their file was changed: %v", got)
+	}
+}
+
+// A file that cannot be written opens read only: its changes stay in the working copy until
+// the project is saved as a copy.
+func TestAFileThatCannotBeWrittenOpensReadOnly(t *testing.T) {
+	s, _ := newService(t)
+	file := s.Project().Path
+	s.CloseProject()
+	if err := os.Chmod(file, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(file, 0o644) })
+	if writable(file) {
+		t.Skip("the file can be written all the same, as by an administrator")
+	}
+	if _, err := s.OpenProjectFile(file, OpenOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if st := s.SaveState(); st.State != SaveReadOnly {
+		t.Errorf("state: %+v", st)
+	}
+	if err := s.SetParameter("speed", 0.3); err != nil {
+		t.Fatal(err)
+	}
+	if st := s.SaveProject(); st.State != SaveReadOnly || !st.Unsaved {
+		t.Errorf("state: %+v", st)
+	}
+	if _, ok := defIn(t, file).Parameters["speed"]; ok {
+		t.Error("the file was written")
+	}
+	copied := filepath.Join(t.TempDir(), "Mine"+ProjectExtension)
+	if err := s.saveProjectAs(copied); err != nil {
+		t.Fatal(err)
+	}
+	if st := s.SaveState(); st.State != SaveSaved {
+		t.Errorf("the copy can be written: %+v", st)
+	}
+	if got := defIn(t, copied).Parameters["speed"]; got != 0.3 {
+		t.Errorf("the copy has the change: %v", got)
+	}
+}
+
+// Changes a crash left in a working copy are offered back when the file is opened again,
+// and dropped if they are not wanted.
+func TestChangesLeftByACrashAreOfferedBack(t *testing.T) {
+	s, _ := newService(t)
+	file := s.Project().Path
+	crash := func() {
+		t.Helper()
+		s.mu.Lock()
+		doc := s.proj.doc
+		s.proj.doc = nil
+		s.mu.Unlock()
+		doc.halt()
+		s.CloseProject()
+	}
+	if err := s.SetParameter("speed", 0.4); err != nil {
+		t.Fatal(err)
+	}
+	crash()
+	info, err := s.InspectProjectFile(file)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if name != "Test (2)" {
-		t.Errorf("a name that is taken gets a number: %s", name)
+	if !info.HasUnsaved {
+		t.Fatalf("not offered back: %+v", info)
 	}
-	if _, err := os.Stat(filepath.Join(home, ProjectsFolder, name, "programs", "cabinet", "PLC_PRG.st")); err != nil {
-		t.Error(err)
-	}
-	if _, err := s.OpenProject(name); err != nil {
+	if _, err := s.OpenProjectFile(file, OpenOptions{Restore: true}); err != nil {
 		t.Fatal(err)
 	}
+	if got := s.Snapshot().Parameters["speed"]; got != 0.4 {
+		t.Errorf("the change is not back: %v", got)
+	}
+	if info, _ := s.InspectProjectFile(file); info.HasUnsaved {
+		t.Errorf("the open project offers itself back: %+v", info)
+	}
+	if st := s.SaveProject(); st.State != SaveSaved || defIn(t, file).Parameters["speed"] != 0.4 {
+		t.Errorf("not saved: %+v", st)
+	}
 
+	if err := s.SetParameter("speed", 0.6); err != nil {
+		t.Fatal(err)
+	}
+	crash()
+	if _, err := s.OpenProjectFile(file, OpenOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Snapshot().Parameters["speed"]; got != 0.4 {
+		t.Errorf("the change is not dropped: %v", got)
+	}
+	s.CloseProject()
+	if info, _ := s.InspectProjectFile(file); info.HasUnsaved {
+		t.Errorf("still offered: %+v", info)
+	}
+}
+
+// A project file holds data only, of this format: anything else is refused.
+func TestOnlyProjectFilesOpen(t *testing.T) {
+	s, _ := newService(t)
 	bad := func(files map[string]string) string {
 		path := filepath.Join(t.TempDir(), "bad"+ProjectExtension)
 		f, err := os.Create(path)
@@ -257,25 +532,41 @@ func TestAProjectIsExportedAndImported(t *testing.T) {
 		f.Close()
 		return path
 	}
+	project := `{"format":2,"id":"x","base":{"station":"pallet-loading"}}`
 	for what, files := range map[string]map[string]string{
-		"a way out":      {ProjectFile: `{"format":1,"base":{"station":"pallet-loading"}}`, "../evil.st": "x"},
-		"something else": {ProjectFile: `{"format":1,"base":{"station":"pallet-loading"}}`, "run.sh": "x"},
-		"no project":     {"programs/cabinet/PLC_PRG.st": "x"},
-		"a newer format": {ProjectFile: `{"format":99}`},
+		"a way out":         {ProjectFile: project, "../evil.st": "x"},
+		"something else":    {ProjectFile: project, "run.sh": "x"},
+		"no project":        {"programs/cabinet/PLC_PRG.st": "x"},
+		"a newer format":    {ProjectFile: `{"format":99}`},
+		"an earlier format": {ProjectFile: `{"format":1,"base":{"station":"pallet-loading"}}`},
+		"a broken project":  {ProjectFile: `{`},
 	} {
-		if _, err := ImportProjectFile(bad(files)); err == nil {
-			t.Errorf("%s is imported", what)
+		if _, err := s.OpenProjectFile(bad(files), OpenOptions{}); err == nil {
+			t.Errorf("%s opens", what)
 		}
 	}
-	if _, err := ImportProjectFile(file + ".missing"); err == nil {
+	if _, err := s.OpenProjectFile(filepath.Join(t.TempDir(), "gone"+ProjectExtension), OpenOptions{}); err == nil {
 		t.Error("no file")
+	}
+	if _, err := s.OpenProjectFile(filepath.Join(t.TempDir(), "notes.txt"), OpenOptions{}); err == nil {
+		t.Error("a file that is no project")
+	}
+	// A file without an id gets one.
+	file := bad(map[string]string{ProjectFile: `{"format":2,"base":{"station":"pallet-loading"}}`})
+	if _, err := s.OpenProjectFile(file, OpenOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	s.CloseProject()
+	if id := defIn(t, file).ID; !validID(id) {
+		t.Errorf("no id: %q", id)
 	}
 }
 
 // A project keeps a picture of its station and how its last check went, lists them, and
-// takes the picture along in its file.
+// keeps the picture in its file.
 func TestAProjectShowsItsPictureAndLastCheck(t *testing.T) {
 	s, _ := newService(t)
+	file := s.Project().Path
 	jpeg := "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ=="
 	for _, bad := range []string{"", "data:image/png;base64,AAAA", "data:image/jpeg;base64,***"} {
 		if err := s.SaveThumbnail(bad); err == nil {
@@ -286,52 +577,28 @@ func TestAProjectShowsItsPictureAndLastCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.keepCheck("Other", LastCheck{Exercise: "load-a-pallet", Passed: true})
-	s.keepCheck("Test", LastCheck{Exercise: "load-a-pallet", Passed: true, At: "2026-11-21T10:00:00Z"})
+	s.keepCheck(file, LastCheck{Exercise: "load-a-pallet", Passed: true, At: "2026-11-21T10:00:00Z"})
 	p := s.Project()
 	if p.Thumbnail != jpeg || p.LastCheck == nil || !p.LastCheck.Passed || p.LastCheck.At != "2026-11-21T10:00:00Z" {
 		t.Errorf("project: %+v", p)
-	}
-
-	file := filepath.Join(t.TempDir(), "Test"+ProjectExtension)
-	if err := ExportProjectTo(p.Folder, file); err != nil {
-		t.Fatal(err)
 	}
 	s.CloseProject()
 	if err := s.SaveThumbnail(jpeg); err == nil {
 		t.Error("a picture with no project open")
 	}
-	opened, err := s.OpenProjectFile(file, OpenOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if opened.Name != "Test (2)" || opened.Thumbnail != jpeg || opened.LastCheck == nil || s.Project().Name != "Test (2)" {
-		t.Errorf("the file opens as a project with its picture: %+v", opened)
-	}
-	if _, err := s.OpenProjectFile(filepath.Join(t.TempDir(), "notes.txt"), OpenOptions{}); err == nil {
-		t.Error("a file that is no project")
+	listed := s.Projects()
+	if len(listed) != 1 || listed[0].Thumbnail != jpeg || listed[0].LastCheck == nil {
+		t.Errorf("listed with its picture: %+v", listed)
 	}
 }
 
-// A project can have a station of its own: an empty one to build, or a copy of its
-// collection's. The builder keeps every change in the project, the simulation loads it again
-// on request, and the project file takes it along. An exercise's station stays as it is.
+// A project's station is its own: an empty one to build, or the copy of a collection's it was
+// made with. The builder keeps every change in the project, the simulation loads it again on
+// request, and the project file keeps it. An exercise's station stays as it is.
 func TestAProjectBuildsAStationOfItsOwn(t *testing.T) {
 	s, _ := newService(t)
 	b := NewBuilderService(s)
 	t.Cleanup(b.Close)
-	if p := s.Project(); p.Own {
-		t.Fatalf("a collection's station is not the project's own: %+v", p)
-	}
-	if _, err := b.Edit(); err == nil {
-		t.Error("the builder builds on a collection's station")
-	}
-	p, err := s.CustomizeStation()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !p.Own || p.StationName != "Pallet loading" || !exists(filepath.Join(p.Folder, StationFile)) {
-		t.Fatalf("customized: %+v", p)
-	}
 	st, err := b.Edit()
 	if err != nil {
 		t.Fatal(err)
@@ -353,7 +620,7 @@ func TestAProjectBuildsAStationOfItsOwn(t *testing.T) {
 		t.Fatal(err)
 	}
 	empty := s.Project()
-	if empty.Name != "New station" || !empty.Own || empty.Station != "new-station" || empty.Problem != "" {
+	if empty.Name != "New station" || empty.Station != "new-station" || empty.Problem != "" {
 		t.Fatalf("empty: %+v", empty)
 	}
 	st, err = b.Edit()
@@ -380,23 +647,283 @@ func TestAProjectBuildsAStationOfItsOwn(t *testing.T) {
 		t.Error("a change kept in a closed project")
 	}
 
-	// The project file takes the station along.
-	file := filepath.Join(t.TempDir(), "New station"+ProjectExtension)
-	if err := ExportProjectTo(projectDir("New station"), file); err != nil {
-		t.Fatal(err)
+	// The project file keeps the station.
+	if _, ok := zipFiles(t, empty.Path)[StationFile]; !ok {
+		t.Error("the file has no station")
 	}
-	opened, err := s.OpenProjectFile(file, OpenOptions{})
+	opened, err := s.OpenProjectFile(empty.Path, OpenOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !opened.Own || opened.Name != "New station (2)" {
-		t.Errorf("imported: %+v", opened)
+	if opened.Name != "New station" || opened.StationName != "New station" {
+		t.Errorf("opened: %+v", opened)
 	}
 
 	if _, err := s.NewProject("", Base{Exercise: "load-a-pallet"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.CustomizeStation(); err == nil {
-		t.Error("an exercise's station is customized")
+	if _, err := b.Edit(); err == nil {
+		t.Error("an exercise's station is built on")
+	}
+}
+
+// carriedIn lists the collections a project file carries, as its project.json says and as
+// files in it, by id and version.
+func carriedIn(t *testing.T, file string) map[string]string {
+	t.Helper()
+	files := zipFiles(t, file)
+	out := map[string]string{}
+	for _, r := range defIn(t, file).Collections {
+		if _, ok := files[collectionsDir+r.Collection+".taktwin"]; !ok {
+			t.Errorf("%s is listed but not in the file", r.Collection)
+		}
+		out[r.Collection] = r.Version
+	}
+	return out
+}
+
+// A project carries what it is built from: a copy of its station and every collection it
+// comes from, the app's own among them, in the versions it was made with. It opens from them
+// when those here are gone, and offers newer ones when they are installed: its
+// station follows them unless the project changed it.
+func TestAProjectCarriesWhatItIsBuiltFrom(t *testing.T) {
+	s, _ := newService(t)
+	file := s.Project().Path
+	s.SaveProject()
+	if _, ok := zipFiles(t, file)[StationFile]; !ok {
+		t.Error("the station is not copied")
+	}
+	if got := carriedIn(t, file); len(got) != 2 || got["taktwin"] != "0.1.0" || !hasKey(got, "base") {
+		t.Errorf("carried: %v", got)
+	}
+
+	named := func(version string) func(map[string][]byte) {
+		return func(files map[string][]byte) {
+			p := "stations/pallet-loading/station.json"
+			files[p] = []byte(strings.Replace(string(files[p]), `"name": "Pallet loading"`, `"name": "Lab line `+version+`"`, 1))
+		}
+	}
+	lib := NewLibraryService()
+	if _, err := InstallCollection(labCollectionWith(t, "1.0.0", named("1.0.0"))); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.NewProject("Lab", Base{Station: "pallet-loading"}); err != nil {
+		t.Fatal(err)
+	}
+	lab := s.Project()
+	if lab.StationName != "Lab line 1.0.0" || len(lab.Updates) != 0 {
+		t.Fatalf("lab: %+v", lab)
+	}
+	s.SaveProject()
+	if got := carriedIn(t, lab.Path); got["lab"] != "1.0.0" {
+		t.Errorf("carried: %v", got)
+	}
+
+	// A newer version is offered, and the station follows it.
+	if _, err := InstallCollection(labCollectionWith(t, "1.1.0", named("1.1.0"))); err != nil {
+		t.Fatal(err)
+	}
+	if p := s.Project(); len(p.Updates) != 1 || p.Updates[0].Collection != "lab" || p.Updates[0].Version != "1.0.0" || p.Updates[0].Installed != "1.1.0" {
+		t.Fatalf("updates: %+v", p.Updates)
+	}
+	if s.Scene().Name != "Lab line 1.0.0" {
+		t.Errorf("the project changed before it was updated: %s", s.Scene().Name)
+	}
+	scene, err := s.UpdateCollections()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scene.Name != "Lab line 1.1.0" || len(s.Project().Updates) != 0 {
+		t.Errorf("updated: %s %+v", scene.Name, s.Project().Updates)
+	}
+	s.SaveProject()
+	if got := carriedIn(t, lab.Path); got["lab"] != "1.1.0" {
+		t.Errorf("carried: %v", got)
+	}
+
+	// A station the project changed stays as it is.
+	b := NewBuilderService(s)
+	t.Cleanup(b.Close)
+	if _, err := b.Edit(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.SetStation("Mine", ""); err != nil {
+		t.Fatal(err)
+	}
+	b.Close()
+	if _, err := InstallCollection(labCollectionWith(t, "1.2.0", named("1.2.0"))); err != nil {
+		t.Fatal(err)
+	}
+	if scene, err := s.UpdateCollections(); err != nil || scene.Name != "Mine" {
+		t.Errorf("the project's own station did not stay: %s %v", scene.Name, err)
+	}
+	s.SaveProject()
+	if got := carriedIn(t, lab.Path); got["lab"] != "1.2.0" {
+		t.Errorf("carried: %v", got)
+	}
+
+	// With its collection gone here, it opens from what it carries.
+	s.CloseProject()
+	if err := lib.RemoveCollection("lab"); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range s.Projects() {
+		if p.Problem != "" {
+			t.Errorf("%s does not open: %s", p.Name, p.Problem)
+		}
+	}
+	if _, err := s.OpenProjectFile(lab.Path, OpenOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Scene().Name != "Mine" {
+		t.Errorf("opened: %s", s.Scene().Name)
+	}
+	if _, err := s.OpenProjectFile(file, OpenOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Scene().Name != "Pallet loading" {
+		t.Errorf("opened: %s", s.Scene().Name)
+	}
+}
+
+func hasKey(m map[string]string, k string) bool {
+	_, ok := m[k]
+	return ok
+}
+
+// Every project keeps its original, as it was made: a PLC's connection, its programs, the
+// station and its settings are put back one at a time, or everything at once. Keeping the
+// project as its original sets a new one, and the original keeps the versions of the
+// collections it was made with.
+func TestAProjectKeepsItsOriginal(t *testing.T) {
+	s, _ := newService(t)
+	file := s.Project().Path
+	if o := s.Original(); o.At == "" || o.Changed {
+		t.Fatalf("a new project is its original: %+v", o)
+	}
+	prog := NewProgramService(s)
+	b := NewBuilderService(s)
+	t.Cleanup(b.Close)
+	change := func(name string) {
+		t.Helper()
+		if err := s.SetParameter("speed", 0.5); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.NewConnection("", "opcua"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.SetConnectionValues("", map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal}); err != nil {
+			t.Fatal(err)
+		}
+		opened, err := prog.Open("")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := prog.SaveFile(opened.Project, "cabinet", "Extra.st", "PROGRAM Extra\nEND_PROGRAM\n"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := b.Edit(); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := b.SetStation(name, ""); err != nil {
+			t.Fatal(err)
+		}
+		b.Close()
+		if _, err := s.ReloadStation(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	change("Mine")
+	o := s.Original()
+	if !o.Station || !o.Settings || !slices.Equal(o.Connections, []string{""}) || !slices.Equal(o.Programs, []string{"cabinet"}) || !o.Changed {
+		t.Fatalf("what differs: %+v", o)
+	}
+
+	if o, err := s.PutBack(PartConnection, ""); err != nil || len(o.Connections) != 0 || !o.Station {
+		t.Fatalf("connection: %+v %v", o, err)
+	}
+	if got := s.PlannedPLC(""); got.Mode != PLCNone {
+		t.Errorf("the connection is not back: %+v", got)
+	}
+	if o, err := s.PutBack(PartPrograms, ""); err != nil || len(o.Programs) != 0 {
+		t.Fatalf("programs: %+v %v", o, err)
+	}
+	if exists(filepath.Join(s.proj.dir(), "programs", "cabinet")) {
+		t.Error("the programs are not back")
+	}
+	if o, err := s.PutBack(PartSettings, ""); err != nil || o.Settings {
+		t.Fatalf("settings: %+v %v", o, err)
+	}
+	if _, ok := s.Snapshot().Parameters["speed"]; ok && s.Snapshot().Parameters["speed"] == 0.5 {
+		t.Error("the setting is not back")
+	}
+	if o, err := s.PutBack(PartStation, ""); err != nil || o.Station || o.Changed {
+		t.Fatalf("station: %+v %v", o, err)
+	}
+	if s.Scene().Name != "Pallet loading" {
+		t.Errorf("the station is not back: %s", s.Scene().Name)
+	}
+	if _, err := s.PutBack("nothing", ""); err == nil {
+		t.Error("no part")
+	}
+
+	// A new original, and everything back to it.
+	change("Line 1")
+	if o, err := s.KeepAsOriginal(); err != nil || o.Changed {
+		t.Fatalf("kept: %+v %v", o, err)
+	}
+	if err := s.SetParameter("speed", 0.9); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCNone}); err != nil {
+		t.Fatal(err)
+	}
+	if o, err := s.PutBack(PartEverything, ""); err != nil || o.Changed {
+		t.Fatalf("everything: %+v %v", o, err)
+	}
+	if got := s.PlannedPLC(""); got.Mode != PLCExternal || s.Scene().Name != "Line 1" || s.Snapshot().Parameters["speed"] != 0.5 {
+		t.Errorf("not back to the new original: %+v %s %v", got, s.Scene().Name, s.Snapshot().Parameters)
+	}
+	s.SaveProject()
+	if files := zipFiles(t, file); files["original/"+ProjectFile] == "" || files["original/"+StationFile] == "" || files["original/programs/cabinet/Extra.st"] == "" {
+		t.Errorf("the file has no original: %v", slices.Sorted(maps.Keys(files)))
+	}
+
+	// The original keeps the version of a collection it was made with.
+	if _, err := InstallCollection(labCollectionWith(t, "1.0.0", nil)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.NewProject("Lab", Base{Station: "pallet-loading"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := InstallCollection(labCollectionWith(t, "1.1.0", nil)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.UpdateCollections(); err != nil {
+		t.Fatal(err)
+	}
+	if o := s.Original(); !o.Changed {
+		t.Errorf("the update is no change: %+v", o)
+	}
+	if o, err := s.PutBack(PartEverything, ""); err != nil || o.Changed {
+		t.Fatalf("everything: %+v %v", o, err)
+	}
+	s.SaveProject()
+	if got := carriedIn(t, s.Project().Path); got["lab"] != "1.0.0" {
+		t.Errorf("the original's version is not back: %v", got)
+	}
+	if len(s.Project().Updates) != 1 {
+		t.Errorf("the newer one is offered again: %+v", s.Project().Updates)
+	}
+
+	// An exercise's station cannot be put back, as it cannot be changed.
+	if _, err := s.NewProject("", Base{Exercise: "load-a-pallet"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.PutBack(PartStation, ""); err == nil {
+		t.Error("an exercise's station is put back")
 	}
 }

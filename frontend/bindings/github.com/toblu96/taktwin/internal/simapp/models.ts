@@ -6,6 +6,9 @@
 import * as exercise$0 from "../exercise/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as link$0 from "../link/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as model$0 from "../model/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -192,6 +195,11 @@ export interface CheckState {
     "running": boolean;
     "lines": exercise$0.Check[] | null;
     "error": string;
+
+    /**
+     * Note says that the check ran with the teacher's own exercise and station, and why.
+     */
+    "note"?: string;
 }
 
 /**
@@ -232,24 +240,8 @@ export interface CollectionInfo {
 }
 
 /**
- * ConnectionDoc is a connection as the connection editor edits it.
- */
-export interface ConnectionDoc {
-    /**
-     * JSON is the connection file.
-     */
-    "json": string;
-    "info": ConnectionInfo;
-
-    /**
-     * Yours is set for a connection file of the user's folder; saving any other puts a copy
-     * there, which then takes its place.
-     */
-    "yours": boolean;
-}
-
-/**
- * ConnectionInfo is a connection a PLC of the station can use, for the PLC panel.
+ * ConnectionInfo is a kind of connection a PLC of the station can be given, for the PLC
+ * panel: a technology, such as CODESYS or an OPC UA server, not a mapping of one station.
  */
 export interface ConnectionInfo {
     "id": string;
@@ -257,7 +249,7 @@ export interface ConnectionInfo {
     "description"?: string;
 
     /**
-     * Source is where it comes from: the app, a collection by name, or the user's folder.
+     * Source is where it comes from: the app, or a collection by name.
      */
     "source": string;
     "driver": string;
@@ -302,6 +294,25 @@ export interface ExerciseInfo {
 }
 
 /**
+ * ExternalConnection is a project's connection of one PLC to a controller outside the app:
+ * made from a kind, such as CODESYS or an OPC UA server, and then the project's own, with its
+ * bindings and what its form is filled in with.
+ */
+export interface ExternalConnection {
+    /**
+     * Kind is the kind it was made from, by id, such as codesys or opcua.
+     */
+    "kind": string;
+    "connection": link$0.Connection;
+
+    /**
+     * Values are what its vars are set to, such as the server's address; the others keep
+     * their defaults.
+     */
+    "values"?: { [_ in string]?: any } | null;
+}
+
+/**
  * FolderInfo says where the user folder is, whether it is the default one, and whether the
  * environment fixes it, so that it cannot be changed in the app.
  */
@@ -325,31 +336,52 @@ export interface LastCheck {
  */
 export interface OpenOptions {
     /**
-     * Install installs the collections the file brings that are missing here, or older.
+     * Restore goes on with the changes a working copy has that the file lacks; without it,
+     * they are dropped.
      */
-    "install": boolean;
-
-    /**
-     * Continue opens the project made from the same exercise handed out before instead.
-     */
-    "continue": boolean;
+    "restore": boolean;
 }
 
 /**
- * PLCConfig says which PLC the station uses.
+ * OriginalInfo says what the open project's original is, and which of its parts differ from it.
+ */
+export interface OriginalInfo {
+    /**
+     * At is when the original was set, as RFC 3339; "" for a project without one.
+     */
+    "at"?: string;
+
+    /**
+     * Station and Settings say that they differ from the original.
+     */
+    "station": boolean;
+    "settings": boolean;
+
+    /**
+     * Connections and Programs list the PLCs, by module, "" for the first, whose connection
+     * or programs differ from the original.
+     */
+    "connections": string[] | null;
+    "programs": string[] | null;
+
+    /**
+     * Changed says that anything differs, the exercise and collections' versions included.
+     */
+    "changed": boolean;
+}
+
+/**
+ * PLCConfig says which PLC the station uses, and keeps the PLC's own connection to a
+ * controller outside the app while another mode runs, so that switching back brings it back.
  */
 export interface PLCConfig {
     "mode": string;
 
     /**
-     * Connection names the connection, for PLCExternal (see ConnectionsFor).
+     * External is the project's connection of the PLC to a controller outside the app, for
+     * PLCExternal; nil until a kind of connection is chosen.
      */
-    "connection": string;
-
-    /**
-     * Values are what its vars are set to; the others keep their defaults.
-     */
-    "values": { [_ in string]?: any } | null;
+    "external"?: ExternalConnection | null;
 }
 
 /**
@@ -429,46 +461,43 @@ export interface ProgramStatus {
  */
 export interface ProjectFileInfo {
     "name": string;
-    "handout": boolean;
     "exerciseName"?: string;
 
     /**
-     * Existing is the project made from the same exercise handed out before, which can be
-     * gone on with instead.
-     */
-    "existing"?: string;
-
-    /**
-     * Installs are the collections the file brings that are missing here, or older.
-     */
-    "installs": Requirement[] | null;
-
-    /**
-     * Missing are the collections it needs that are neither here, shown, nor in the file.
+     * Missing are the collections it needs that it does not carry and that are not here and
+     * shown either.
      */
     "missing": Requirement[] | null;
+
+    /**
+     * Unsaved is when a working copy was last changed that has changes the file lacks, such
+     * as one left by a crash, as RFC 3339; "" without one.
+     */
+    "unsaved"?: string;
+
+    /**
+     * HasUnsaved says that there is such a working copy, also when its time is not known.
+     */
+    "hasUnsaved"?: boolean;
 }
 
 /**
  * ProjectInfo is a project as the app lists it.
  */
 export interface ProjectInfo {
+    /**
+     * Name is that of its file, without the extension.
+     */
     "name": string;
+
+    /**
+     * Path is its file.
+     */
+    "path": string;
     "station": string;
     "stationName": string;
     "exercise"?: string;
     "exerciseName"?: string;
-
-    /**
-     * Own says that the project has a station of its own, which it builds on, rather than
-     * that of a collection, which follows the collection's updates.
-     */
-    "own"?: boolean;
-
-    /**
-     * Folder is where it is kept.
-     */
-    "folder": string;
 
     /**
      * Modified is when its file was last written, as RFC 3339.
@@ -485,6 +514,29 @@ export interface ProjectInfo {
      */
     "thumbnail"?: string;
     "lastCheck"?: LastCheck | null;
+
+    /**
+     * InFolder says that the file is in the user folder's projects, where new ones are made;
+     * the others are listed because they were opened.
+     */
+    "inFolder"?: boolean;
+
+    /**
+     * Missing says that the file is no longer where it was opened from.
+     */
+    "missing"?: boolean;
+
+    /**
+     * Updates are the collections it carries of which a newer version is installed here,
+     * with the version it has and the one installed.
+     */
+    "updates"?: Requirement[] | null;
+
+    /**
+     * ExerciseChanged says that its exercise or the exercise's station is no longer as its
+     * original has them, such as when it was handed out.
+     */
+    "exerciseChanged"?: boolean;
 }
 
 /**
@@ -500,6 +552,29 @@ export interface Requirement {
      */
     "installed"?: string;
     "hidden"?: boolean;
+}
+
+/**
+ * SaveState says how the open project's file stands.
+ */
+export interface SaveState {
+    "state": string;
+
+    /**
+     * Problem says why the file is not saved, for a conflict or a failure.
+     */
+    "problem"?: string;
+
+    /**
+     * Saved is when the file was last written or read, as RFC 3339.
+     */
+    "saved"?: string;
+
+    /**
+     * Unsaved says that the project has changes its file lacks: always while pending, and
+     * for a file that is read only, in conflict or failed, once something was changed.
+     */
+    "unsaved"?: boolean;
 }
 
 /**

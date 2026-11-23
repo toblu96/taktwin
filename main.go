@@ -23,6 +23,7 @@ func init() {
 	application.RegisterEvent[string](simapp.MenuCommandEvent)
 	application.RegisterEvent[[]string](simapp.FilesDroppedEvent)
 	application.RegisterEvent[string](simapp.FileOpenedEvent)
+	application.RegisterEvent[simapp.SaveState](simapp.SaveStateEvent)
 }
 
 // menu is the app's menu on a Mac, where every app has one: the app's menu with Settings, a

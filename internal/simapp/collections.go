@@ -98,11 +98,21 @@ func readPackage(path string) (fs.FS, error) {
 // collections are left out, as is a collection that cannot be read, or one whose id an
 // earlier layer already brings, so that an installed collection stands in for the same one
 // built in or given for development.
-func Library() *model.Library {
+func Library() *model.Library { return libraryFrom(sources(), nil) }
+
+// libraryFrom is the library of the sources with layers in front, such as a project's own
+// station and the collections it carries. A collection a layer in front brings stands in for
+// the same one among the sources, also when that one is hidden.
+func libraryFrom(srcs []source, front []fs.FS) *model.Library {
 	hidden := readSettings().Hidden
-	var layers []fs.FS
+	layers := slices.Clone(front)
 	seen := map[string]bool{}
-	for _, s := range sources() {
+	for _, l := range front {
+		if c, ok, _ := model.ReadCollection(l); ok && c.ID != "" {
+			seen[c.ID] = true
+		}
+	}
+	for _, s := range srcs {
 		id := s.collection.ID
 		if s.layer == nil || s.err != nil || id != "" && (seen[id] || s.kind != SourceBase && slices.Contains(hidden, id)) {
 			continue

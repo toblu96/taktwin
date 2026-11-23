@@ -40,16 +40,13 @@ type settings struct {
 	// Expert says whether the app offers what a teacher needs: building stations and writing
 	// exercises. It only shows more; it secures nothing.
 	Expert bool `json:"expertMode,omitempty"`
+	// Recent are the project files opened, the latest first, for the projects page to list
+	// those outside the user folder's projects too.
+	Recent []recentProject `json:"recentProjects,omitempty"`
 }
 
 // settingsFile is where the settings are kept. TAKTWIN_CONFIG overrides its folder.
-func settingsFile() string {
-	dir := os.Getenv("TAKTWIN_CONFIG")
-	if dir == "" {
-		dir = filepath.Join(application.Path(application.PathConfigHome), "Taktwin")
-	}
-	return filepath.Join(dir, "settings.json")
-}
+func settingsFile() string { return filepath.Join(configDir(), "settings.json") }
 
 func readSettings() settings {
 	var s settings

@@ -3,12 +3,12 @@ package simapp
 import (
 	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
 	"github.com/toblu96/taktwin/internal/link"
-	"github.com/toblu96/taktwin/internal/model"
 	"github.com/toblu96/taktwin/internal/opcsim"
 	"github.com/toblu96/taktwin/internal/plcio"
 )
@@ -16,25 +16,26 @@ import (
 // ConnectionsFolder is where collections and the user's folder keep connection files.
 const ConnectionsFolder = "connections"
 
-// ConnectionInfo is a connection a PLC of the station can use, for the PLC panel.
+// ConnectionInfo is a kind of connection a PLC of the station can be given, for the PLC
+// panel: a technology, such as CODESYS or an OPC UA server, not a mapping of one station.
 type ConnectionInfo struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
-	// Source is where it comes from: the app, a collection by name, or the user's folder.
+	// Source is where it comes from: the app, or a collection by name.
 	Source string `json:"source"`
 	Driver string `json:"driver"`
 	// Vars is the JSON Schema of the values someone fills in, as JSON; "" for none.
 	Vars string `json:"vars"`
 }
 
-// ConnectionsFor lists the connections one of the station's PLCs can use, by its module,
-// the first one for "": the app's own for CODESYS, one for each address map of the station,
-// then the files of the user's folder and of the collections.
-func (s *Service) ConnectionsFor(plc string) ([]ConnectionInfo, error) {
+// ConnectionKinds lists the kinds of connection one of the station's PLCs, by its module, the
+// first one for "", can be given: the app's own for CODESYS, those of the collections, which
+// name no station, and one to any OPC UA server.
+func (s *Service) ConnectionKinds(plc string) ([]ConnectionInfo, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	list, err := s.connections(plc)
+	list, err := s.kinds(plc)
 	if err != nil {
 		return nil, err
 	}
@@ -50,53 +51,84 @@ type offered struct {
 	source string
 }
 
-// connections are those a PLC can use, under s.mu.
-func (s *Service) connections(plc string) ([]offered, error) {
-	station, id, err := s.plcOf(plc)
+// kinds are the kinds of connection a PLC can be given, under s.mu. A connection file of a
+// collection that names a station is a mapping of that station, which a project keeps as its
+// own connection, and is no kind.
+func (s *Service) kinds(plc string) ([]offered, error) {
+	_, id, err := s.plcOf(plc)
 	if err != nil {
 		return nil, err
 	}
 	var out []offered
-	first := s.plcKey(id) == ""
 	if naming := s.naming(plc); naming.Inputs != "" {
-		out = append(out, offered{codesys(naming, nil), "Taktwin"})
-		if first {
-			for _, m := range s.engine.Plan().Maps() {
-				out = append(out, offered{codesys(naming, &m), "Taktwin"})
-			}
-		}
+		out = append(out, offered{codesys(naming), "Taktwin"})
 	}
-	out = append(out, offered{genericOPCUA(), "Taktwin"})
-	lib := Library()
+	lib := libraryOf(s.proj)
 	names := map[string]string{}
 	for _, c := range lib.Collections() {
 		names[c.ID] = c.Name
 	}
-	seen := map[string]bool{}
-	for _, o := range out {
-		seen[o.conn.ID] = true
-	}
+	seen := map[string]bool{"codesys": true, genericOPCUA().ID: true}
 	for _, f := range lib.Files(ConnectionsFolder) {
-		if !strings.HasSuffix(f.Name, ".json") {
+		if !strings.HasSuffix(f.Name, ".json") || f.Collection == "" {
 			continue
 		}
 		c, err := link.Parse(f.Data)
-		if err != nil || seen[c.ID] {
-			continue
-		}
-		if c.Station != "" && c.Station != station || c.PLC != "" && c.PLC != id || c.PLC == "" && !first {
+		if err != nil || seen[c.ID] || c.Station != "" || c.PLC != "" && c.PLC != id {
 			continue
 		}
 		seen[c.ID] = true
-		out = append(out, offered{c, cmp.Or(names[f.Collection], yourFolder)})
+		out = append(out, offered{c, cmp.Or(names[f.Collection], f.Collection)})
 	}
-	return out, nil
+	return append(out, offered{genericOPCUA(), "Taktwin"}), nil
+}
+
+// NewConnection gives one of the station's PLCs, by its module, a new connection of a kind,
+// in place of the one the project kept for it, and gives how the project now means to
+// connect the PLC. It does not connect it.
+func (s *Service) NewConnection(plc, kind string) (PLCConfig, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	list, err := s.kinds(plc)
+	if err != nil {
+		return PLCConfig{}, err
+	}
+	for _, o := range list {
+		if o.conn.ID != kind {
+			continue
+		}
+		planned := s.proj.def.PLCs[s.plcKey(plc)]
+		if planned.Mode == "" {
+			planned.Mode = PLCNone
+		}
+		planned.External = &ExternalConnection{Kind: kind, Connection: o.conn}
+		return planned, s.remember(plc, planned)
+	}
+	return PLCConfig{}, fmt.Errorf("there is no kind of connection %q for this PLC", kind)
+}
+
+// SetConnectionValues keeps what the form of a PLC's connection is filled in with, such as
+// the server's address, in the project, without connecting.
+func (s *Service) SetConnectionValues(plc string, values map[string]any) (PLCConfig, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.engine == nil {
+		return PLCConfig{}, errNoProject
+	}
+	planned := s.proj.def.PLCs[s.plcKey(plc)]
+	if planned.External == nil {
+		return PLCConfig{}, errors.New("choose the kind of connection first")
+	}
+	ext := *planned.External
+	ext.Values = values
+	planned.External = &ext
+	return planned, s.remember(plc, planned)
 }
 
 // codesys is the app's connection to a CODESYS PLC that offers its image as a variable
-// list, named as the PLC module says, through its symbol configuration. With a map, the
-// variables it names stand for other signals, of a program written for another wiring.
-func codesys(naming plcio.Naming, m *model.PLCMapDef) link.Connection {
+// list, named as the PLC module says, through its symbol configuration. A program written for
+// another wiring gets bindings of its own in the project's connection.
+func codesys(naming plcio.Naming) link.Connection {
 	c := link.Connection{
 		ID:          "codesys",
 		Name:        "CODESYS: variable list " + naming.List,
@@ -123,15 +155,6 @@ func codesys(naming plcio.Naming, m *model.PLCMapDef) link.Connection {
 	if naming.Analog != "" {
 		c.Generate = append(c.Generate, link.GenerateDef{Signals: "analogInputs", Item: item(naming.Analog)})
 	}
-	if m != nil {
-		c.ID, c.Name = "codesys-"+m.ID, "CODESYS: "+m.Name
-		c.Description = fmt.Sprintf("As %s, for a program written for other addresses.", naming.List)
-		for _, list := range [][]model.PLCBindingDef{m.Inputs, m.Outputs} {
-			for _, b := range list {
-				c.Bindings = append(c.Bindings, link.BindingDef{Signal: b.Signal, Item: item(b.Variable), Invert: b.Invert})
-			}
-		}
-	}
 	return c
 }
 
@@ -154,21 +177,4 @@ func (s *Service) space(plc, id string) opcsim.Space {
 		addresses = append(addresses, sig.Address)
 	}
 	return opcsim.Space{PLC: id, Labels: labels, Addresses: addresses}
-}
-
-// connection finds a connection by id for one of the station's PLCs, under s.mu.
-func (s *Service) connection(plc, id string) (link.Connection, error) {
-	list, err := s.connections(plc)
-	if err != nil {
-		return link.Connection{}, err
-	}
-	for _, o := range list {
-		if o.conn.ID == id {
-			return o.conn, nil
-		}
-	}
-	if id == "" {
-		return link.Connection{}, fmt.Errorf("choose a connection")
-	}
-	return link.Connection{}, fmt.Errorf("there is no connection %q for this PLC", id)
 }

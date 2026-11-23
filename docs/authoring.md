@@ -73,11 +73,12 @@ The easiest way is the app itself:
 3. **Wiring** shows the cables from the PLC to the I/O terminals, and the name the PLC knows each signal by.
 4. Switching editing off runs it. **I/O test** in the PLC panel switches outputs by hand.
 
-The project keeps the station as `station.json` in its folder (**Show in folder** in the project's card menu). To make it part of a collection, copy that file to the collection's `stations/<id>/station.json` and give it that `id`. A station can come with:
+The project keeps the station as `station.json` in its file, a zip (**Show in folder** in the project's card menu). To make it part of a collection, copy that file out of it to the collection's `stations/<id>/station.json` and give it that `id`. A station can come with:
 
 - **an example program** for its PLC, in `programs/<station>/<plc>/` of the collection, which the programming tool offers to load;
-- **connections** for external PLCs, in `connections/`, such as the OPC UA variables of a particular CODESYS project;
-- **other addresses** in `plc.maps`, for a PLC program written for another wiring.
+- **about.md**, how the station works, beside its `station.json`.
+
+How a PLC is connected to a particular controller, such as the OPC UA variables of one CODESYS project, a FluidSIM circuit, or a PLC program written for another wiring, is set up in a project and shared with it. A collection's `connections/` holds kinds of connection that fit any station, which name no station.
 
 ## Exercises
 
@@ -93,7 +94,7 @@ Try it from the app: **New project › Exercise**, connect a PLC that solves it,
 
 To hand it out:
 
-- **as one file:** in the card menu of the project on the exercise, **Hand out as exercise…** writes a `.taktwin-project` with the station and the exercise as copies, the instructions and the collections students may not have. Your programs go along only if you choose so. Students open it by double-clicking it.
+- **as one file:** **Hand out…** on the project on the exercise writes a `.taktwin-project` with the station and the exercise, the instructions, how the PLCs are connected and the collections the project carries, so students need nothing installed. Your programs go along only if you choose so. Students open it by double-clicking it, and can put it back as it was handed out.
 - **with a collection:** exercises in a collection show under **New project › Exercise** wherever the collection is installed.
 
 ## Before sharing

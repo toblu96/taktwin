@@ -2,6 +2,7 @@ package simapp
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/toblu96/taktwin/internal/link"
 	"github.com/toblu96/taktwin/internal/opcsim"
 	"github.com/toblu96/taktwin/internal/plcio"
 )
@@ -57,26 +59,35 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 	}
 }
 
-// A PLC can use the app's connection to CODESYS, and the connection files of the user's
-// folder that fit the station.
-func TestThePLCOffersItsConnections(t *testing.T) {
+// A PLC is given a kind of connection: the app's own for CODESYS and for any OPC UA server,
+// and those of the collections that name no station. A collection's connection for one
+// station is a mapping, no kind, and the user's folder offers none.
+func TestThePLCOffersKindsOfConnection(t *testing.T) {
 	s, home := newService(t)
-	dir := filepath.Join(home, ConnectionsFolder)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
+	dev := t.TempDir()
+	t.Setenv("TAKTWIN_COLLECTIONS", dev)
+	files := map[string]string{
+		"collection.json":         `{"id": "kinds", "name": "Kinds", "version": "1.0.0"}`,
+		"connections/ports.json":  `{"id": "ports", "name": "Ports", "driver": "opcua"}`,
+		"connections/mine.json":   `{"id": "mine", "name": "Mine", "driver": "opcua", "station": "pallet-loading"}`,
+		"connections/plc2.json":   `{"id": "plc2", "name": "Second PLC", "driver": "opcua", "plc": "nope"}`,
+		"connections/broken.json": `{"id": `,
+		"connections/notes.txt":   `not a connection`,
 	}
-	for name, data := range map[string]string{
-		"mine.json":   `{"id": "mine", "name": "Mine", "driver": "opcua", "station": "pallet-loading"}`,
-		"other.json":  `{"id": "other", "name": "Other", "driver": "opcua", "station": "elsewhere"}`,
-		"plc2.json":   `{"id": "plc2", "name": "Second PLC", "driver": "opcua", "plc": "nope"}`,
-		"broken.json": `{"id": `,
-		"notes.txt":   `not a connection`,
-	} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(data), 0o644); err != nil {
+	files["../home/connections/yours.json"] = `{"id": "yours", "name": "Yours", "driver": "opcua"}`
+	for name, data := range files {
+		p := filepath.Join(dev, name)
+		if strings.HasPrefix(name, "../home/") {
+			p = filepath.Join(home, strings.TrimPrefix(name, "../home/"))
+		}
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(data), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	list, err := s.ConnectionsFor("")
+	list, err := s.ConnectionKinds("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,26 +95,42 @@ func TestThePLCOffersItsConnections(t *testing.T) {
 	for _, c := range list {
 		ids = append(ids, c.ID+"@"+c.Source)
 	}
-	if !slices.Equal(ids, []string{"codesys@Taktwin", "opcua@Taktwin", "mine@Your folder"}) {
-		t.Errorf("connections: %v", ids)
+	if !slices.Equal(ids, []string{"codesys@Taktwin", "fluidsim-ports@Basics", "ports@Kinds", "opcua@Taktwin"}) {
+		t.Errorf("kinds: %v", ids)
 	}
 	for _, want := range []string{`"default": "CODESYS Control Win V3 x64"`, `"default": "Application"`, `"default": "Bits"`} {
 		if !strings.Contains(list[0].Vars, want) {
 			t.Errorf("the CODESYS connection asks for the parts of its NodeIds: %s", list[0].Vars)
 		}
 	}
-	if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal, Connection: "nope"}); err == nil {
-		t.Error("a connection that does not exist")
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal}); err == nil {
+		t.Error("connected without a kind of connection")
 	}
-	if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal, Connection: "codesys", Values: map[string]any{"endpoint": "http://x"}}); err == nil || !strings.Contains(err.Error(), "/endpoint") {
+	if _, err := s.NewConnection("", "mine"); err == nil {
+		t.Error("a mapping is a kind")
+	}
+	planned, err := s.NewConnection("", "codesys")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if planned.Mode != PLCNone || planned.External == nil || planned.External.Kind != "codesys" || len(planned.External.Connection.Generate) == 0 {
+		t.Errorf("planned: %+v", planned)
+	}
+	if _, err := s.SetConnectionValues("", map[string]any{"endpoint": "http://x"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.PlannedPLC(""); got.External == nil || got.External.Values["endpoint"] != "http://x" {
+		t.Errorf("the address is kept in the project: %+v", got)
+	}
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal}); err == nil || !strings.Contains(err.Error(), "/endpoint") {
 		t.Errorf("an endpoint that does not fit: %v", err)
 	}
 }
 
-// A connection file of the user's folder connects the station to a server of its own
-// choosing, with the values filled in.
-func TestAStationConnectsThroughAConnectionFile(t *testing.T) {
-	s, home := newService(t)
+// A PLC's own connection, with bindings saved from the editor, connects the station to a
+// server; switching to no PLC and back brings the same connection back.
+func TestAStationConnectsThroughItsOwnConnection(t *testing.T) {
+	s, _ := newService(t)
 	srv, err := opcsim.StartOnFreePort(context.Background(), echo{}, opcsim.Space{PLC: "plc"})
 	if err != nil {
 		t.Fatal(err)
@@ -111,32 +138,88 @@ func TestAStationConnectsThroughAConnectionFile(t *testing.T) {
 	// The link closes first: a server closed under a client waits for it.
 	defer srv.Close()
 	defer func() { _ = s.SetPLCFor("", PLCConfig{Mode: PLCNone}) }()
-	dir := filepath.Join(home, ConnectionsFolder)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	planned, err := s.NewConnection("", "opcua")
+	if err != nil {
 		t.Fatal(err)
 	}
+	c := planned.External.Connection
 	// The conveyor's run output back from its start sensor: B1 is %IX0.0, M1 %QX0.0.
-	file := `{
-  "id": "echo", "name": "Echo", "driver": "opcua",
-  "vars": { "type": "object", "properties": { "endpoint": { "type": "string" } } },
-  "settings": { "endpoint": "{endpoint}" },
-  "bindings": [
-    { "signal": "B1", "item": { "nodeId": "nsu=urn:taktwin:softplc;s=plc.%IX0.0" } },
-    { "signal": "M1", "item": { "nodeId": "nsu=urn:taktwin:softplc;s=plc.%QX0.0" } }
-  ]
-}`
-	if err := os.WriteFile(filepath.Join(dir, "echo.json"), []byte(file), 0o644); err != nil {
+	c.Bindings = []link.BindingDef{
+		{Signal: "B1", Item: json.RawMessage(`{"nodeId": "nsu=urn:taktwin:softplc;s=plc.%IX0.0"}`)},
+		{Signal: "M1", Item: json.RawMessage(`{"nodeId": "nsu=urn:taktwin:softplc;s=plc.%QX0.0"}`)},
+	}
+	doc, _ := json.Marshal(c)
+	if _, err := s.SaveConnection("", string(doc), map[string]any{"endpoint": srv.Endpoint()}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal, Connection: "echo", Values: map[string]any{"endpoint": srv.Endpoint()}}); err != nil {
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal}); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, "the connection", func() bool { l := linkOf(s); return l != nil && l.State == plcio.LinkConnected })
 	if l := linkOf(s); l.Variables != 2 || len(l.Unbound) == 0 || len(l.Problems) > 0 {
 		t.Errorf("two signals are exchanged, the others not: %+v", l)
 	}
-	if got := s.PLCFor(""); got.Connection != "echo" || got.Values["endpoint"] != srv.Endpoint() {
-		t.Errorf("the PLC keeps its connection: %+v", got)
+	if got := s.PLCFor(""); got.External == nil || got.External.Kind != "opcua" || got.External.Values["endpoint"] != srv.Endpoint() || len(got.External.Connection.Bindings) != 2 {
+		t.Errorf("the PLC runs its connection: %+v", got)
+	}
+
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCNone}); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.PlannedPLC(""); got.Mode != PLCNone || got.External == nil || len(got.External.Connection.Bindings) != 2 {
+		t.Errorf("the connection is kept while no PLC runs: %+v", got)
+	}
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal}); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the connection again", func() bool { l := linkOf(s); return l != nil && l.State == plcio.LinkConnected && l.Variables == 2 })
+}
+
+// A template's binding for a signal nothing of the station uses, without a symbol, which the
+// controller has no node for, is left out without a word; one for a signal in use is reported.
+func TestATemplateLeavesOutWhatNothingUses(t *testing.T) {
+	s, _ := newService(t)
+	srv, err := opcsim.StartOnFreePort(context.Background(), echo{}, opcsim.Space{PLC: "plc"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	defer func() { _ = s.SetPLCFor("", PLCConfig{Mode: PLCNone}) }()
+	planned, err := s.NewConnection("", "opcua")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := planned.External.Connection
+	c.Generate = []link.GenerateDef{{Signals: "inputs", Item: json.RawMessage(`{"nodeId": "nsu=urn:taktwin:softplc;s=nowhere.{address}"}`)}}
+	doc, _ := json.Marshal(c)
+	if _, err := s.SaveConnection("", string(doc), map[string]any{"endpoint": srv.Endpoint()}); err != nil {
+		t.Fatal(err)
+	}
+	signals, err := s.SignalsFor("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	named, unnamed := 0, 0
+	for _, sig := range signals {
+		if sig.Input && !sig.Analog {
+			if sig.Symbol != "" {
+				named++
+			} else {
+				unnamed++
+			}
+		}
+	}
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal}); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the connection", func() bool { l := linkOf(s); return l != nil && l.State == plcio.LinkConnected })
+	l := linkOf(s)
+	t.Logf("%d inputs in use, %d not", named, unnamed)
+	if len(l.Problems) != named || l.Variables != 0 {
+		t.Errorf("%d signals in use are reported, %d not: %+v", named, unnamed, l)
+	}
+	if outputs := len(signals) - named - unnamed; len(l.Unbound) < outputs+unnamed {
+		t.Errorf("the unused inputs are listed as not exchanged: %+v", l.Unbound)
 	}
 }
 
@@ -159,19 +242,14 @@ func TestTheSoftPLCIsReachedThroughItsServer(t *testing.T) {
 // station runs without it, while the project keeps the connection and its values, ready to
 // connect again.
 func TestAConnectionThatCannotBeReachedIsLetGoOf(t *testing.T) {
-	s, home := newService(t)
-	dir := filepath.Join(home, ConnectionsFolder)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	s, _ := newService(t)
+	if _, err := s.NewConnection("", "opcua"); err != nil {
 		t.Fatal(err)
 	}
-	file := `{"id": "far", "name": "Far away", "driver": "opcua",
-  "vars": { "type": "object", "properties": { "endpoint": { "type": "string" } } },
-  "settings": { "endpoint": "{endpoint}" }, "bindings": []}`
-	if err := os.WriteFile(filepath.Join(dir, "far.json"), []byte(file), 0o644); err != nil {
+	if _, err := s.SetConnectionValues("", map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}); err != nil {
 		t.Fatal(err)
 	}
-	far := PLCConfig{Mode: PLCExternal, Connection: "far", Values: map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}}
-	if err := s.SetPLCFor("", far); err != nil {
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal}); err != nil {
 		t.Fatal(err)
 	}
 	if linkOf(s) == nil {
@@ -184,7 +262,7 @@ func TestAConnectionThatCannotBeReachedIsLetGoOf(t *testing.T) {
 	if got := s.PLCFor(""); got.Mode != PLCNone {
 		t.Errorf("no PLC runs: %+v", got)
 	}
-	if got := s.PlannedPLC(""); got.Connection != "far" || got.Values["endpoint"] != "opc.tcp://127.0.0.1:1" {
+	if got := s.PlannedPLC(""); got.External == nil || got.External.Kind != "opcua" || got.External.Values["endpoint"] != "opc.tcp://127.0.0.1:1" {
 		t.Errorf("the project keeps the connection to connect again: %+v", got)
 	}
 }

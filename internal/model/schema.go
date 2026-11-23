@@ -795,22 +795,6 @@ type DockDef struct {
 }
 
 // PLCSignalDef names a bit of the PLC image for display.
-// PLCMapDef lets a PLC program use other addresses than the station. A variable it
-// does not mention uses the same address on both sides.
-type PLCMapDef struct {
-	ID      string          `json:"id"`
-	Name    string          `json:"name"`
-	Inputs  []PLCBindingDef `json:"inputs,omitempty"`
-	Outputs []PLCBindingDef `json:"outputs,omitempty"`
-}
-
-// PLCBindingDef connects a signal of the station to a variable of the PLC program.
-type PLCBindingDef struct {
-	Signal   string `json:"signal"`
-	Variable string `json:"variable"`
-	Invert   bool   `json:"invert,omitempty"`
-}
-
 type PLCSignalDef struct {
 	Address     string `json:"address"`
 	Name        string `json:"name"`
@@ -838,14 +822,15 @@ type StationDef struct {
 	PLCs []StationPLCDef `json:"plcs,omitempty"`
 }
 
-// StationPLCDef is a PLC of a station: the PLC module, such as the rack on a stand, the
-// names of its signals by address, and the address maps for programs written for another
-// wiring. Program is a built-in program, of the first PLC only.
+// StationPLCDef is a PLC of a station: the PLC module, such as the rack on a stand, and the
+// names of its signals by address. Program is a built-in program, of the first PLC only.
 type StationPLCDef struct {
 	Program string         `json:"program,omitempty"`
 	Module  string         `json:"module,omitempty"`
 	Signals []PLCSignalDef `json:"signals,omitempty"`
-	Maps    []PLCMapDef    `json:"maps,omitempty"`
+	// Maps were address maps for PLC programs written for another wiring. They are read and
+	// left out: such a program's mapping is the connection of a project, of the kind CODESYS.
+	Maps json.RawMessage `json:"maps,omitempty"`
 }
 
 // WorkpieceKind is one variant of a workpiece set.

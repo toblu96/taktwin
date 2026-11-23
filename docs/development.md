@@ -51,7 +51,7 @@ Tests do not show whether a page works. `go build -tags server` builds the app i
 | `internal/opcsim` | An OPC UA server around any controller, the soft PLC's |
 | `st/` | Structured Text compiler and runtime, a Go module of its own with no dependencies. See [st/README.md](../st/README.md) |
 | `internal/plcprog` | A PLC's ST project in your folder, and the soft PLC that runs it behind an OPC UA server |
-| `internal/simapp` | The Wails services the frontend calls: the simulation and its projects (`service.go`, `projects.go`), exercise files and their checks (`exercisefile.go`, `exercises.go`), the builder (`builder.go`, `wiring.go`), the library and collections (`library.go`, `collections.go`), connections (`connections.go`, `editor.go`), the programming tool (`programs.go`), settings and updates |
+| `internal/simapp` | The Wails services the frontend calls: the simulation and its projects (`service.go`, `projects.go`), saving a project file in place (`document.go`), the list of files opened (`recent.go`), a project's original and handing it out (`original.go`), project files and exercise checks (`exercisefile.go`, `exercises.go`), the builder (`builder.go`, `wiring.go`), the library and collections (`library.go`, `collections.go`), connections (`connections.go`, `editor.go`), the programming tool (`programs.go`), settings and updates |
 | `internal/version` | The app's version; `scripts/set-version.sh` changes it with the build files |
 | `frontend/src` | The Vue app. `router.ts` says where the app is (projects, the open project simulated or built, library, settings) and guards those pages, `sim.ts` holds the open project, `builder.ts` the station being built, `update.ts` the updates; `ask.ts` asks in Wails' native dialogs |
 | `frontend/src/ui` | The shared components on UI SDK and the design tokens (`theme.css`); `lab.html` shows them. See [AGENTS.md](../AGENTS.md#the-ui) |
@@ -68,17 +68,25 @@ The app starts on **Projects**, with **Library** beside it, which browses the co
 
 The library is a stack of layers, front first: the user folder's own files, imported collections (`collections/` of the user folder), those named by `TAKTWIN_COLLECTIONS`, the built-in reference collection, and the base. Hidden collections are left out. A file is taken from the first layer that has it (`simapp.Library`).
 
-Everything in the simulation belongs to a project, a folder under `projects/` of the user folder:
+Everything in the simulation belongs to a project: a `.taktwin-project` file, a zip of data only, wherever it is ([ADR 0002](adr/0002-projects-as-documents.md)). New ones are made in `projects/` of the user folder; the settings keep a list of those opened from elsewhere. A project file holds:
 
 | File | What it is |
 |---|---|
-| `project.json` | What it is based on (a station, or an exercise and its station), how its PLCs are connected, its settings, its last check, and for exercises handed out `handout`, `fromHandout` and `requires` |
-| `station.json` | The project's own station, once it was built on or came with an exercise file. Without it, the station is the collection's and follows its updates |
-| `exercise.json`, `instructions.md` | The exercise and its instructions, for an exercise handed out as a file |
+| `project.json` | Format 2: its id, what it is based on (a station, or an exercise and its station), the collections it carries with their versions, how its PLCs are connected with each one's external connection, its settings, its last check, when its original was set, and for an exercise `exerciseHash` |
+| `station.json` | The project's copy of its station, made with the project and built on in it |
+| `exercise.json`, `instructions.md` | For a project on an exercise, its copy of the exercise and its instructions |
 | `programs/<plc>/` | The soft PLCs' Structured Text |
+| `collections/<id>.taktwin` | Every collection the station, the exercise and their example programs come from, the base and the app's own among them, in the version the project was made with or last updated to |
+| `original/` | The project's original: `project.json` without the last check, the station, the exercise, the instructions and the programs as they were when it was set, and in `original/collections/` the older versions of collections the project has since been updated from |
 | `thumbnail.jpg` | A picture of the station as it was last closed |
 
-`projectLibrary` puts the project's own `station.json` and `exercise.json` in front of the collections, so the rest of the app loads a project's station like any other. A `.taktwin-project` file is a zip of such a folder. One handed out also brings the imported collections its station is built from, under `collections/`. Opening it asks to install them first.
+The app works in a working copy of the open project, in `projects/<id>/` of the settings folder, so the rest of the app reads and writes a project as a folder (`simapp.document`). Every second it looks for changes, and writes a change once it has stayed for a look: into a temporary file beside the project file, renamed over it. Before writing, it compares the file's size and time with when it last read or wrote it, and leaves a file changed from elsewhere alone (`SaveConflict`). A file it cannot write opens read only (`SaveReadOnly`). `projects/<id>.json` beside the working copy says which file it belongs to and what was last saved, so that changes a crash left behind are offered back when the file is opened again. Closing a project writes the file and removes its working copy. The state goes to the frontend as `project:save` events.
+
+`projectLibrary` puts the project's own `station.json` and `exercise.json` in front, then the collections it carries, then those installed for anything else, leaving out an installed collection whose id the project carries, also a hidden one. So the rest of the app loads a project's station like any other, and the same on every computer. Opening a project copies in what it lacks (`carry`): its station, its exercise, and the collections they come from, as installed here, for a new project and for a file made without them. `updatesOf` compares the carried versions with those installed, and `UpdateCollections` replaces them, letting the station and the exercise follow where the project's copies are those of the old version. A collection is only offered newer when its `version` is raised.
+
+The original (`original.go`) is made when a project without one is opened, by `KeepAsOriginal`, and by `HandOut` for the copy it writes, with a new id. `Original` compares the project with it, part by part, and `PutBack` puts a part back: a PLC's connection or programs, the station, the settings, or everything, the collections' versions too. Before `UpdateCollections` replaces a collection the original uses, `keepOlder` keeps its package under `original/collections/`.
+
+An exercise's project keeps `exerciseHash`, a sum of its `exercise.json` and `station.json` as the original has them; `ProjectInfo.ExerciseChanged` says when they differ. In expert mode, `StartCheck` first calls `teacherCheck`: when the installed collections have the exercise and the project's copies differ, their exercise and station go in front of the project's library as `project.teacher`, in memory only, and the station loads again with its PLCs connected (`reload(true)`).
 
 ## Commits, branches and releases
 

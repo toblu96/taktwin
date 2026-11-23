@@ -27,7 +27,6 @@ export type {
     SceneLamp,
     SceneNode,
     ScenePLC,
-    ScenePLCMap,
     SceneParameter,
     ScenePin,
     SceneSignal,

@@ -239,7 +239,7 @@ Without it, the templates of `addresses` show them, as `IB0Bit03` and `AI0`. An 
 
 ## Connections
 
-A connection says how a PLC of a station is coupled to a controller outside the app, such as a CODESYS PLC or a FluidSIM project: which driver talks to it, how it is reached, and which item of it each signal of the station is exchanged with. The station itself never changes for it. The PLC panel offers the app's own connections, one to CODESYS, one for each `plc.maps` entry of the station and an empty one to any OPC UA server, and the files in `connections/` of the user's folder and of the collections. Its connection editor writes such files into the user's folder.
+A connection says how a PLC of a station is coupled to a controller outside the app, such as a CODESYS PLC or a FluidSIM project: which driver talks to it, how it is reached, and which item of it each signal of the station is exchanged with. The station itself never changes for it. A project keeps one connection for each PLC, made from a kind, and then its own: its form's values and its bindings are kept in the project file. The kinds are the app's own, one to CODESYS and an empty one to any OPC UA server, and the files in `connections/` of the collections that name no `station`, such as the base's FluidSIM input and output ports. A file that names a `station` is a mapping of that station and offered as no kind: such a mapping is made in a project, which is shared as a file.
 
 ```json
 {
@@ -358,7 +358,7 @@ A station file says its `format`, which is 5; the app reads no other. Modules an
 | `actions` | Station-wide functions, in the same form as a module's |
 | `docks` | Station-wide widgets, at `bottom` or `side` |
 | `plc.signals` | Names for the signals of the PLC image, by address, such as `%IX0.0`. A signal the station does not name takes the `symbol` of a pin on its way, or else the name `instance.pin` |
-| `plc.maps` | Other addresses for a PLC program written for another wiring: each entry connects a `signal` to a `variable` of the list, optionally inverted. The PLC panel offers each as a CODESYS connection |
+| `plc.maps` | No longer used: read and left out. A PLC program written for another wiring gets its bindings in the project's connection, of the kind CODESYS |
 | `plcs` | The PLCs besides the first one, of stations side by side, each with its `module` and `signals`. Every PLC has an image of its own, its own program or OPC UA connection, and its own I/O test |
 
 Signals are referenced as `instance.device.state` or `instance.connector.pin`. Everything joined by cables, wires and bridges is one electrical net with one value, so a signal travels from a device through its terminals to the PLC as on a real station.
