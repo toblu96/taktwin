@@ -195,6 +195,11 @@ export interface CheckState {
     "running": boolean;
     "lines": exercise$0.Check[] | null;
     "error": string;
+
+    /**
+     * Note says that the check ran with the teacher's own exercise and station, and why.
+     */
+    "note"?: string;
 }
 
 /**
@@ -526,6 +531,12 @@ export interface ProjectInfo {
      * with the version it has and the one installed.
      */
     "updates"?: Requirement[] | null;
+
+    /**
+     * ExerciseChanged says that its exercise or the exercise's station is no longer as its
+     * original has them, such as when it was handed out.
+     */
+    "exerciseChanged"?: boolean;
 }
 
 /**

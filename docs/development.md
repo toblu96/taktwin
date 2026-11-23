@@ -86,6 +86,8 @@ The app works in a working copy of the open project, in `projects/<id>/` of the 
 
 The original (`original.go`) is made when a project without one is opened, by `KeepAsOriginal`, and by `HandOut` for the copy it writes, with a new id. `Original` compares the project with it, part by part, and `PutBack` puts a part back: a PLC's connection or programs, the station, the settings, or everything, the collections' versions too. Before `UpdateCollections` replaces a collection the original uses, `keepOlder` keeps its package under `original/collections/`.
 
+An exercise's project keeps `exerciseHash`, a sum of its `exercise.json` and `station.json` as the original has them; `ProjectInfo.ExerciseChanged` says when they differ. In expert mode, `StartCheck` first calls `teacherCheck`: when the installed collections have the exercise and the project's copies differ, their exercise and station go in front of the project's library as `project.teacher`, in memory only, and the station loads again with its PLCs connected (`reload(true)`).
+
 ## Commits, branches and releases
 
 - **Commits and pull request titles** follow [Conventional Commits](https://www.conventionalcommits.org/): `feat(builder): …`, `fix: …`, `docs: …`, `refactor: …`, `test: …`, `ci: …`, `build: …`, `chore: …`. Pull requests are squash-merged with their title, which a check enforces, and the changelog of each release is made from them by [git-cliff](https://git-cliff.org) (`cliff.toml`).

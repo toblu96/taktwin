@@ -511,7 +511,9 @@ export function Snapshot(): $CancellablePromise<engine$0.Snapshot> {
 
 /**
  * StartCheck checks the station against an exercise, from its power-on state with the PLC
- * as it is, line by line on the wall clock, as someone with the grading sheet would.
+ * as it is, line by line on the wall clock, as someone with the grading sheet would. In expert
+ * mode, a teacher's check of a project on an exercise their collections have runs with their
+ * own exercise and its station, when the project's copies differ from them.
  */
 export function StartCheck(id: string): $CancellablePromise<void> {
     return $Call.ByID(2128538926, id);

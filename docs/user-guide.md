@@ -75,6 +75,8 @@ Students open the file by double-clicking it, dropping it onto **Projects**, or 
 
 To hand in, students send that file, renamed if the teacher asks, such as `Anna.taktwin-project`. The teacher opens it and presses **Check**.
 
+The station of an exercise is locked: it cannot be built on, rewired or put back, as the check counts on it. A project file is a zip anyone can change, so an exercise keeps a sum of itself and its station as handed out: when they no longer match, **Exercise** says so, and putting everything back makes them as they were. This catches mistakes, not cheating. So in expert mode, a check of a project on an exercise your collections have runs with your exercise and its station when the project's differ from them, in memory only, with the PLC still connected, and the result says so. The hand-in's file stays as it was.
+
 ## Running a station
 
 ### Testing I/O by hand

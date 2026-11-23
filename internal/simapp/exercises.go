@@ -1,12 +1,16 @@
 package simapp
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"maps"
+	"path"
 	"slices"
+	"strings"
 	"sync"
+	"testing/fstest"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -39,6 +43,8 @@ type CheckState struct {
 	Running  bool             `json:"running"`
 	Lines    []exercise.Check `json:"lines"`
 	Error    string           `json:"error"`
+	// Note says that the check ran with the teacher's own exercise and station, and why.
+	Note string `json:"note,omitempty"`
 }
 
 // checking is the check that runs, if any.
@@ -120,8 +126,14 @@ func (s *Service) checkState() CheckState {
 }
 
 // StartCheck checks the station against an exercise, from its power-on state with the PLC
-// as it is, line by line on the wall clock, as someone with the grading sheet would.
+// as it is, line by line on the wall clock, as someone with the grading sheet would. In expert
+// mode, a teacher's check of a project on an exercise their collections have runs with their
+// own exercise and its station, when the project's copies differ from them.
 func (s *Service) StartCheck(id string) error {
+	note, err := s.teacherCheck(id)
+	if err != nil {
+		return err
+	}
 	ex, err := s.library().Exercise(id)
 	if err != nil {
 		return err
@@ -145,7 +157,7 @@ func (s *Service) StartCheck(id string) error {
 		return errors.New("a check is running already")
 	}
 	run, stop := context.WithCancel(ctx)
-	s.check.state, s.check.stop = CheckState{Exercise: id, Running: true}, stop
+	s.check.state, s.check.stop = CheckState{Exercise: id, Running: true, Note: note}, stop
 	s.check.mu.Unlock()
 	e.Reset()
 	s.emitCheck()
@@ -214,4 +226,52 @@ func (s *Service) emitCheck() {
 	if app := application.Get(); app != nil {
 		app.Event.Emit(CheckEvent, st)
 	}
+}
+
+// teacherCheck puts the exercise and its station as the teacher's collections have them in
+// front of the open project's, in memory only, when the project is on that exercise, expert
+// mode is on and the project's copies differ: a hand-in's exercise can be changed by anyone
+// who opens its file, the teacher's cannot. The station loads again with its PLCs connected.
+// It says what differs, "" when the project's own are used.
+func (s *Service) teacherCheck(id string) (string, error) {
+	s.mu.Lock()
+	dir, b := s.proj.dir(), s.proj.def.Base
+	s.mu.Unlock()
+	if dir == "" || b.Exercise != id || !readSettings().Expert {
+		return "", nil
+	}
+	mine := Library()
+	ex, err := mine.Exercise(id)
+	if err != nil {
+		return "", nil
+	}
+	exercise, err1 := mine.ReadFile(path.Join("exercises", id, "exercise.json"))
+	station, err2 := mine.ReadFile(path.Join("stations", ex.Station, "station.json"))
+	if err1 != nil || err2 != nil || ex.Station != b.Station {
+		return "", nil
+	}
+	read := dirReader(dir)
+	theirs, _ := read(ExerciseFile)
+	theirStation, _ := read(StationFile)
+	var differs []string
+	if !bytes.Equal(theirs, exercise) {
+		differs = append(differs, "exercise")
+	}
+	if !bytes.Equal(theirStation, station) {
+		differs = append(differs, "station")
+	}
+	if len(differs) == 0 {
+		return "", nil
+	}
+	layer := fstest.MapFS{
+		path.Join("exercises", id, "exercise.json"):      &fstest.MapFile{Data: exercise},
+		path.Join("stations", b.Station, "station.json"): &fstest.MapFile{Data: station},
+	}
+	s.mu.Lock()
+	s.proj.teacher = layer
+	s.mu.Unlock()
+	if _, err := s.reload(true); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("Checked with the exercise as your collections have it: this project's %s differs from it.", strings.Join(differs, " and ")), nil
 }

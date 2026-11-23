@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/toblu96/taktwin/catalog"
+	"github.com/toblu96/taktwin/internal/plcio"
 )
 
 // zipNames lists the files of a zip file.
@@ -180,5 +181,111 @@ func TestNewerVersions(t *testing.T) {
 		if newer(c.a, c.b) != c.newer {
 			t.Errorf("%s after %s: %v", c.a, c.b, !c.newer)
 		}
+	}
+}
+
+// An exercise knows when it or its station was changed since its original, such as since
+// it was handed out, and putting everything back makes it as it was.
+func TestAnExerciseKnowsWhenItWasChanged(t *testing.T) {
+	s, _ := newService(t)
+	if _, err := s.NewProject("", Base{Exercise: "load-a-pallet"}); err != nil {
+		t.Fatal(err)
+	}
+	if p := s.Project(); p.ExerciseChanged {
+		t.Fatalf("a new exercise is changed: %+v", p)
+	}
+	if def := s.proj.def; def.ExerciseHash == "" {
+		t.Fatal("no hash of the exercise")
+	}
+	file := filepath.Join(s.proj.dir(), ExerciseFile)
+	data, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, []byte(strings.Replace(string(data), `"name": "Load a pallet"`, `"name": "Easy"`, 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if p := s.Project(); !p.ExerciseChanged {
+		t.Error("the changed exercise is not noticed")
+	}
+	if _, err := s.PutBack(PartEverything, ""); err != nil {
+		t.Fatal(err)
+	}
+	if p := s.Project(); p.ExerciseChanged {
+		t.Error("put back, it is still changed")
+	}
+	// A project on a station has nothing to compare.
+	if _, err := s.NewProject("", Base{Station: "pallet-loading"}); err != nil {
+		t.Fatal(err)
+	}
+	if p := s.Project(); p.ExerciseChanged || s.proj.def.ExerciseHash != "" {
+		t.Errorf("a station's project: %+v", p)
+	}
+}
+
+// A teacher in expert mode checks a hand-in whose exercise was changed with the exercise as
+// their own collections have it, and the result says so; the hand-in's file stays as it was.
+// Without expert mode, or with copies as the teacher's, the project's own are used.
+func TestATeacherChecksWithTheirOwnExercise(t *testing.T) {
+	s, _ := newService(t)
+	if _, err := s.NewProject("", Base{Exercise: "load-a-pallet"}); err != nil {
+		t.Fatal(err)
+	}
+	check := func() CheckState {
+		t.Helper()
+		if err := s.StartCheck("load-a-pallet"); err != nil {
+			t.Fatal(err)
+		}
+		st := s.Check()
+		s.StopCheck()
+		waitFor(t, "the check to stop", func() bool { return !s.Check().Running })
+		return st
+	}
+	if err := (SettingsService{}).SetExpertMode(true); err != nil {
+		t.Fatal(err)
+	}
+	if st := check(); st.Note != "" {
+		t.Errorf("the copies are the teacher's: %+v", st)
+	}
+	file := filepath.Join(s.proj.dir(), ExerciseFile)
+	data, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	easy := strings.Replace(string(data), `"name": "Load a pallet"`, `"name": "Easy"`, 1)
+	if err := os.WriteFile(file, []byte(easy), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := (SettingsService{}).SetExpertMode(false); err != nil {
+		t.Fatal(err)
+	}
+	if st := check(); st.Note != "" {
+		t.Errorf("a student checks with the project's own: %+v", st)
+	}
+	if ex, _ := s.library().Exercise("load-a-pallet"); ex.Name != "Easy" {
+		t.Errorf("the project's own: %s", ex.Name)
+	}
+	if err := (SettingsService{}).SetExpertMode(true); err != nil {
+		t.Fatal(err)
+	}
+	// The PLC stays connected while the teacher's station loads.
+	t.Cleanup(softPLCs.Close)
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCSoft}); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = s.SetPLCFor("", PLCConfig{Mode: PLCNone}) }()
+	st := check()
+	if got := s.PLCFor(""); got.Mode != PLCSoft {
+		t.Errorf("the PLC was let go of: %+v", got)
+	}
+	waitFor(t, "the soft PLC", func() bool { l := linkOf(s); return l != nil && l.State == plcio.LinkConnected })
+	if !strings.Contains(st.Note, "exercise") {
+		t.Errorf("the result does not say so: %+v", st)
+	}
+	if ex, _ := s.library().Exercise("load-a-pallet"); ex.Name != "Load a pallet" {
+		t.Errorf("checked with: %s", ex.Name)
+	}
+	if got, _ := os.ReadFile(file); string(got) != easy {
+		t.Error("the hand-in's exercise was changed")
 	}
 }

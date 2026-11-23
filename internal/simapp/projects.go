@@ -73,6 +73,9 @@ type ProjectDef struct {
 	Collections []Requirement `json:"collections,omitempty"`
 	// Original is when the project's original, under original/, was set, as RFC 3339.
 	Original string `json:"original,omitempty"`
+	// ExerciseHash sums the exercise and its station as the original has them, for a project
+	// on an exercise, to tell when they were changed since.
+	ExerciseHash string `json:"exerciseHash,omitempty"`
 }
 
 // Requirement is a collection a project needs, with the version it was made with.
@@ -104,6 +107,9 @@ type project struct {
 	name string
 	def  ProjectDef
 	doc  *document
+	// teacher is the exercise and its station as the teacher's collections have them, in front
+	// of the project's own while a teacher checks a hand-in whose copies differ; never saved.
+	teacher fs.FS
 }
 
 // dir is the project's working copy.
@@ -156,6 +162,9 @@ type ProjectInfo struct {
 	// Updates are the collections it carries of which a newer version is installed here,
 	// with the version it has and the one installed.
 	Updates []Requirement `json:"updates,omitempty"`
+	// ExerciseChanged says that its exercise or the exercise's station is no longer as its
+	// original has them, such as when it was handed out.
+	ExerciseChanged bool `json:"exerciseChanged,omitempty"`
 }
 
 // reader reads a project's files by their paths in it.
@@ -178,6 +187,7 @@ func projectInfo(srcs []source, file string, read reader, def ProjectDef) Projec
 	info := ProjectInfo{Name: nameOf(file), Path: file, Station: def.Base.Station, Exercise: def.Base.Exercise, InFolder: inProjectsDir(file)}
 	lib := libraryFrom(srcs, projectLayers(read, def))
 	info.Updates = updatesOf(srcs, def)
+	info.ExerciseChanged = def.ExerciseHash != "" && exerciseHash(read) != def.ExerciseHash
 	info.StationName = cmpOr(lib.StationName(def.Base.Station), def.Base.Station)
 	if !slices.Contains(lib.Stations(), def.Base.Station) {
 		info.Problem = fmt.Sprintf("Its station %s is in none of your collections.", def.Base.Station)
@@ -468,12 +478,27 @@ func (s *Service) library() *model.Library {
 	return libraryOf(p)
 }
 
-// libraryOf is the library of a project, or the collections for none.
+// libraryOf is the library of a project, or the collections for none, with the teacher's
+// exercise and station in front while a teacher checks a hand-in.
 func libraryOf(p project) *model.Library {
 	if p.dir() == "" {
 		return Library()
 	}
-	return projectLibrary(dirReader(p.dir()), p.def)
+	layers := projectLayers(dirReader(p.dir()), p.def)
+	if p.teacher != nil {
+		layers = append([]fs.FS{p.teacher}, layers...)
+	}
+	return libraryFrom(sources(), layers)
+}
+
+// exerciseHash sums a project's exercise and its station, "" for a project on no exercise.
+func exerciseHash(read reader) string {
+	ex, err := read(ExerciseFile)
+	if err != nil {
+		return ""
+	}
+	station, _ := read(StationFile)
+	return filesHash(map[string][]byte{ExerciseFile: ex, StationFile: station})
 }
 
 // usedBy are the collections a station is built from, by their ids, with the collections its
@@ -812,14 +837,19 @@ func emitSaveState(st SaveState) {
 // ReloadStation loads the open project's station again, as its files have it now, such as
 // after it was built on: every PLC is disconnected, as on a restart, while the soft PLCs go
 // on with their programs, ready to connect again.
-func (s *Service) ReloadStation() (model.Scene, error) {
+func (s *Service) ReloadStation() (model.Scene, error) { return s.reload(false) }
+
+// reload loads the open project's station again; with keep, its PLCs stay connected as they
+// were, for a station whose signals are the same.
+func (s *Service) reload(keep bool) (model.Scene, error) {
 	s.mu.Lock()
-	key, dir, def := s.proj.key(), s.proj.dir(), s.proj.def
+	p := s.proj
+	key, def := p.key(), p.def
 	s.mu.Unlock()
 	if key == "" {
 		return model.Scene{}, errNoProject
 	}
-	bundle, e, exercise, err := loadBase(projectLibrary(dirReader(dir), def), def.Base)
+	bundle, e, exercise, err := loadBase(libraryOf(p), def.Base)
 	if err != nil {
 		return model.Scene{}, err
 	}
@@ -833,8 +863,26 @@ func (s *Service) ReloadStation() (model.Scene, error) {
 		e.Close()
 		return model.Scene{}, errors.New("the project was closed")
 	}
-	old, stop := s.engine, s.stop
+	old, stop, was := s.engine, s.stop, s.plcs
 	s.engine, s.bundle, s.plcs, s.exercise = e, bundle, map[string]PLCConfig{}, exercise
+	var problem error
+	if keep {
+		for k, c := range was {
+			plc := k
+			if k == "" && len(e.Plan().PLCs) > 0 {
+				plc = e.Plan().PLCs[0]
+			}
+			ctl, err := s.controller(plc, c)
+			if err == nil {
+				err = e.SetControllerFor(plc, ctl)
+			}
+			if err != nil {
+				problem = errors.Join(problem, err)
+				continue
+			}
+			s.plcs[k] = c
+		}
+	}
 	s.run()
 	s.mu.Unlock()
 	if stop != nil {
@@ -843,7 +891,7 @@ func (s *Service) ReloadStation() (model.Scene, error) {
 	if old != nil {
 		old.Close()
 	}
-	return e.Scene(), nil
+	return e.Scene(), problem
 }
 
 // editedStation gives the open project's own station, to build on, with the project's key.

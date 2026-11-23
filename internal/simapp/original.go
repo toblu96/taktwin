@@ -70,6 +70,7 @@ func keepOriginal(dir string, def ProjectDef) (ProjectDef, error) {
 		return def, err
 	}
 	def.Original = time.Now().UTC().Format(time.RFC3339)
+	def.ExerciseHash = exerciseHash(dirReader(dir))
 	if err := writeProject(dir, def); err != nil {
 		return def, err
 	}
@@ -241,7 +242,7 @@ func (s *Service) KeepAsOriginal() (OriginalInfo, error) {
 			return errNoProject
 		}
 		def, err := keepOriginal(s.proj.dir(), s.proj.def)
-		s.proj.def.Original = def.Original
+		s.proj.def.Original, s.proj.def.ExerciseHash = def.Original, def.ExerciseHash
 		return err
 	}()
 	if err != nil {
@@ -455,6 +456,7 @@ func handOut(files map[string][]byte, to string, programs bool) error {
 	}
 	def.ID, def.LastCheck = newID(), nil
 	def.Original = time.Now().UTC().Format(time.RFC3339)
+	def.ExerciseHash = exerciseHash(mapReader(out))
 	if out[ProjectFile], err = projectJSON(def); err != nil {
 		return err
 	}
