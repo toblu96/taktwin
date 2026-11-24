@@ -261,6 +261,30 @@ export interface ConnectionInfo {
 }
 
 /**
+ * EditorPlace is where the cursor was in a file, as an offset, and how far it was scrolled.
+ */
+export interface EditorPlace {
+    "cursor": number;
+    "top": number;
+}
+
+/**
+ * EditorState is where the programming tool of a PLC was left: its open files, the one in
+ * front, and the place in each. It is kept on this computer, by project, not in the project
+ * file, so that switching files changes no project and a project handed on opens as its
+ * receiver last left it.
+ */
+export interface EditorState {
+    "open": string[] | null;
+    "active": string;
+
+    /**
+     * Places are where the cursor and the view were in each file, by name.
+     */
+    "places"?: { [_ in string]?: EditorPlace } | null;
+}
+
+/**
  * Example is a station a collection opens with, offered to start a project from.
  */
 export interface Example {

@@ -3,6 +3,7 @@ package simapp
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net"
 	"os"
 	"path/filepath"
@@ -169,4 +170,67 @@ func TestFindFillsInTheCODESYSForm(t *testing.T) {
 	if _, err := s.FindCODESYSList("", map[string]any{"endpoint": endpoint, "list": "Nope"}); err == nil || !strings.Contains(err.Error(), "symbol configuration") {
 		t.Errorf("a list the server has not: %v", err)
 	}
+}
+
+// The programming tool checks the files being typed without saving them, formats a file as
+// CODESYS does, and remembers where it was left per project on this computer, not in the
+// project file.
+func TestTheProgrammingToolChecksFormatsAndRemembers(t *testing.T) {
+	s, _ := newService(t)
+	prog := NewProgramService(s)
+	opened, err := prog.Open("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved, err := prog.ReadFile("", "PLC_PRG.st")
+	if err != nil {
+		t.Fatal(err)
+	}
+	broken := strings.Replace(saved, "END_PROGRAM", "x := ;\nEND_PROGRAM", 1)
+	if !strings.Contains(saved, "END_PROGRAM") {
+		broken = saved + "\nx := ;\n"
+	}
+	res, err := prog.Check("", map[string]string{"PLC_PRG.st": broken})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.OK || len(res.Diagnostics) == 0 {
+		t.Errorf("the mistake is not found: %+v", res)
+	}
+	if again, _ := prog.ReadFile("", "PLC_PRG.st"); again != saved {
+		t.Error("checking saved the file")
+	}
+	if res, _ := prog.Check("", nil); !res.OK {
+		t.Errorf("the saved project has mistakes: %+v", res.Diagnostics)
+	}
+
+	if out, err := prog.Format("x.st", "program x\nvar a:int; end_var\na:=1;\nend_program\n"); err != nil || !strings.Contains(out, "a := 1;") || !strings.Contains(out, "PROGRAM x") {
+		t.Errorf("formatted: %q %v", out, err)
+	}
+
+	if st := prog.EditorState(""); len(st.Open) != 0 {
+		t.Errorf("a new project remembers editors: %+v", st)
+	}
+	want := EditorState{Open: []string{"PLC_PRG.st", "StepChain.st"}, Active: "StepChain.st", Places: map[string]EditorPlace{"StepChain.st": {Cursor: 120, Top: 40}}}
+	if err := prog.SetEditorState("", want); err != nil {
+		t.Fatal(err)
+	}
+	file := s.Project().Path
+	s.CloseProject()
+	if _, err := s.OpenProjectFile(file, OpenOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if got := prog.EditorState(""); got.Active != "StepChain.st" || len(got.Open) != 2 || got.Places["StepChain.st"].Cursor != 120 {
+		t.Errorf("not remembered: %+v", got)
+	}
+	if strings.Contains(strings.Join(slices.Collect(maps.Keys(zipFiles(t, file))), " "), "editor") {
+		t.Error("the editors are in the project file")
+	}
+	if _, err := s.NewProject("", Base{Station: "pallet-loading"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := prog.EditorState(""); len(got.Open) != 0 {
+		t.Errorf("another project has them: %+v", got)
+	}
+	_ = opened
 }
