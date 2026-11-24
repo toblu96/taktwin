@@ -61,7 +61,7 @@ The app is moving to a new look, page by page. New and reworked UI follows these
 - **Keyboard:** every control can be reached with Tab. WebKit, the Mac's webview, leaves buttons out of the tab order, so `frontend/src/ui/keyboard.ts` gives each one a tabindex. Each option of a choice is a stop of its own, as in `UiSegmented`, rather than one stop with arrow keys. Leave a second control that does the same as its neighbour out with `tabindex="-1"`, as a card's name does beside its picture.
 - **Styling:** Tailwind utilities with the tokens of `frontend/src/ui/theme.css`: `bg-s0`…`bg-s3` for surfaces, `text-fg`, `text-muted`, `border-line`, `border-control` for the edges of controls, `bg-accent` for the one main action, `text-focus` and `bg-highlight` for focus and selection, and the classes `t-btn`, `t-input`, `t-item`. No raw colours: every token has a dark and a light value.
 - **Contrast:** every token pair people read or press meets WCAG 2.2 AA (text 4.5:1, control edges and focus 3:1). Check a changed page with axe-core in the browser.
-- **No Tailwind reset yet:** buttons, lists and headings keep the browser's defaults, so components set margins, padding and line height themselves. Older pages' styles sit in the CSS layer `legacy`, below Tailwind, and map their colours onto the tokens.
+- **No Tailwind reset:** buttons, lists and headings keep the browser's defaults, so components set margins, padding and line height themselves. The theme's base layer only sizes the page, inherits fonts into controls and keeps text from being selected outside `select-text`.
 - **Icons:** [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons) (MIT), imported as `~icons/fluent/<name>-20-regular` and compiled in, never fetched.
 - **The lab:** `npm run dev`, then `/lab.html`, shows every shared control in dark and light (`?theme=light`); a new one goes in there too.
 
@@ -83,7 +83,7 @@ Then open `http://127.0.0.1:8765/`. Native dialogs, menus, file drops and file a
 - `internal/simapp`: the Wails services the frontend calls. Projects are in `projects.go`, saving their files in place in `document.go`, their originals in `original.go`, project files and hand-outs in `exercisefile.go`, the builder in `builder.go`.
 - `internal/link`: connections to external PLCs.
 - `internal/plcprog`, `st/`: the soft PLC and its compiler.
-- `frontend/src`: the pages in `components/`, the 3D view in `viewer/` (plain three.js), the programming tool in `ide/`.
+- `frontend/src`: the pages in `components/`, the 3D view in `viewer/` (plain three.js), the programming tool in `ide/` (its editor on CodeMirror 6).
 - `catalog/base` and `catalog/reference`: the built-in collections.
 
 [docs/development.md](docs/development.md) has the full map.

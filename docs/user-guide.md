@@ -105,13 +105,20 @@ Taktwin looks for a new version when it starts; **Settings → Updates** shows i
 
 ### Programming the soft PLC
 
-Each PLC can also run a Structured Text program written in the app. In the PLC's panel, **Edit program** opens the editor over the 3D view, and **Open in window** opens it beside the simulation.
+Each PLC can also run a Structured Text program written in the app. In the PLC's card, **Program** opens the editor over the 3D view, and **Open in window** opens it beside the simulation. It opens as you left it in this project: the same files open, the same one in front, at the same place. That is remembered on this computer, not in the project file.
 
-- **Ctrl+Space** (or Option+Space) lists what fits at the cursor: variables, the I/O list with each signal's description, POUs, types, standard functions and keywords, and members after a dot.
-- **Build** (F11) lists mistakes with their file, line and column.
-- **Download** (Alt+F8) loads the program into the soft PLC and connects the simulation to it over OPC UA, the same way it connects to a real PLC.
+The editor works as VS Code does with text, and as CODESYS does with Structured Text:
+
+- **Typing:** Enter after `IF … THEN`, `CASE … OF`, `FOR … DO`, `WHILE … DO`, `REPEAT`, `VAR` or `STRUCT` puts the block's end below, and the end of a block moves to where its start is as it is typed. Tab indents, Shift+Tab outdents.
+- **Lines and cursors:** Alt+↑ and Alt+↓ move the line or the selected lines, Shift+Alt+↑ and ↓ copy them; Ctrl+/ (⌘/ on a Mac) comments them in or out. ⌘D or Ctrl+D selects the next place with the same text, for typing in several places at once.
+- **Finding:** Ctrl+F (⌘F) searches and replaces in the file. Blocks and comments over several lines fold with the arrows beside the line numbers.
+- **Ctrl+Space** (or Alt+Space) lists what fits at the cursor: variables, the I/O list with each signal's description, POUs, types, standard functions and keywords, and members after a dot. Pointing at a name shows its declaration.
+- **Mistakes** are underlined as you type, and listed under **Messages** with their file, line and column; a click goes there. For a name that is not declared, pointing at it, or Ctrl+Shift+M (⌘⇧M) for the list, offers to declare it as `BOOL`, `INT` or `TIME`.
+- **Format** (Shift+Alt+F) lays the file out as CODESYS's Format Document does: keywords in capitals, spaces around assignments and operators, and blocks indented. It leaves a file with a syntax error alone, and comments as they are.
+- **Build** (F11) checks the project as saved. **Download** (Alt+F8) loads the program into the soft PLC and connects the simulation to it over OPC UA, the same way it connects to a real PLC.
 - **Run** (F5), **Stop** (Shift+F8) and **Reset** control the program.
-- **Online**, the code shows each variable's value in a box after its name. Click a value to prepare a new one, then F7 forces it, Ctrl+F7 writes it once, and Alt+F7 releases all forces.
+- **Online**, the code shows each variable's value in a box after its name, and can still be edited; **Hide values** above it takes the boxes away. Click a value to prepare a new one, then F7 forces it, Ctrl+F7 writes it once, and Alt+F7 releases all forces.
 - **Watch** lists every variable live, and can prepare, write and force values in the same way.
+- The **⋯** beside **POUs** renames or deletes the POU in front, loads the station's example program, and puts the PLC's programs back as the project's original has them.
 
 A PLC's program lives in the project you work in, under `programs/<plc>/`, one `.st` file for each POU, with `project.json` for the task. `Bits.st` is written from the station's I/O table each time the project opens. A new project starts from a template with a step chain; a collection can bring an example program for its station.
