@@ -34,6 +34,9 @@ func init() {
 	}
 }
 
+// timePrefixes are the short names of typed literals of time and date, such as T#1s.
+var timePrefixes = map[string]bool{"T": true, "LT": true, "D": true, "TOD": true, "DT": true, "LTOD": true, "LDT": true}
+
 type fmtKind int
 
 const (
@@ -332,6 +335,12 @@ func spaced(line []fmtToken, inside string) string {
 		text := t.text
 		if t.kind == fmtWord && (keywords[strings.ToUpper(text)] || fmtTypes[strings.ToUpper(text)]) {
 			text = strings.ToUpper(text)
+		}
+		if i := strings.IndexByte(text, '#'); t.kind == fmtNumber && i > 0 {
+			// A typed literal's type in capitals, as T#1s or INT#5; an enum's name stays.
+			if prefix := strings.ToUpper(text[:i]); fmtTypes[prefix] || timePrefixes[prefix] {
+				text = prefix + text[i:]
+			}
 		}
 		if prev != nil {
 			switch {

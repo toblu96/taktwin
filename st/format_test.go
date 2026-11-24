@@ -32,7 +32,7 @@ func TestFormatLaysOutAFile(t *testing.T) {
 		"else",
 		"y:=0;",
 		"end_case",
-		"t(IN:=x>0,PT:=T#1s,Q=>a[2]);",
+		"t(IN:=x>0,PT:=t#1s,Q=>a[2]);",
 		"for x:=1 to 3 by 1 do",
 		"a[x]:=true; // set",
 		"end_for",

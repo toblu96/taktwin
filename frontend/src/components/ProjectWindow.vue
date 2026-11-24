@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { programming, simulation } from '../sim'
 import { detailsWidth as details, treeWidth as tree } from '../layout'
 import UiSash from '../ui/UiSash.vue'
-import ProgramIde from '../ide/ProgramIde.vue'
 import StationViewer from '../viewer/StationViewer.vue'
 import PagePanel from './PagePanel.vue'
 import EventsPanel from './EventsPanel.vue'
@@ -12,6 +11,9 @@ import { events } from '../events'
 import ContextPanel from './ContextPanel.vue'
 import StageAlerts from './StageAlerts.vue'
 import SimulationSide from './SimulationSide.vue'
+
+// The programming tool, with its code editor, loads when a PLC's program is first opened.
+const ProgramIde = defineAsyncComponent(() => import('../ide/ProgramIde.vue'))
 
 // The simulation of an open project as it runs, laid out as VS Code lays out a folder: the
 // station's PLCs and controls on the left, the 3D view in the middle with the panel below it,

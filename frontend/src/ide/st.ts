@@ -1,4 +1,4 @@
-// Structured Text for the editor: tokens for highlighting, and what a file declares.
+// Structured Text for the editor: its tokens, the name at a place, and what a file declares.
 
 const KEYWORDS = new Set(
   `PROGRAM END_PROGRAM FUNCTION END_FUNCTION FUNCTION_BLOCK END_FUNCTION_BLOCK VAR VAR_INPUT VAR_OUTPUT VAR_IN_OUT VAR_TEMP VAR_GLOBAL
@@ -92,18 +92,6 @@ export function tokenize(src: string): Token[] {
   return out
 }
 
-const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-
-// highlight writes source as HTML with a span for each token that has a colour.
-export function highlight(src: string): string {
-  let html = ''
-  for (const t of tokenize(src)) {
-    html += t.kind === 'space' || t.kind === 'ident' || t.kind === 'op' ? escape(t.text) : `<span class="st-${t.kind}">${escape(t.text)}</span>`
-  }
-  // A last empty line still needs its height.
-  return html + '\n'
-}
-
 // declared names what a file declares first: a POU and its name, or a global variable list.
 export function declared(src: string): { kind: string; name: string } | null {
   for (const t of tokenize(src)) {
@@ -138,15 +126,6 @@ export function wordAt(src: string, offset: number): string | null {
   return null
 }
 
-// OPENERS are what a following line indents after.
-const OPENERS = /^\s*(.*\b(THEN|ELSE|DO|OF|REPEAT|VAR|VAR_INPUT|VAR_OUTPUT|VAR_IN_OUT|VAR_TEMP|VAR_GLOBAL|VAR_EXTERNAL|STRUCT|TYPE)\b\s*(\(\*.*\*\))?\s*$|.*:\s*(\(\*.*\*\))?\s*$)/i
-
-// indentAfter is the indentation of a new line after one.
-export function indentAfter(line: string): string {
-  const base = /^\s*/.exec(line)![0]
-  return OPENERS.test(line) && !/^\s*END_/i.test(line) ? base + '\t' : base
-}
-
 // Monitored is a variable as the editor shows it online.
 export interface Monitored {
   path: string
@@ -154,48 +133,4 @@ export interface Monitored {
   type: string
   forced?: boolean
   writable: boolean
-}
-
-const attr = (s: string) => escape(s).replace(/"/g, '&quot;')
-
-// box writes the value of a variable as CODESYS shows it inline: in a box after its name,
-// with a prepared value in angle brackets. Its text comes from CSS, so that the text of the
-// code alone stays the source.
-function box(m: Monitored, prepared: string | undefined): string {
-  const shown = prepared === undefined ? m.value : `${m.value} <${prepared}>`
-  const cls = ['st-mon', m.type === 'BOOL' ? (m.value === 'TRUE' ? 'on' : 'off') : '', m.forced ? 'forced' : '', m.writable ? 'writable' : ''].filter(Boolean).join(' ')
-  const title = m.writable ? `${m.path} : ${m.type}. Click to prepare a value, then F7 forces it, Ctrl+F7 writes it once.` : `${m.path} : ${m.type}`
-  return `<span class="${cls}" data-path="${attr(m.path)}" data-type="${attr(m.type)}" data-value="${attr(m.value)}" data-v="${attr(shown)}" title="${attr(title)}"></span>`
-}
-
-// highlightMonitored is highlight with the value of each variable after its name, for a
-// program online. A dotted name such as t.Q has one value; the formal parameters of a call,
-// IN := in t(IN := x), have none.
-export function highlightMonitored(src: string, lookup: (name: string) => Monitored | null, prepared: Record<string, string>): string {
-  const toks = tokenize(src)
-  const significant = (i: number, step: number) => {
-    for (let j = i + step; j >= 0 && j < toks.length; j += step) if (toks[j].kind !== 'space' && toks[j].kind !== 'comment') return toks[j]
-    return null
-  }
-  let html = ''
-  for (let i = 0; i < toks.length; i++) {
-    const t = toks[i]
-    if (t.kind !== 'ident') {
-      html += t.kind === 'space' || t.kind === 'op' ? escape(t.text) : `<span class="st-${t.kind}">${escape(t.text)}</span>`
-      continue
-    }
-    const first = i
-    while (toks[i + 1]?.text === '.' && toks[i + 2]?.kind === 'ident') i += 2
-    const name = toks
-      .slice(first, i + 1)
-      .map((x) => x.text)
-      .join('')
-    html += escape(name)
-    const before = significant(first, -1)?.text
-    const after = significant(i, 1)?.text
-    if (before === '.' || after === '=>' || (after === ':=' && (before === '(' || before === ','))) continue
-    const m = lookup(name)
-    if (m) html += box(m, prepared[m.path])
-  }
-  return html + '\n'
 }
