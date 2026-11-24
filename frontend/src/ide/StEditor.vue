@@ -367,13 +367,26 @@ function reportPlace(v: EditorView) {
 }
 
 onMounted(() => {
-  const keys = [
-    { key: 'Mod-s', run: () => (emit('save'), true), preventDefault: true },
-    { key: 'Shift-Alt-f', run: () => (emit('format'), true), preventDefault: true },
-    // Ctrl+Space as in CODESYS; Alt+Space as well, as macOS may keep Ctrl+Space for itself.
-    { key: 'Ctrl-Space', run: startCompletion },
-    { key: 'Alt-Space', run: startCompletion },
-  ]
+  const keys = [{ key: 'Mod-s', run: () => (emit('save'), true), preventDefault: true }]
+  // Keys with Alt go by the key pressed, not the character it makes: on a Mac, Alt+Shift+F types
+  // a character of its own, and Alt+Space a space that does not break.
+  const byKey = EditorView.domEventHandlers({
+    keydown: (e, v) => {
+      const plain = !e.metaKey && !e.ctrlKey
+      if (e.code === 'KeyF' && e.altKey && e.shiftKey && plain) {
+        // Format Document, as VS Code has it.
+        e.preventDefault()
+        emit('format')
+        return true
+      }
+      if (e.code === 'Space' && (e.ctrlKey || e.altKey) && !e.metaKey && !e.shiftKey) {
+        // Ctrl+Space as in CODESYS; Alt+Space as well, as macOS may keep Ctrl+Space for itself.
+        e.preventDefault()
+        return startCompletion(v)
+      }
+      return false
+    },
+  })
   const state = EditorState.create({
     doc: props.modelValue,
     selection: props.place ? EditorSelection.cursor(Math.min(props.place.cursor, props.modelValue.length)) : undefined,
@@ -402,6 +415,7 @@ onMounted(() => {
       valuesField,
       readOnlyConf.of(EditorState.readOnly.of(!!props.readOnly)),
       Prec.highest(keymap.of(keys)),
+      Prec.highest(byKey),
       Prec.high(keymap.of([{ key: 'Enter', run: closeBlock }])),
       keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...foldKeymap, ...completionKeymap, ...lintKeymap, indentWithTab]),
       theme,
