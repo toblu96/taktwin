@@ -277,7 +277,9 @@ function diagnostics(): Diagnostic[] {
 }
 
 watch(
-  () => props.marks,
+  // By their content: the tool hands new lists of the same marks as it redraws, and passing
+  // them on would close a mistake's tooltip while it is being read.
+  () => JSON.stringify(props.marks ?? []),
   () => view.value?.dispatch(setDiagnostics(view.value.state, diagnostics())),
 )
 
