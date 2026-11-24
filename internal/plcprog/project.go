@@ -227,7 +227,11 @@ func parseCycle(s string) (time.Duration, error) {
 }
 
 // Build compiles the project as it is in its folder.
-func (p *Project) Build() (*st.Program, []st.Diagnostic, error) {
+func (p *Project) Build() (*st.Program, []st.Diagnostic, error) { return p.BuildWith(nil) }
+
+// BuildWith compiles the project with some files as given, by name, such as those being typed
+// and not saved yet, and the others as they are in its folder.
+func (p *Project) BuildWith(texts map[string]string) (*st.Program, []st.Diagnostic, error) {
 	cycle, err := parseCycle(p.Meta.Cycle)
 	if err != nil {
 		return nil, nil, err
@@ -238,6 +242,10 @@ func (p *Project) Build() (*st.Program, []st.Diagnostic, error) {
 	}
 	sources := map[string]string{}
 	for _, f := range files {
+		if src, ok := texts[f.Name]; ok {
+			sources[f.Name] = src
+			continue
+		}
 		src, err := p.Read(f.Name)
 		if err != nil {
 			return nil, nil, err

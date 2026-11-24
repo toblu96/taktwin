@@ -35,6 +35,7 @@ Each message from `Compile` has a file, line and column. While any error is left
 - **Standard function blocks:** `TON`, `TOF`, `TP`, `R_TRIG`, `F_TRIG`, `CTU`, `CTD`, `CTUD`, `SR` and `RS`.
 - **Direct addresses:** on a process image of 64 bytes each way, `AT %IXn.m` and `AT %QXn.m` for a `BOOL`, `%IBn` and `%QBn` for a `BYTE`, `SINT` or `USINT`, `%IWn` and `%QWn` for a `WORD`, `INT` or `UINT`, and `%IDn` and `%QDn` for a `DWORD`, `DINT`, `UDINT` or `REAL`, with the low byte first. Used directly in code, `%IBn`, `%IWn` and `%IDn` are a `BYTE`, `WORD` and `DWORD`, and an output can be written by its address, as `%QW8 := INT_TO_WORD(speed);`.
 - **Online access:** `Variables`, `Read`, `Write`, `Force` and `Release` on paths such as `PLC_PRG.t.Q`, `GVL.x` or `arr[1, 2]`.
+- **Formatting:** `Format` lays a file out as CODESYS's Format Document does: keywords and elementary types in capitals, as are the types of typed literals such as `T#1s`, one space around assignments and operators and after commas, and each line indented by its blocks, a tab per level, CASE labels once and their statements twice. Comments and strings stay as they are, and so does the space before a comment at the end of a line. A file with a syntax error is given back unchanged with the error, and so is any result that would not lex to the same tokens.
 
 ## Where it differs from the standard or CODESYS
 

@@ -217,6 +217,27 @@ func (p *ProgramService) Build(plc string) (BuildResult, error) {
 	return BuildResult{OK: prog != nil, Diagnostics: diags}, nil
 }
 
+// Check compiles the project with the files being typed as they are now, by name, without
+// saving them, and says what is wrong: the editor underlines it while typing.
+func (p *ProgramService) Check(plc string, texts map[string]string) (BuildResult, error) {
+	proj, _, _, _, err := p.project(plc)
+	if err != nil {
+		return BuildResult{}, err
+	}
+	prog, diags, err := proj.BuildWith(texts)
+	if err != nil {
+		return BuildResult{}, err
+	}
+	if diags == nil {
+		diags = []st.Diagnostic{}
+	}
+	return BuildResult{OK: prog != nil, Diagnostics: diags}, nil
+}
+
+// Format lays out a source file as CODESYS's Format Document does. A file with a syntax
+// error stays as it is, and the error says why.
+func (p *ProgramService) Format(name, src string) (string, error) { return st.Format(name, src) }
+
 // Download builds the project and loads it into the soft PLC, stopped with every variable
 // at its initial value, as a login with download does.
 func (p *ProgramService) Download(plc string) (BuildResult, error) {

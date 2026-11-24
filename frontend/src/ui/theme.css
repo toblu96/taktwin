@@ -7,10 +7,9 @@
   edges of controls and the focus ring 3:1.
 
   Pages and components use the tokens as Tailwind utilities (bg-s1, text-muted, border-control).
-  Tailwind's reset is left out while older pages keep their own styles, which sit in the layer
-  legacy, below everything here.
+  Tailwind's reset is left out: components set margins, padding and line height themselves.
 */
-@layer ui-sdk, legacy, theme, base, components, utilities;
+@layer ui-sdk, theme, base, components, utilities;
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities);
 
@@ -41,6 +40,22 @@
   --t-ok: #5cd29a;
   --t-lamp-in: #5cd29a;
   --t-lamp-out: #ff9d2e;
+  /* Structured Text in the program editor, each 4.5:1 on s0 and on the line in focus. */
+  --t-code-keyword: #7fb7ff;
+  --t-code-type: #6ff0c4;
+  --t-code-function: #c9a7ff;
+  --t-code-comment: #8a9e9b;
+  --t-code-string: #ffb37a;
+  --t-code-number: #ffd76e;
+  --t-code-address: #ff8fc7;
+  /* A variable's value in the code while online, as CODESYS shows it: a light box; TRUE and
+     forced in colour. */
+  --t-value-bg: #e9eef0;
+  --t-value-fg: #10282c;
+  --t-value-edge: #9fb3b8;
+  --t-value-on: #2f6fd6;
+  --t-value-forced: #c23a26;
+  --t-value-on-fg: #ffffff;
   --t-shadow: 0 8px 24px #00000073, 0 0 0 1px #ffffff0a;
 }
 
@@ -70,6 +85,19 @@
   --t-ok: #1a7f50;
   --t-lamp-in: #1a7f50;
   --t-lamp-out: #b85c00;
+  --t-code-keyword: #1a5fb4;
+  --t-code-type: #00695c;
+  --t-code-function: #7a3fb8;
+  --t-code-comment: #5d6b69;
+  --t-code-string: #a4430b;
+  --t-code-number: #7a5400;
+  --t-code-address: #ad1f68;
+  --t-value-bg: #e3e9ec;
+  --t-value-fg: #10282c;
+  --t-value-edge: #6c7f84;
+  --t-value-on: #1f5fc4;
+  --t-value-forced: #b8321f;
+  --t-value-on-fg: #ffffff;
   --t-shadow: 0 8px 24px #1b1f2324, 0 0 0 1px #1b1f2312;
 }
 
@@ -113,6 +141,12 @@
   ::after {
     box-sizing: border-box;
   }
+  html,
+  body,
+  #app {
+    height: 100%;
+    margin: 0;
+  }
   body {
     background: var(--t-s0);
     color: var(--t-fg);
@@ -120,6 +154,18 @@
     font-size: 13px;
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
+    /* An app, not a page: nothing scrolls the window, and text is chosen only where it can be
+       copied, such as code and the I/O names (select-text). */
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
   }
   /*
     The focus ring: a second border floating 2px off what has focus, so that it never touches a

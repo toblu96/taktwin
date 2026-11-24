@@ -1,17 +1,43 @@
 <script setup lang="ts">
 import { ask } from '../ask'
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import { ProgramService } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import type { ProgramProject, ProgramStatus } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
+import { ProgramService, Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
+import type { EditorState, ProgramProject, ProgramStatus } from '../../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import type { Diagnostic, WatchVar } from '../../bindings/github.com/toblu96/taktwin/st/models'
+import { putBack } from '../original'
+import UiMenu, { type MenuEntry } from '../ui/UiMenu.vue'
+import UiSelect from '../ui/UiSelect.vue'
+import UiTabs from '../ui/UiTabs.vue'
+import UiTree, { type TreeRow } from '../ui/UiTree.vue'
 import { complete, parseUnit } from './complete'
 import StEditor from './StEditor.vue'
 import WatchTree from './WatchTree.vue'
 import { declared, type Monitored } from './st'
+import IconBuild from '~icons/fluent/wrench-16-regular'
+import IconDownload from '~icons/fluent/arrow-download-16-regular'
+import IconRun from '~icons/fluent/play-16-filled'
+import IconStop from '~icons/fluent/stop-16-filled'
+import IconReset from '~icons/fluent/arrow-counterclockwise-16-regular'
+import IconFormat from '~icons/fluent/text-align-left-16-regular'
+import IconWindow from '~icons/fluent/window-new-16-regular'
+import IconClose from '~icons/fluent/dismiss-16-regular'
+import IconAdd from '~icons/fluent/add-16-regular'
+import IconProgram from '~icons/fluent/code-16-regular'
+import IconBlock from '~icons/fluent/cube-16-regular'
+import IconFunction from '~icons/fluent/math-formula-16-regular'
+import IconGlobal from '~icons/fluent/globe-16-regular'
+import IconType from '~icons/fluent/braces-16-regular'
+import IconIO from '~icons/fluent/plug-connected-16-regular'
+import IconRename from '~icons/fluent/rename-16-regular'
+import IconDelete from '~icons/fluent/delete-16-regular'
+import IconExample from '~icons/fluent/document-16-regular'
+import IconUndo from '~icons/fluent/arrow-undo-16-regular'
+import IconLink from '~icons/fluent/link-16-regular'
 
 // The programming tool of a PLC, as CODESYS has it: the project's POUs, an editor for each,
 // building and downloading into the app's soft PLC, running it, and watching, writing and
-// forcing its variables online.
+// forcing its variables online. It opens again as it was left in the project, with the same
+// files open and the same one in front.
 const props = defineProps<{ plc: string; window?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
@@ -21,6 +47,7 @@ interface Tab {
   saved: string
   readOnly: boolean
   goto: { line: number; col: number; n: number } | null
+  place: { cursor: number; top: number } | null
 }
 
 const project = ref<ProgramProject | null>(null)
@@ -31,7 +58,7 @@ const diagnostics = ref<Diagnostic[]>([])
 const built = ref<'ok' | 'failed' | ''>('')
 const message = ref('')
 const busy = ref(false)
-const bottom = ref<'messages' | 'watch' | 'task'>('messages')
+const bottom = ref<string>('messages')
 const vars = ref<WatchVar[]>([])
 const open = reactive(new Set<string>())
 const prepared = reactive<Record<string, string>>({})
@@ -41,6 +68,8 @@ const task = reactive({ programs: '', cycle: '', step: '' })
 const downloads = ref(0)
 // The text of every file as saved, for completion across the project.
 const sources = reactive<Record<string, string>>({})
+// Whether the programs differ from the project's original, so that they can be put back.
+const changedFromOriginal = ref(false)
 
 const tab = computed(() => tabs.value.find((t) => t.name === active.value) ?? null)
 const dirty = (t: Tab) => t.text !== t.saved
@@ -58,17 +87,52 @@ async function load() {
     task.programs = (project.value.meta.programs ?? []).join(', ')
     task.cycle = project.value.meta.cycle
     task.step = project.value.meta.step ?? ''
-    if (!tabs.value.length) await openFile('PLC_PRG.st')
+    if (!tabs.value.length) await restore()
     await loadSources()
+    await checkOriginal()
   } catch (e) {
     fail(e)
   }
 }
 
+// restore opens the files that were open when the tool was last left in this project, with
+// the one in front and the place in each; or the PLC's main program the first time.
+async function restore() {
+  let state: EditorState | null = null
+  try {
+    state = await ProgramService.EditorState(props.plc)
+  } catch {
+    // Without one, it starts as new.
+  }
+  const names = new Set((project.value?.files ?? []).map((f) => f.name))
+  const openNames = (state?.open ?? []).filter((n) => names.has(n))
+  if (!openNames.length) openNames.push('PLC_PRG.st')
+  for (const name of openNames) await openFile(name, state?.places?.[name] ?? null)
+  if (state?.active && openNames.includes(state.active)) active.value = state.active
+  restored = true
+}
+
+// Where the tool is, kept for the next time, shortly after it changes.
+let restored = false
+let stateTimer = 0
+watch(
+  () => [tabs.value.map((t) => [t.name, t.place?.cursor, t.place?.top]), active.value],
+  () => {
+    if (!restored) return
+    window.clearTimeout(stateTimer)
+    stateTimer = window.setTimeout(() => {
+      const places = Object.fromEntries(tabs.value.filter((t) => t.place).map((t) => [t.name, t.place!]))
+      void ProgramService.SetEditorState(props.plc, { open: tabs.value.map((t) => t.name), active: active.value, places }).catch(() => undefined)
+    }, 400)
+  },
+  { deep: true },
+)
+
 async function refreshFiles() {
   try {
     project.value = await ProgramService.Open(props.plc)
     await loadSources()
+    await checkOriginal()
   } catch (e) {
     fail(e)
   }
@@ -78,6 +142,15 @@ async function loadSources() {
   const names = new Set((project.value?.files ?? []).map((f) => f.name))
   for (const k of Object.keys(sources)) if (!names.has(k)) delete sources[k]
   for (const name of names) sources[name] = await ProgramService.ReadFile(props.plc, name)
+}
+
+async function checkOriginal() {
+  try {
+    const o = await Service.Original()
+    changedFromOriginal.value = !!o.at && (o.programs ?? []).includes(project.value?.plc ?? '')
+  } catch {
+    changedFromOriginal.value = false
+  }
 }
 
 // suggestions lists what fits at the cursor of the open file, from what every file declares,
@@ -91,12 +164,12 @@ function suggestions(text: string, offset: number) {
   return complete(units, name, text, offset)
 }
 
-async function openFile(name: string) {
+async function openFile(name: string, place: Tab['place'] = null) {
   if (!tabs.value.some((t) => t.name === name)) {
     try {
       const text = await ProgramService.ReadFile(props.plc, name)
       const file = project.value?.files?.find((f) => f.name === name)
-      tabs.value.push({ name, text, saved: text, readOnly: !!file?.readOnly, goto: null })
+      tabs.value.push({ name, text, saved: text, readOnly: !!file?.readOnly, goto: null, place })
     } catch (e) {
       fail(e)
       return
@@ -108,8 +181,9 @@ async function openFile(name: string) {
 async function closeTab(name: string) {
   const t = tabs.value.find((x) => x.name === name)
   if (t && dirty(t) && !(await ask(`${name} has changes that are not saved. Close it anyway?`, 'Close'))) return
+  const i = tabs.value.findIndex((x) => x.name === name)
   tabs.value = tabs.value.filter((x) => x.name !== name)
-  if (active.value === name) active.value = tabs.value[0]?.name ?? ''
+  if (active.value === name) active.value = tabs.value[Math.min(i, tabs.value.length - 1)]?.name ?? ''
 }
 
 async function save(t: Tab) {
@@ -117,10 +191,24 @@ async function save(t: Tab) {
   // Into the project the tab comes from, also if the simulation has changed station since.
   await ProgramService.SaveFile(project.value!.project, project.value!.plc, t.name, t.text)
   t.saved = t.text
+  sources[t.name] = t.text
+  void checkOriginal()
 }
 
 async function saveAll() {
   for (const t of tabs.value) await save(t)
+}
+
+// format lays out the file in front as CODESYS's Format Document does; a file with a syntax
+// error stays as it is.
+async function format() {
+  const t = tab.value
+  if (!t || t.readOnly) return
+  try {
+    t.text = await ProgramService.Format(t.name, t.text)
+  } catch (e) {
+    message.value = `Format Document needs code without syntax errors: ${(e as Error).message ?? e}`
+  }
 }
 
 // run does one of the toolbar's actions, saving first where the project is compiled.
@@ -144,6 +232,26 @@ function showBuild(r: { ok: boolean; diagnostics: Diagnostic[] | null }) {
   built.value = r.ok ? 'ok' : 'failed'
   if (!r.ok || diagnostics.value.length) bottom.value = 'messages'
 }
+
+// The project is checked as it is typed, without saving, so that mistakes are underlined.
+let checkTimer = 0
+watch(
+  () => tabs.value.map((t) => t.text),
+  () => {
+    window.clearTimeout(checkTimer)
+    checkTimer = window.setTimeout(async () => {
+      const texts = Object.fromEntries(tabs.value.filter((t) => !t.readOnly).map((t) => [t.name, t.text]))
+      try {
+        const r = await ProgramService.Check(props.plc, texts)
+        diagnostics.value = r.diagnostics ?? []
+        built.value = r.ok ? 'ok' : 'failed'
+      } catch {
+        // A station that is changing is checked again with the next change.
+      }
+    }, 500)
+  },
+  { deep: true },
+)
 
 const build = () => run(async () => showBuild(await ProgramService.Build(props.plc)), true)
 
@@ -174,7 +282,8 @@ async function jump(d: Diagnostic) {
   if (t) t.goto = { line: d.pos.line, col: d.pos.col, n: (t.goto?.n ?? 0) + 1 }
 }
 
-const marksOf = (name: string) => diagnostics.value.filter((d) => d.pos.file === name).map((d) => ({ line: d.pos.line, severity: d.severity as string, msg: d.msg }))
+const marksOf = (name: string) =>
+  diagnostics.value.filter((d) => d.pos.file === name).map((d) => ({ line: d.pos.line, col: d.pos.col, severity: d.severity as string, msg: d.msg }))
 
 // The program's variables that have a value of their own, by their path, to show in the code.
 const values = computed(() => {
@@ -258,8 +367,44 @@ function toggle(path: string) {
   else open.add(path)
 }
 
-const KINDS = ['PROGRAM', 'FUNCTION_BLOCK', 'FUNCTION', 'GVL', 'TYPE']
+const KINDS = [
+  { value: 'PROGRAM', label: 'Program' },
+  { value: 'FUNCTION_BLOCK', label: 'Function block' },
+  { value: 'FUNCTION', label: 'Function' },
+  { value: 'GVL', label: 'Global variable list' },
+  { value: 'TYPE', label: 'Data type' },
+]
 const kindLabel: Record<string, string> = { PROGRAM: 'PRG', FUNCTION_BLOCK: 'FB', FUNCTION: 'FUN', GVL: 'GVL', TYPE: 'DUT', EMPTY: '—' }
+const kindIcon: Record<string, typeof IconProgram> = { PROGRAM: IconProgram, FUNCTION_BLOCK: IconBlock, FUNCTION: IconFunction, GVL: IconGlobal, TYPE: IconType }
+
+// The POUs as a tree, the one in front selected; the I/O list written from the station shows
+// as such.
+const pous = computed<TreeRow[]>(() =>
+  (project.value?.files ?? []).map((f) => ({
+    key: f.name,
+    label: f.name.replace(/\.st$/, ''),
+    icon: f.readOnly ? IconIO : (kindIcon[f.kind] ?? IconProgram),
+    hint: f.readOnly ? 'I/O' : (kindLabel[f.kind] ?? f.kind),
+    selected: f.name === active.value,
+    title: f.readOnly ? "Written from the station's I/O table" : f.name,
+  })),
+)
+const activeFile = computed(() => project.value?.files?.find((f) => f.name === active.value) ?? null)
+
+const pouMenu = computed<MenuEntry[]>(() => {
+  const f = activeFile.value
+  return [
+    ...(f && !f.readOnly
+      ? [
+          { label: `Rename ${f.name.replace(/\.st$/, '')}`, icon: IconRename, run: () => (renaming.value = { from: f.name, to: f.name.replace(/\.st$/, '') }) },
+          { label: `Delete ${f.name.replace(/\.st$/, '')}…`, icon: IconDelete, danger: true, run: () => void removeFile(f.name) },
+          {},
+        ]
+      : []),
+    ...(project.value?.example?.length ? [{ label: 'Load the example program…', icon: IconExample, run: () => void loadExample() }] : []),
+    { label: 'Put back the programs…', icon: IconUndo, disabled: !changedFromOriginal.value, run: () => void putBackPrograms() },
+  ]
+})
 
 async function addFile() {
   const a = adding.value
@@ -286,21 +431,41 @@ async function removeFile(name: string) {
   }
 }
 
+// reread takes the open files as they are saved now, after something else wrote them.
+async function reread() {
+  await refreshFiles()
+  const names = new Set((project.value?.files ?? []).map((f) => f.name))
+  tabs.value = tabs.value.filter((t) => names.has(t.name))
+  for (const t of tabs.value) {
+    const text = await ProgramService.ReadFile(props.plc, t.name)
+    t.text = text
+    t.saved = text
+  }
+  if (!tabs.value.some((t) => t.name === active.value)) active.value = tabs.value[0]?.name ?? ''
+  if (!tabs.value.length && names.has('PLC_PRG.st')) await openFile('PLC_PRG.st')
+}
+
 // loadExample copies the example program of the station's collection into the project,
 // over the files of the same names, after asking.
 async function loadExample() {
   const names = project.value?.example ?? []
   if (!names.length || !(await ask(`Load the example program of this station? It replaces ${names.join(', ')} in your project.`, 'Load the example'))) return
   try {
-    const written = (await ProgramService.LoadExample(props.plc)) ?? []
-    for (const t of tabs.value) {
-      if (!written.includes(t.name)) continue
-      const text = await ProgramService.ReadFile(props.plc, t.name)
-      t.text = text
-      t.saved = text
-    }
-    await refreshFiles()
+    await ProgramService.LoadExample(props.plc)
+    await reread()
     message.value = ''
+  } catch (e) {
+    fail(e)
+  }
+}
+
+// putBackPrograms puts the PLC's programs back as the project's original has them, after
+// asking.
+async function putBackPrograms() {
+  try {
+    await saveAll()
+    await putBack('programs', project.value?.plc ?? props.plc, 'the programs of this PLC')
+    await reread()
   } catch (e) {
     fail(e)
   }
@@ -356,10 +521,11 @@ async function follow() {
   following = true
   try {
     await saveAll()
+    restored = false
     tabs.value = []
     diagnostics.value = []
     vars.value = []
-    message.value = 'The simulation changed to another station: this is the program of its PLC.'
+    message.value = 'The simulation changed to another project: this is the program of its PLC.'
     await load()
   } finally {
     following = false
@@ -394,11 +560,14 @@ onMounted(() => {
 })
 onUnmounted(() => {
   window.clearInterval(timer)
+  window.clearTimeout(checkTimer)
+  window.clearTimeout(stateTimer)
   window.removeEventListener('keydown', onKey)
 })
 watch(
   () => props.plc,
   () => {
+    restored = false
     tabs.value = []
     void load()
   },
@@ -406,78 +575,109 @@ watch(
 
 const stateLabel = computed(() => {
   const s = status.value
-  if (!s?.loaded) return 'No program'
+  if (!s?.loaded) return 'No program loaded'
   return { running: 'Running', stopped: 'Stopped', failed: 'Error' }[s.state] ?? s.state
 })
+const lamp = computed(() => (status.value?.state === 'running' ? 'bg-ok' : status.value?.state === 'failed' ? 'bg-danger' : status.value?.loaded ? 'bg-accent' : 'bg-faint'))
+
+const bottomTabs = computed(() => [
+  { value: 'messages', label: 'Messages', count: diagnostics.value.length },
+  { value: 'watch', label: 'Watch' },
+  { value: 'task', label: 'Task' },
+])
+const btn = 't-btn h-7 gap-1.5 px-2'
 </script>
 
 <template>
-  <div class="ide" :class="{ window }">
-    <header class="toolbar">
-      <strong class="title">{{ project?.title ?? 'PLC' }}</strong>
-      <div class="group">
-        <button :disabled="busy" title="Build the project (F11)" @click="build">Build</button>
-        <button :disabled="busy" class="primary" title="Build, load into the soft PLC and connect the simulation (Alt+F8)" @click="download">Download</button>
-      </div>
-      <div class="group">
-        <button :disabled="busy || !online || running" title="Run the program (F5)" @click="start">▶ Run</button>
-        <button :disabled="busy || !running" title="Hold the program (Shift+F8)" @click="stop">■ Stop</button>
-        <button :disabled="busy || !online" title="Every variable to its initial value, stopped" @click="reset">Reset</button>
-      </div>
-      <span class="state" :class="status?.state" :title="status?.endpoint ? `OPC UA ${status.endpoint}` : ''">
-        <span class="dot" />{{ stateLabel }}<template v-if="online"> · {{ status?.cycles }} cycles</template>
+  <div class="z-20 flex min-h-0 flex-col bg-s0" :class="window ? 'fixed inset-0' : 'absolute inset-0'">
+    <header class="flex shrink-0 flex-wrap items-center gap-2 border-0 border-b border-solid border-line bg-s1 px-3 py-1.5">
+      <h2 class="m-0 mr-1 truncate text-[13px] font-semibold">{{ project?.title ?? 'PLC' }}</h2>
+      <button :class="btn" :disabled="busy" title="Build the project (F11)" @click="build"><IconBuild class="size-4" />Build</button>
+      <button :class="btn" class="t-btn-primary" :disabled="busy" title="Build, load into the soft PLC and connect the simulation (Alt+F8)" @click="download">
+        <IconDownload class="size-4" />Download
+      </button>
+      <span class="mx-1 h-4 w-px bg-line" />
+      <button :class="btn" :disabled="busy || !online || running" title="Run the program (F5)" @click="start"><IconRun class="size-4 text-ok" />Run</button>
+      <button :class="btn" :disabled="busy || !running" title="Hold the program (Shift+F8)" @click="stop"><IconStop class="size-4" />Stop</button>
+      <button :class="btn" :disabled="busy || !online" title="Every variable to its initial value, stopped" @click="reset"><IconReset class="size-4" />Reset</button>
+      <span class="mx-1 h-4 w-px bg-line" />
+      <button :class="btn" :disabled="!tab || tab.readOnly" title="Format Document (Shift+Alt+F): capitals, spaces and indentation as CODESYS lays them out" @click="format">
+        <IconFormat class="size-4" />Format
+      </button>
+      <span class="ml-1 flex items-center gap-1.5 text-xs text-muted" role="status" :title="status?.endpoint ? `OPC UA ${status.endpoint}` : ''">
+        <span class="size-2 rounded-full" :class="lamp" />{{ stateLabel }}<template v-if="online"> · {{ status?.cycles }} cycles</template>
       </span>
-      <button v-if="online && !status?.connected" :disabled="busy" title="Connect the simulation to this PLC over OPC UA" @click="connect">Connect simulation</button>
-      <span v-else-if="status?.connected" class="linked">Simulation connected</span>
-      <span class="spacer" />
-      <button v-if="!window" title="Open in a window of its own, beside the simulation" @click="ProgramService.OpenWindow(plc).catch(fail)">Open in window</button>
-      <button v-if="!window" class="close" title="Close the editor" @click="emit('close')">✕</button>
+      <button v-if="online && !status?.connected" :class="btn" :disabled="busy" title="Connect the simulation to this PLC over OPC UA" @click="connect">
+        <IconLink class="size-4" />Connect simulation
+      </button>
+      <span v-else-if="status?.connected" class="text-xs text-muted">· Simulation connected</span>
+      <span class="flex-1" />
+      <button v-if="!window" :class="btn" title="Open in a window of its own, beside the simulation" @click="ProgramService.OpenWindow(plc).catch(fail)">
+        <IconWindow class="size-4" />Open in window
+      </button>
+      <button v-if="!window" class="t-icon-btn" title="Close the editor" aria-label="Close the editor" @click="emit('close')"><IconClose class="size-4" /></button>
     </header>
-    <p v-if="message" class="message">{{ message }}</p>
-    <p v-if="status?.error" class="message">The program stopped at {{ status.error.pos.file }}:{{ status.error.pos.line }}: {{ status.error.msg }}. Reset it to start again.</p>
-    <div class="body">
-      <aside class="pous">
-        <h3 class="section-title">POUs</h3>
-        <ul>
-          <li v-for="f in project?.files ?? []" :key="f.name" :class="{ active: f.name === active }">
-            <template v-if="renaming?.from === f.name">
-              <input v-model="renaming.to" class="mono rename" @keydown.enter="renameFile" @keydown.esc="renaming = null" />
-            </template>
-            <template v-else>
-              <button class="file" :title="f.readOnly ? 'Written from the station\'s I/O table' : f.name" @click="openFile(f.name)">
-                <span class="kind">{{ kindLabel[f.kind] ?? f.kind }}</span>{{ f.name.replace(/\.st$/, '') }}
-              </button>
-              <span v-if="!f.readOnly" class="file-actions">
-                <button title="Rename" @click="renaming = { from: f.name, to: f.name.replace(/\.st$/, '') }">✎</button>
-                <button title="Delete" @click="removeFile(f.name)">🗑</button>
-              </span>
-            </template>
-          </li>
-        </ul>
-        <div v-if="adding" class="add">
-          <input v-model="adding.name" class="mono" placeholder="Name" @keydown.enter="addFile" @keydown.esc="adding = null" />
-          <select v-model="adding.kind">
-            <option v-for="k in KINDS" :key="k" :value="k">{{ k }}</option>
-          </select>
-          <div class="row">
-            <button @click="addFile">Add</button>
-            <button @click="adding = null">Cancel</button>
-          </div>
+    <p v-if="message" class="m-0 shrink-0 border-0 border-b border-solid border-line bg-s1 px-3 py-1.5 text-danger" role="alert">{{ message }}</p>
+    <p v-if="status?.error" class="m-0 shrink-0 border-0 border-b border-solid border-line bg-s1 px-3 py-1.5 text-danger" role="alert">
+      The program stopped at {{ status.error.pos.file }}:{{ status.error.pos.line }}: {{ status.error.msg }}. Reset it to start again.
+    </p>
+    <div class="flex min-h-0 flex-1">
+      <aside class="flex w-56 shrink-0 flex-col border-0 border-r border-solid border-line bg-s1" aria-label="POUs">
+        <div class="flex h-9 shrink-0 items-center gap-1 pr-1.5 pl-3">
+          <h3 class="t-section-title m-0 flex-1">POUs</h3>
+          <button class="t-icon-btn size-7" title="New POU" aria-label="New POU" @click="adding = { name: '', kind: 'PROGRAM' }"><IconAdd class="size-4" /></button>
+          <UiMenu :items="pouMenu" label="More for the POUs" class="size-7" />
         </div>
-        <button v-else class="new" @click="adding = { name: '', kind: 'PROGRAM' }">+ New POU</button>
-        <button v-if="project?.example?.length" class="new example" title="The program the station's collection comes with, to try it out or to start from" @click="loadExample">
-          Load the example program
-        </button>
-        <p class="folder" :title="project?.folder">Saved in the project, in {{ project?.folder }}</p>
+        <div class="min-h-0 flex-1 overflow-auto px-1 pb-2">
+          <UiTree :items="pous" label="POUs" @select="(name: string) => openFile(name)" />
+        </div>
+        <form v-if="adding" class="flex flex-col gap-2 border-0 border-t border-solid border-line p-3" @submit.prevent="addFile">
+          <label class="flex flex-col gap-1">
+            <span class="t-label">Name of the new POU</span>
+            <input v-model="adding.name" class="t-input font-mono" placeholder="Name" spellcheck="false" @keydown.esc="adding = null" />
+          </label>
+          <UiSelect v-model="adding.kind" label="Kind" :options="KINDS" />
+          <div class="flex gap-2">
+            <button class="t-btn t-btn-primary" type="submit">Add</button>
+            <button class="t-btn" type="button" @click="adding = null">Cancel</button>
+          </div>
+        </form>
+        <form v-else-if="renaming" class="flex flex-col gap-2 border-0 border-t border-solid border-line p-3" @submit.prevent="renameFile">
+          <label class="flex flex-col gap-1">
+            <span class="t-label">Rename {{ renaming.from.replace(/\.st$/, '') }} to</span>
+            <input v-model="renaming.to" class="t-input font-mono" spellcheck="false" @keydown.esc="renaming = null" />
+          </label>
+          <div class="flex gap-2">
+            <button class="t-btn t-btn-primary" type="submit">Rename</button>
+            <button class="t-btn" type="button" @click="renaming = null">Cancel</button>
+          </div>
+        </form>
+        <p class="m-0 shrink-0 truncate border-0 border-t border-solid border-line px-3 py-1.5 text-xs text-muted" :title="project?.folder">Saved in the project file</p>
       </aside>
-      <section class="main">
-        <nav class="tabs">
-          <button v-for="t in tabs" :key="t.name" class="tab" :class="{ active: t.name === active }" @click="active = t.name">
-            {{ t.name.replace(/\.st$/, '') }}<span v-if="dirty(t)" class="dirty">●</span>
-            <span class="x" @click.stop="closeTab(t.name)">✕</span>
-          </button>
+      <section class="flex min-w-0 flex-1 flex-col">
+        <nav class="flex h-9 shrink-0 items-end gap-0.5 overflow-x-auto border-0 border-b border-solid border-line bg-s1 px-2" aria-label="Open files">
+          <div
+            v-for="t in tabs"
+            :key="t.name"
+            class="relative -mb-px flex h-8 shrink-0 items-center rounded-t-[7px] border border-b-0 border-solid"
+            :class="
+              t.name === active
+                ? 'border-line bg-s0 text-fg before:absolute before:inset-x-0 before:top-0 before:h-0.5 before:bg-accent'
+                : 'border-transparent text-muted hover:bg-hover'
+            "
+          >
+            <button
+              class="flex h-full cursor-default items-center gap-1.5 border-0 bg-transparent py-0 pr-1 pl-3 text-inherit focus-visible:-outline-offset-2"
+              :aria-current="t.name === active ? 'page' : undefined"
+              @click="active = t.name"
+            >
+              <component :is="t.readOnly ? IconIO : IconProgram" class="size-3.5 text-muted" />{{ t.name.replace(/\.st$/, '') }}
+              <span v-if="dirty(t)" class="size-2 rounded-full bg-accent" title="Not saved yet (Ctrl+S or ⌘S)" />
+            </button>
+            <button class="t-icon-btn mr-1 size-6" :aria-label="`Close ${t.name}`" :title="`Close ${t.name}`" @click="closeTab(t.name)"><IconClose class="size-3.5" /></button>
+          </div>
         </nav>
-        <div class="editor-area">
+        <div class="min-h-0 flex-1">
           <StEditor
             v-if="tab"
             :key="tab.name"
@@ -490,47 +690,50 @@ const stateLabel = computed(() => {
             :downloads="downloads"
             :goto="tab.goto"
             :complete="suggestions"
+            :place="tab.place"
             @save="save(tab)"
+            @format="format"
             @prepare="prepare"
+            @place="(p) => (tab!.place = p)"
           />
-          <p v-else class="empty">Open a POU on the left.</p>
+          <p v-else class="m-0 p-6 text-muted">Open a POU on the left.</p>
         </div>
-        <div class="bottom">
-          <nav class="tabs small">
-            <button class="tab" :class="{ active: bottom === 'messages' }" @click="bottom = 'messages'">
-              Messages<span v-if="diagnostics.length" class="count">{{ diagnostics.length }}</span>
-            </button>
-            <button class="tab" :class="{ active: bottom === 'watch' }" @click="bottom = 'watch'">Watch</button>
-            <button class="tab" :class="{ active: bottom === 'task' }" @click="bottom = 'task'">Task</button>
-          </nav>
-          <div v-if="bottom === 'messages'" class="panel">
-            <p v-if="built === 'ok' && !diagnostics.length" class="ok">Built without errors.</p>
-            <p v-else-if="!built" class="hint">Build with F11 to check the project.</p>
-            <button v-for="(d, i) in diagnostics" :key="i" class="diag" :class="d.severity" @click="jump(d)">
-              <span class="sev">{{ d.severity }}</span>
-              <span class="mono where">{{ d.pos.file }}{{ d.pos.line ? `:${d.pos.line}:${d.pos.col}` : '' }}</span>
-              {{ d.msg }}
-            </button>
-          </div>
-          <div v-else-if="bottom === 'watch'" class="panel">
-            <p v-if="!online" class="hint">Download the program to watch its variables.</p>
+        <UiTabs v-model="bottom" :tabs="bottomTabs" label="Messages, watch and task" class="h-[38%] shrink-0 border-0 border-t border-solid border-line">
+          <template #messages>
+            <p v-if="built === 'ok' && !diagnostics.length" class="m-0 text-ok">No mistakes in the project.</p>
+            <p v-else-if="!built" class="m-0 text-muted">The project is checked as you type; Build (F11) checks it as saved.</p>
+            <ul class="m-0 flex list-none flex-col p-0">
+              <li v-for="(d, i) in diagnostics" :key="i">
+                <button
+                  class="flex w-full cursor-default items-baseline gap-2 rounded-sm border-0 bg-transparent px-1.5 py-1 text-left text-fg hover:bg-hover focus-visible:-outline-offset-2"
+                  @click="jump(d)"
+                >
+                  <span class="w-14 shrink-0 text-xs font-semibold" :class="d.severity === 'error' ? 'text-danger' : 'text-accent-ink'">{{ d.severity }}</span>
+                  <span class="shrink-0 font-mono text-xs text-muted">{{ d.pos.file }}{{ d.pos.line ? `:${d.pos.line}:${d.pos.col}` : '' }}</span>
+                  <span>{{ d.msg }}</span>
+                </button>
+              </li>
+            </ul>
+          </template>
+          <template #watch>
+            <p v-if="!online" class="m-0 text-muted">Download the program to watch its variables.</p>
             <template v-else>
-              <div class="watch-actions">
-                <span class="hint">Prepare a value here or by clicking it in the code, then write it once (Ctrl+F7) or force it (F7). Alt+F7 releases all.</span>
-                <span class="group">
-                  <button :disabled="busy || !Object.keys(prepared).length" @click="writeAll">Write all</button>
-                  <button :disabled="busy || !Object.keys(prepared).length" @click="forceAll">Force all</button>
-                  <button v-if="status?.forced?.length" @click="release('')">Release all ({{ status.forced.length }})</button>
-                </span>
+              <div class="mb-2 flex flex-wrap items-center gap-2">
+                <span class="flex-1 text-xs text-muted"
+                  >Prepare a value here or by clicking it in the code, then write it once (Ctrl+F7) or force it (F7). Alt+F7 releases all.</span
+                >
+                <button :class="btn" :disabled="busy || !Object.keys(prepared).length" @click="writeAll">Write all</button>
+                <button :class="btn" :disabled="busy || !Object.keys(prepared).length" @click="forceAll">Force all</button>
+                <button v-if="status?.forced?.length" :class="btn" @click="release('')">Release all ({{ status.forced.length }})</button>
               </div>
-              <table class="watch">
+              <table class="w-full border-collapse text-[13px]">
                 <thead>
-                  <tr>
-                    <th>Expression</th>
-                    <th>Type</th>
-                    <th>Value</th>
-                    <th>Prepared value</th>
-                    <th />
+                  <tr class="text-left text-xs text-muted">
+                    <th class="px-1.5 py-1 font-medium">Expression</th>
+                    <th class="px-1.5 py-1 font-medium">Type</th>
+                    <th class="px-1.5 py-1 font-medium">Value</th>
+                    <th class="px-1.5 py-1 font-medium">Prepared value</th>
+                    <th class="px-1.5 py-1"><span class="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -538,375 +741,26 @@ const stateLabel = computed(() => {
                 </tbody>
               </table>
             </template>
-          </div>
-          <div v-else class="panel task">
-            <label>Programs the task calls, in order <input v-model="task.programs" class="mono" placeholder="PLC_PRG" /></label>
-            <label>Interval <input v-model="task.cycle" class="mono" placeholder="T#20ms" /></label>
-            <label>Step shown in the simulation <input v-model="task.step" class="mono" placeholder="GVL.currentStep" /></label>
-            <button :disabled="busy" @click="saveTask">Save task</button>
-          </div>
-        </div>
+          </template>
+          <template #task>
+            <form class="flex max-w-lg flex-col gap-3" @submit.prevent="saveTask">
+              <label class="flex flex-col gap-1">
+                <span class="t-label">Programs the task calls, in order</span>
+                <input v-model="task.programs" class="t-input font-mono" placeholder="PLC_PRG" spellcheck="false" />
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="t-label">Interval</span>
+                <input v-model="task.cycle" class="t-input font-mono" placeholder="T#20ms" spellcheck="false" />
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="t-label">Step shown in the simulation</span>
+                <input v-model="task.step" class="t-input font-mono" placeholder="GVL.currentStep" spellcheck="false" />
+              </label>
+              <button class="t-btn self-start" type="submit" :disabled="busy">Save task</button>
+            </form>
+          </template>
+        </UiTabs>
       </section>
     </div>
   </div>
 </template>
-
-<style scoped>
-.ide {
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  inset: 0;
-  min-height: 0;
-  position: absolute;
-  z-index: 5;
-}
-
-.ide.window {
-  position: fixed;
-}
-
-.toolbar {
-  align-items: center;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 6px 10px;
-}
-
-.title {
-  margin-right: 6px;
-}
-
-.group {
-  display: flex;
-  gap: 4px;
-}
-
-.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--bg);
-  font-weight: 600;
-}
-
-.state {
-  align-items: center;
-  color: var(--text-dim);
-  display: flex;
-  gap: 6px;
-}
-
-.dot {
-  background: var(--text-dim);
-  border-radius: 50%;
-  height: 9px;
-  width: 9px;
-}
-
-.state.running .dot {
-  background: var(--signal);
-}
-
-.state.failed {
-  color: var(--danger);
-}
-
-.state.failed .dot {
-  background: var(--danger);
-}
-
-.state.stopped .dot {
-  background: var(--accent);
-}
-
-.linked {
-  color: var(--signal);
-  font-size: 12px;
-}
-
-.spacer {
-  flex: 1;
-}
-
-.close {
-  padding: 4px 8px;
-}
-
-.message {
-  background: rgba(255, 122, 102, 0.12);
-  border-bottom: 1px solid var(--line);
-  color: var(--danger);
-  margin: 0;
-  padding: 5px 10px;
-}
-
-.body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
-
-.pous {
-  background: var(--panel);
-  border-right: 1px solid var(--line);
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  overflow: auto;
-  padding: 8px;
-  width: 210px;
-}
-
-.pous ul {
-  list-style: none;
-  margin: 0 0 8px;
-  padding: 0;
-}
-
-.pous li {
-  align-items: center;
-  border-radius: 2px;
-  display: flex;
-}
-
-.pous li.active {
-  background: var(--panel-raised);
-}
-
-.file {
-  background: none;
-  border: 0;
-  flex: 1;
-  overflow: hidden;
-  padding: 4px 6px;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.kind {
-  color: var(--text-dim);
-  display: inline-block;
-  font-size: 10px;
-  width: 30px;
-}
-
-.file-actions {
-  display: none;
-}
-
-.pous li:hover .file-actions {
-  display: flex;
-}
-
-.file-actions button {
-  background: none;
-  border: 0;
-  padding: 2px 4px;
-}
-
-.rename,
-.add input,
-.add select {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  padding: 3px 5px;
-  width: 100%;
-}
-
-.add {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.row {
-  display: flex;
-  gap: 4px;
-}
-
-.new {
-  align-self: flex-start;
-}
-
-.example {
-  margin-top: 6px;
-}
-
-.folder {
-  color: var(--text-dim);
-  font-size: 11px;
-  margin-top: auto;
-}
-
-.main {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.tabs {
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  flex: none;
-  overflow-x: auto;
-}
-
-.tab {
-  align-items: center;
-  background: none;
-  border: 0;
-  border-right: 1px solid var(--line);
-  border-radius: 0;
-  display: flex;
-  gap: 6px;
-  padding: 6px 10px;
-  white-space: nowrap;
-}
-
-.tab.active {
-  background: #0d2326;
-  box-shadow: inset 0 2px 0 var(--accent);
-}
-
-.dirty {
-  color: var(--accent);
-}
-
-.x {
-  color: var(--text-dim);
-  font-size: 10px;
-}
-
-.editor-area {
-  flex: 1;
-  min-height: 0;
-}
-
-.empty,
-.hint {
-  color: var(--text-dim);
-  margin: 10px;
-}
-
-.bottom {
-  border-top: 1px solid var(--line);
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  height: 34%;
-  min-height: 140px;
-}
-
-.tabs.small .tab {
-  padding: 4px 10px;
-}
-
-.count {
-  background: var(--danger);
-  border-radius: 8px;
-  color: var(--bg);
-  font-size: 10px;
-  padding: 0 5px;
-}
-
-.panel {
-  flex: 1;
-  overflow: auto;
-}
-
-.ok {
-  color: var(--signal);
-  margin: 10px;
-}
-
-.diag {
-  background: none;
-  border: 0;
-  border-bottom: 1px solid rgba(35, 74, 80, 0.5);
-  border-radius: 0;
-  display: block;
-  padding: 4px 10px;
-  text-align: left;
-  user-select: text;
-  width: 100%;
-}
-
-.sev {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  width: 62px;
-}
-
-.diag.error .sev {
-  color: var(--danger);
-}
-
-.diag.warning .sev {
-  color: var(--accent);
-}
-
-.where {
-  color: var(--text-dim);
-  margin-right: 8px;
-}
-
-.watch-actions {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  padding: 0 10px 0 0;
-}
-
-.watch {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-.watch th {
-  background: var(--panel);
-  color: var(--text-dim);
-  font-size: 11px;
-  font-weight: 500;
-  padding: 3px 6px;
-  position: sticky;
-  text-align: left;
-  top: 0;
-}
-
-.task {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-width: 460px;
-  padding: 10px;
-}
-
-.task label {
-  color: var(--text-dim);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.task input {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  color: var(--text);
-  padding: 4px 6px;
-}
-
-.task button {
-  align-self: flex-start;
-}
-</style>

@@ -13,6 +13,14 @@
     "lint": "oxlint --deny-warnings src"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "6.20.4",
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/lint": "6.9.8",
+    "@codemirror/search": "6.7.2",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15",
+    "@lezer/highlight": "1.2.5",
     "@ui-sdk/core": "0.1.0-beta.14",
     "@ui-sdk/vue": "0.1.0-beta.14",
     "@wailsio/runtime": "^3.1.0",

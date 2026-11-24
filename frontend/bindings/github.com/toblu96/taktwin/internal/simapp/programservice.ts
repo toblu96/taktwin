@@ -40,6 +40,14 @@ export function Build(plc: string): $CancellablePromise<$models.BuildResult> {
 }
 
 /**
+ * Check compiles the project with the files being typed as they are now, by name, without
+ * saving them, and says what is wrong: the editor underlines it while typing.
+ */
+export function Check(plc: string, texts: { [_ in string]?: string } | null): $CancellablePromise<$models.BuildResult> {
+    return $Call.ByID(857284616, plc, texts);
+}
+
+/**
  * Connect connects the simulation to the soft PLC of a PLC, over OPC UA.
  */
 export function Connect(plc: string): $CancellablePromise<void> {
@@ -55,10 +63,26 @@ export function Download(plc: string): $CancellablePromise<$models.BuildResult> 
 }
 
 /**
+ * EditorState says where the programming tool of one of the station's PLCs was left in the
+ * open project, empty for none.
+ */
+export function EditorState(plc: string): $CancellablePromise<$models.EditorState> {
+    return $Call.ByID(717034986, plc);
+}
+
+/**
  * Force holds a variable at a value until it is released.
  */
 export function Force(plc: string, path: string, value: string): $CancellablePromise<void> {
     return $Call.ByID(744199619, plc, path, value);
+}
+
+/**
+ * Format lays out a source file as CODESYS's Format Document does. A file with a syntax
+ * error stays as it is, and the error says why.
+ */
+export function Format(name: string, src: string): $CancellablePromise<string> {
+    return $Call.ByID(1198532755, name, src);
 }
 
 /**
@@ -126,6 +150,13 @@ export function Reset(plc: string, cold: boolean): $CancellablePromise<void> {
  */
 export function SaveFile(project: string, plc: string, name: string, src: string): $CancellablePromise<void> {
     return $Call.ByID(2852879915, project, plc, name, src);
+}
+
+/**
+ * SetEditorState remembers where the programming tool of one of the station's PLCs is left.
+ */
+export function SetEditorState(plc: string, st: $models.EditorState): $CancellablePromise<void> {
+    return $Call.ByID(3918253178, plc, st);
 }
 
 /**

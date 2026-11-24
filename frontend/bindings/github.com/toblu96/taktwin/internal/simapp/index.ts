@@ -32,6 +32,8 @@ export type {
     CheckState,
     CollectionInfo,
     ConnectionInfo,
+    EditorPlace,
+    EditorState,
     Example,
     ExerciseInfo,
     ExternalConnection,
