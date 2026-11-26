@@ -2,14 +2,17 @@
 import { computed, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { ask } from '../ask'
-import { programming, project, refreshProject, simulation } from '../sim'
+import { connectAsPlanned, connectionsChanged, plans, programming, project, refreshProject, simulation } from '../sim'
 import StationDock from './StationDock.vue'
 import IconCode from '~icons/fluent/code-16-regular'
+import IconConnect from '~icons/fluent/plug-connected-16-regular'
+import IconDisconnect from '~icons/fluent/plug-disconnected-16-regular'
 
 // The side bar of the simulation as it runs: what the project is about, the station's PLCs, each
 // with how it is connected, what it runs and its program, and the station's own controls, such as
 // putting workpieces in. The I/O test, of all PLCs at once, is in the top bar. Clicking a PLC
-// shows it on the right, where it is connected and its program is.
+// shows it on the right, where it is connected and its program is. Its card connects it as the
+// project means it to be, or lets go of it, in the same place, and opens the soft PLC's program.
 const { scene, snapshot, selection } = simulation
 
 // The exercise the project is on, or else its station, with what it is about.
@@ -46,9 +49,29 @@ const plcs = computed(() => {
       roundTrip: link?.state === 'connected' ? `${link.roundTrip.toFixed(1)} ms` : '',
       step: view?.step ?? null,
       testing: !!snapshot.value?.ioTest,
+      running: !!(link || runs),
+      planned: plans.value[i > 0 ? (p.module ?? '') : '']?.mode ?? 'none',
     }
   })
 })
+
+// Connect or Disconnect on a card, with what went wrong under it.
+const busy = ref<string | null>(null)
+const cardProblem = ref<Record<string, string>>({})
+async function toggle(id: string, running: boolean) {
+  busy.value = id
+  cardProblem.value = { ...cardProblem.value, [id]: '' }
+  try {
+    if (running) {
+      await Service.DisconnectPLCFor(id)
+      connectionsChanged.value++
+    } else await connectAsPlanned(id)
+  } catch (e) {
+    cardProblem.value = { ...cardProblem.value, [id]: (e as Error).message ?? String(e) }
+  } finally {
+    busy.value = null
+  }
+}
 
 // Newer versions of the collections the project carries, installed here, which it takes only
 // when asked: its station follows them unless the project changed it.
@@ -112,9 +135,21 @@ const hasControls = computed(() => (scene.value?.docks ?? []).some((d) => d.widg
                 <span v-if="p.step" class="mt-0.5 block truncate font-mono text-xs"><b class="font-semibold text-accent-ink">S{{ p.step.number }}</b> {{ p.step.label }}</span>
               </span>
             </button>
-            <div class="flex gap-1.5 border-0 border-t border-solid border-line px-2.5 py-2">
-              <button class="t-btn h-6 px-2 text-xs" :title="`Write the program of ${p.name}`" @click="programming = p.id"><IconCode class="size-3.5" />Program</button>
+            <div v-if="p.running || p.planned !== 'none'" class="flex gap-1.5 border-0 border-t border-solid border-line px-2.5 py-2">
+              <button
+                class="t-btn h-6 w-26 justify-center px-2 text-xs"
+                :class="{ 't-btn-primary': !p.running }"
+                :disabled="busy === p.id"
+                :title="p.running ? `Let go of ${p.name}` : `Connect ${p.name} as the project has it, and restart the station`"
+                @click="toggle(p.id, p.running)"
+              >
+                <component :is="p.running ? IconDisconnect : IconConnect" class="size-3.5" />{{ p.running ? 'Disconnect' : 'Connect' }}
+              </button>
+              <button v-if="p.planned === 'soft'" class="t-btn h-6 px-2 text-xs" :title="`Write the program of ${p.name}`" @click="programming = p.id">
+                <IconCode class="size-3.5" />Program
+              </button>
             </div>
+            <p v-if="cardProblem[p.id]" class="m-0 px-2.5 pb-2 text-xs text-danger" role="alert">{{ cardProblem[p.id] }}</p>
           </div>
         </div>
       </section>

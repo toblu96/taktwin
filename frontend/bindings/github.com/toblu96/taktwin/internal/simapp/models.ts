@@ -413,6 +413,12 @@ export interface PLCConfig {
      * not know them reads External alone.
      */
     "others"?: ExternalConnection[] | null;
+
+    /**
+     * AutoConnect connects the PLC as the project opens, in its mode, without asking. A
+     * connection that fails leaves the project open and the PLC not connected.
+     */
+    "autoConnect"?: boolean;
 }
 
 /**

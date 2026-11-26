@@ -6,14 +6,19 @@ import PlcSection from './PlcSection.vue'
 import WidgetList from './WidgetList.vue'
 import IoPanel from './IoPanel.vue'
 import IconDelete from '~icons/fluent/delete-16-regular'
+import IconBack from '~icons/fluent/arrow-left-16-regular'
 
 // The side bar on the right of a running station: the station's inputs and outputs, or what was
 // clicked in the 3D view or in the side bar on the left: a workpiece, to take it off the station,
 // or a module, with what can be done with it while it runs: its controls, and its I/O connectors
-// with their live pins, or for a PLC how it is connected and its program. Clicking beside it in
-// the 3D view goes back to the inputs and outputs; how the station is built and wired is for the
-// other views.
-const { pickedWorkpiece, scene, selected, takeWorkpiece } = useSim()
+// with their live pins, or for a PLC how it is connected and its program. The arrow in its header,
+// or clicking beside it in the 3D view, goes back to the inputs and outputs; how the station is
+// built and wired is for the other views.
+const { pickWorkpiece, pickedWorkpiece, scene, selected, selection, takeWorkpiece } = useSim()
+function back() {
+  selection.value = null
+  pickWorkpiece(null)
+}
 const kindName = (kind: string) => scene.value?.workpieces.kinds?.find((k) => k.id === kind)?.label ?? kind
 const panelWidgets = computed(() => (selected.value?.controls ?? []).filter((w) => w.show === 'panel'))
 </script>
@@ -21,7 +26,8 @@ const panelWidgets = computed(() => (selected.value?.controls ?? []).filter((w) 
 <template>
   <aside class="flex h-full min-h-0 flex-col bg-s1" aria-label="Selected">
     <template v-if="pickedWorkpiece">
-      <header class="flex h-11 shrink-0 items-center border-b border-line px-3">
+      <header class="flex h-11 shrink-0 items-center gap-1.5 border-b border-line px-2">
+        <button class="t-icon-btn shrink-0" title="Back to the inputs and outputs" aria-label="Back to the inputs and outputs" @click="back"><IconBack class="size-4" /></button>
         <h2 class="m-0 truncate text-[15px] font-semibold">{{ kindName(pickedWorkpiece.kind) }}</h2>
       </header>
       <section class="t-section flex flex-col gap-2">
@@ -34,7 +40,8 @@ const panelWidgets = computed(() => (selected.value?.controls ?? []).filter((w) 
       </section>
     </template>
     <template v-else-if="selected">
-      <header class="flex h-11 shrink-0 items-center border-b border-line px-3">
+      <header class="flex h-11 shrink-0 items-center gap-1.5 border-b border-line px-2">
+        <button class="t-icon-btn shrink-0" title="Back to the inputs and outputs" aria-label="Back to the inputs and outputs" @click="back"><IconBack class="size-4" /></button>
         <h2 class="m-0 truncate text-[15px] font-semibold" :title="selected.description">{{ selected.name }}</h2>
       </header>
       <div class="min-h-0 flex-1 overflow-y-auto">

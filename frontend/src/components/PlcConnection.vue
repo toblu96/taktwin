@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { ConnectionInfo, PLCConfig } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import { connectionsChanged, editingConnection, savedConnection, simulation } from '../sim'
+import { connectionsChanged, editingConnection, plans, savedConnection, simulation } from '../sim'
 import UiSegmented from '../ui/UiSegmented.vue'
 import UiSelect from '../ui/UiSelect.vue'
 import UiSwitch from '../ui/UiSwitch.vue'
@@ -120,6 +120,7 @@ async function load() {
   try {
     const [p, r, k] = await Promise.all([Service.PlannedPLC(plcId.value), Service.PLCFor(plcId.value), Service.ConnectionKinds(plcId.value)])
     planned.value = p
+    plans.value = { ...plans.value, [plcId.value]: p }
     running.value = r
     kinds.value = k ?? []
     values.value = { ...defaultsOf(varsText(p.external?.connection?.vars)), ...p.external?.values }
@@ -170,6 +171,19 @@ function keepValues() {
 }
 
 const help = computed(() => MODES.find((m) => m.id === mode.value)?.help)
+
+// Whether the PLC connects as the project opens, in the mode it was last connected in. Everyone
+// may switch it, and it is kept in the project, so it goes with the project when handed out.
+async function setAutoConnect(on: boolean) {
+  message.value = ''
+  try {
+    const p = await Service.SetAutoConnect(plcId.value, on)
+    planned.value = p
+    plans.value = { ...plans.value, [plcId.value]: p }
+  } catch (error) {
+    message.value = (error as Error).message
+  }
+}
 
 // The bindings open in a dialog over the simulation, with what the form has typed so far.
 function editBindings() {
@@ -338,6 +352,14 @@ async function apply() {
     <div class="mt-3">
       <UiSegmented v-model="mode" label="PLC connection" :options="MODES.map((m) => ({ value: m.id, label: m.label }))" />
       <p class="m-0 mt-2 text-xs text-muted">{{ help }}</p>
+      <UiSwitch
+        v-if="mode !== 'none'"
+        class="mt-3"
+        trailing
+        label="Connect when the project opens"
+        :model-value="!!planned?.autoConnect"
+        @update:model-value="(on: boolean) => void setAutoConnect(on)"
+      />
     </div>
 
     <div v-if="mode === 'external'" class="mt-3 flex flex-col gap-3">

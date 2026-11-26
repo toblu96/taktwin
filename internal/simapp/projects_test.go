@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/toblu96/taktwin/internal/model"
+	"github.com/toblu96/taktwin/internal/plcio"
 )
 
 // The app starts with no project: there is no station in the simulation, and nothing to
@@ -925,5 +926,85 @@ func TestAProjectKeepsItsOriginal(t *testing.T) {
 	}
 	if _, err := s.PutBack(PartStation, ""); err == nil {
 		t.Error("an exercise's station is put back")
+	}
+}
+
+// A PLC connects as its project opens only when the project says so: not by default, and with
+// the setting in its mode, without changing the file. A connection that cannot be made leaves
+// the project open with the PLC not connected, and the setting goes with Put back.
+func TestAPLCCanConnectAsItsProjectOpens(t *testing.T) {
+	s, home := newService(t)
+	file := filepath.Join(home, ProjectsFolder, "Test"+ProjectExtension)
+	reopen := func() {
+		t.Helper()
+		s.CloseProject()
+		if _, err := s.OpenProjectFile(file, OpenOptions{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	defer func() { _ = s.SetPLCFor("", PLCConfig{Mode: PLCNone}) }()
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCSoft}); err != nil {
+		t.Fatal(err)
+	}
+	reopen()
+	if got := s.PLCFor(""); got.Mode != PLCNone {
+		t.Errorf("by default the PLC waits for Connect: %+v", got)
+	}
+	if _, err := s.KeepAsOriginal(); err != nil {
+		t.Fatal(err)
+	}
+	planned, err := s.SetAutoConnect("", true)
+	if err != nil || !planned.AutoConnect || planned.Mode != PLCSoft {
+		t.Fatalf("the setting: %+v %v", planned, err)
+	}
+	if o := s.Original(); !slices.Contains(o.Connections, "") {
+		t.Errorf("the setting differs from the original: %+v", o)
+	}
+	reopen()
+	if got := s.PLCFor(""); got.Mode != PLCSoft || !got.AutoConnect {
+		t.Errorf("the soft PLC connects as the project opens: %+v", got)
+	}
+	waitFor(t, "the soft PLC", func() bool { l := linkOf(s); return l != nil && l.State == plcio.LinkConnected })
+	if st := s.SaveState(); st.Unsaved {
+		t.Errorf("connecting changes nothing in the file: %+v", st)
+	}
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCSoft}); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.PlannedPLC(""); !got.AutoConnect {
+		t.Errorf("connecting by hand keeps the setting: %+v", got)
+	}
+	if _, err := s.PutBack(PartConnection, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.PlannedPLC(""); got.AutoConnect {
+		t.Errorf("Put back takes the setting back: %+v", got)
+	}
+
+	// An external connection whose address does not fit: the project opens all the same.
+	if _, err := s.ChooseConnection("", "opcua"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetConnectionValues("", map[string]any{"endpoint": "http://nowhere"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCNone}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetAutoConnect("", true); err != nil {
+		t.Fatal(err)
+	}
+	def := s.PlannedPLC("")
+	def.Mode = PLCExternal
+	s.mu.Lock()
+	s.proj.def.PLCs[""] = def
+	_ = s.saveProject()
+	s.mu.Unlock()
+	reopen()
+	if got := s.PLCFor(""); got.Mode != PLCNone {
+		t.Errorf("a connection that cannot be made leaves the PLC not connected: %+v", got)
+	}
+	if got := s.PlannedPLC(""); got.Mode != PLCExternal || !got.AutoConnect {
+		t.Errorf("and the project as it was: %+v", got)
 	}
 }

@@ -97,6 +97,14 @@ export function CloseProjectDiscarding(): $CancellablePromise<void> {
 }
 
 /**
+ * ConnectPLCFor connects one of the station's PLCs, by its module, as the project means it to
+ * be connected, and restarts the station, as the PLC's Connect does without its panel.
+ */
+export function ConnectPLCFor(plc: string): $CancellablePromise<void> {
+    return $Call.ByID(3302468132, plc);
+}
+
+/**
  * ConnectionKinds lists the kinds of connection one of the station's PLCs, by its module, the
  * first one for "", can be given: the app's own for CODESYS, those of the collections, which
  * name no station, and one to any OPC UA server.
@@ -390,6 +398,14 @@ export function SaveThumbnail(dataURL: string): $CancellablePromise<void> {
  */
 export function Scene(): $CancellablePromise<model$0.Scene> {
     return $Call.ByID(1960697870);
+}
+
+/**
+ * SetAutoConnect says whether one of the station's PLCs, by its module, connects as the
+ * project opens, and gives how the project now means to connect it.
+ */
+export function SetAutoConnect(plc: string, on: boolean): $CancellablePromise<$models.PLCConfig> {
+    return $Call.ByID(2114493725, plc, on);
 }
 
 /**

@@ -761,8 +761,9 @@ func loadBase(lib *model.Library, b Base) (*model.Bundle, *engine.Engine, string
 }
 
 // openFile puts a project file into the simulation after closing the one before: its
-// station, its settings, and its PLCs' connections, ready to connect. No PLC is connected
-// yet. With restore, it goes on with the changes a crash left in its working copy.
+// station, its settings, and its PLCs' connections, ready to connect. Only the PLCs the project
+// says to connect as it opens are connected. With restore, it goes on with the changes a crash
+// left in its working copy.
 func (s *Service) openFile(file string, pf *projectFile, restore bool) (model.Scene, error) {
 	saved := ""
 	if !validID(pf.def.ID) {
@@ -821,6 +822,7 @@ func (s *Service) openFile(file string, pf *projectFile, restore bool) (model.Sc
 	s.mu.Lock()
 	s.engine, s.bundle, s.plcs, s.exercise = e, bundle, map[string]PLCConfig{}, exercise
 	s.proj = project{name: nameOf(doc.path), def: def, doc: doc}
+	s.autoConnect()
 	s.run()
 	s.mu.Unlock()
 	doc.start(emitSaveState)
