@@ -62,18 +62,10 @@ export function ChooseProjectFile(): $CancellablePromise<string> {
 }
 
 /**
- * ClearTestOutputs switches all outputs off during an I/O test.
+ * ClearTestOutputs switches the outputs of all the station's PLCs off during an I/O test.
  */
 export function ClearTestOutputs(): $CancellablePromise<void> {
     return $Call.ByID(4254019295);
-}
-
-/**
- * ClearTestOutputsFor switches all outputs of one of the station's PLCs off during its I/O
- * test.
- */
-export function ClearTestOutputsFor(plc: string): $CancellablePromise<void> {
-    return $Call.ByID(1503441770, plc);
 }
 
 /**
@@ -421,17 +413,11 @@ export function SetFault(name: string, on: boolean): $CancellablePromise<void> {
 }
 
 /**
- * SetIOTest cuts the program off from the I/O, or connects it again.
+ * SetIOTest cuts the programs of all the station's PLCs off from the I/O, so that their
+ * outputs are switched by hand, or connects them again.
  */
 export function SetIOTest(on: boolean): $CancellablePromise<void> {
     return $Call.ByID(137810446, on);
-}
-
-/**
- * SetIOTestFor starts or ends the I/O test of one of the station's PLCs, by its module.
- */
-export function SetIOTestFor(plc: string, on: boolean): $CancellablePromise<void> {
-    return $Call.ByID(2239147173, plc, on);
 }
 
 /**
@@ -472,7 +458,7 @@ export function SetSpeed(speed: number): $CancellablePromise<void> {
 }
 
 /**
- * SetTestAnalogFor sets an analogue output of one of the station's PLCs by hand during its
+ * SetTestAnalogFor sets an analogue output of one of the station's PLCs by hand during the
  * I/O test, to a value on the wire such as volts.
  */
 export function SetTestAnalogFor(plc: string, address: string, value: number): $CancellablePromise<void> {
@@ -487,7 +473,7 @@ export function SetTestOutput(variable: string, on: boolean): $CancellablePromis
 }
 
 /**
- * SetTestOutputFor switches one output of one of the station's PLCs by hand during its I/O
+ * SetTestOutputFor switches one output of one of the station's PLCs by hand during the I/O
  * test.
  */
 export function SetTestOutputFor(plc: string, variable: string, on: boolean): $CancellablePromise<void> {

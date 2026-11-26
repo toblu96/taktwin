@@ -303,7 +303,8 @@ func (s *Service) naming(plc string) plcio.Naming {
 // AcknowledgeFellOff clears the warning about workpieces lost off the station.
 func (s *Service) AcknowledgeFellOff() { s.do(func(e *engine.Engine) { e.AcknowledgeFellOff() }) }
 
-// SetIOTest cuts the program off from the I/O, or connects it again.
+// SetIOTest cuts the programs of all the station's PLCs off from the I/O, so that their
+// outputs are switched by hand, or connects them again.
 func (s *Service) SetIOTest(on bool) { s.do(func(e *engine.Engine) { e.SetIOTest(on) }) }
 
 // SetTestOutput switches one output by hand during an I/O test.
@@ -311,30 +312,19 @@ func (s *Service) SetTestOutput(variable string, on bool) error {
 	return s.try(func(e *engine.Engine) error { return e.SetTestOutput(variable, on) })
 }
 
-// ClearTestOutputs switches all outputs off during an I/O test.
+// ClearTestOutputs switches the outputs of all the station's PLCs off during an I/O test.
 func (s *Service) ClearTestOutputs() { s.do(func(e *engine.Engine) { e.ClearTestOutputs() }) }
 
-// SetIOTestFor starts or ends the I/O test of one of the station's PLCs, by its module.
-func (s *Service) SetIOTestFor(plc string, on bool) error {
-	return s.try(func(e *engine.Engine) error { return e.SetIOTestFor(plc, on) })
-}
-
-// SetTestOutputFor switches one output of one of the station's PLCs by hand during its I/O
+// SetTestOutputFor switches one output of one of the station's PLCs by hand during the I/O
 // test.
 func (s *Service) SetTestOutputFor(plc, variable string, on bool) error {
 	return s.try(func(e *engine.Engine) error { return e.SetTestOutputFor(plc, variable, on) })
 }
 
-// SetTestAnalogFor sets an analogue output of one of the station's PLCs by hand during its
+// SetTestAnalogFor sets an analogue output of one of the station's PLCs by hand during the
 // I/O test, to a value on the wire such as volts.
 func (s *Service) SetTestAnalogFor(plc, address string, value float64) error {
 	return s.try(func(e *engine.Engine) error { return e.SetTestAnalogFor(plc, address, value) })
-}
-
-// ClearTestOutputsFor switches all outputs of one of the station's PLCs off during its I/O
-// test.
-func (s *Service) ClearTestOutputsFor(plc string) error {
-	return s.try(func(e *engine.Engine) error { return e.ClearTestOutputsFor(plc) })
 }
 
 // Scene returns everything the frontend needs to show the station, an empty one while no

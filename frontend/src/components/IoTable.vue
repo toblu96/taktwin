@@ -18,7 +18,7 @@ const plcScene = computed(() => (props.index === undefined ? sim.plcScene.value 
 const plcView = computed(() => (props.index === undefined ? sim.plcView.value : (sim.snapshot.value?.plcs?.[props.index] ?? null)))
 const plcId = computed(() => (props.index === undefined ? sim.plcId.value : props.index > 0 ? (scene.value?.plcs?.[props.index]?.module ?? '') : ''))
 
-const testing = computed(() => sim === simulation && !!plcView.value?.ioTest)
+const testing = computed(() => sim === simulation && !!sim.snapshot.value?.ioTest)
 const switchOutput = (variable: string, on: boolean) => void Service.SetTestOutputFor(plcId.value, variable, on)
 
 // The module behind a signal. Pins name their PLC only where the station has several.

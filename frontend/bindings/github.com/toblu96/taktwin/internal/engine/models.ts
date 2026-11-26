@@ -19,7 +19,6 @@ export interface PLCView {
     "outputs": plcio$0.Image;
     "analog": { [_ in string]?: number } | null;
     "link": plcio$0.LinkInfo | null;
-    "ioTest": boolean;
 }
 
 /**
@@ -64,7 +63,8 @@ export interface Snapshot {
     "link": plcio$0.LinkInfo | null;
 
     /**
-     * IOTest is set while the outputs are switched by hand instead of by the program.
+     * IOTest is set while the outputs of every PLC are switched by hand instead of by their
+     * programs.
      */
     "ioTest": boolean;
 

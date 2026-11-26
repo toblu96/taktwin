@@ -5,11 +5,11 @@ import { ask } from '../ask'
 import { programming, project, refreshProject, simulation } from '../sim'
 import StationDock from './StationDock.vue'
 import IconCode from '~icons/fluent/code-16-regular'
-import IconTest from '~icons/fluent/toggle-left-16-regular'
 
 // The side bar of the simulation as it runs: what the project is about, the station's PLCs, each
-// with how it is connected and what it runs, its program and its I/O test, and the station's own
-// controls, such as putting workpieces in. How a PLC is connected is set up in the wiring.
+// with how it is connected, what it runs and its program, and the station's own controls, such as
+// putting workpieces in. The I/O test, of all PLCs at once, is in the top bar. How a PLC is
+// connected is set up in the wiring.
 const { scene, snapshot, selection } = simulation
 
 // The exercise the project is on, or else its station, with what it is about.
@@ -45,7 +45,7 @@ const plcs = computed(() => {
       lamp: link ? (LAMPS[link.state] ?? 'bg-faint') : runs ? 'bg-ok' : 'bg-faint',
       roundTrip: link?.state === 'connected' ? `${link.roundTrip.toFixed(1)} ms` : '',
       step: view?.step ?? null,
-      testing: !!view?.ioTest,
+      testing: !!snapshot.value?.ioTest,
     }
   })
 })
@@ -114,15 +114,6 @@ const hasControls = computed(() => (scene.value?.docks ?? []).some((d) => d.widg
             </button>
             <div class="flex gap-1.5 border-0 border-t border-solid border-line px-2.5 py-2">
               <button class="t-btn h-6 px-2 text-xs" :title="`Write the program of ${p.name}`" @click="programming = p.id"><IconCode class="size-3.5" />Program</button>
-              <button
-                class="t-btn h-6 px-2 text-xs"
-                :class="p.testing ? 't-btn-primary' : ''"
-                :aria-pressed="p.testing"
-                :title="p.testing ? 'Give the outputs back to the program' : 'Switch the outputs by hand, without the program'"
-                @click="Service.SetIOTestFor(p.id, !p.testing)"
-              >
-                <IconTest class="size-3.5" />{{ p.testing ? 'End I/O test' : 'I/O test' }}
-              </button>
             </div>
           </div>
         </div>

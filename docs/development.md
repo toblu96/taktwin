@@ -62,7 +62,7 @@ Tests do not show whether a page works. `go build -tags server` builds the app i
 
 ### Pages
 
-The app starts on **Projects**, with **Library** beside it, which browses the collections and previews any entry on its own engine, without a PLC. An open project has three views, **Simulation**, **Wiring** and **Exercise**, each run or, in expert mode, edited: the simulation's edit is the builder, the wiring's rewiring (`router.ts` has their addresses). The gear opens **Settings**. The status bar along the bottom shows the version, the PLC's connection and the simulated time.
+The app starts on **Projects**, with **Library** beside it, which browses the collections and previews any entry on its own engine, without a PLC. An open project has three views, **Simulation**, **Wiring** and **Exercise**, each run or, in expert mode, edited: the simulation's edit is the builder, the wiring's rewiring (`router.ts` has their addresses). The gear opens **Settings**. The status bar along the bottom shows the version, whether the station is being built, and how the project's file is saved.
 
 ### Collections, projects and where a station comes from
 
