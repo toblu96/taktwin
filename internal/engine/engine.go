@@ -48,7 +48,8 @@ type Snapshot struct {
 	// Link is set while the PLC is reached over a connection. Such a PLC runs on the
 	// wall clock, so the speed cannot be changed.
 	Link *plcio.LinkInfo `json:"link"`
-	// IOTest is set while the outputs are switched by hand instead of by the program.
+	// IOTest is set while the outputs of every PLC are switched by hand instead of by their
+	// programs.
 	IOTest bool `json:"ioTest"`
 	// PLCs are all the station's PLCs, the first one first, whose state the fields above
 	// repeat.
@@ -64,7 +65,6 @@ type PLCView struct {
 	Outputs plcio.Image        `json:"outputs"`
 	Analog  map[string]float64 `json:"analog"`
 	Link    *plcio.LinkInfo    `json:"link"`
-	IOTest  bool               `json:"ioTest"`
 }
 
 // plcRun is one PLC of the station and its program.
@@ -73,7 +73,6 @@ type plcRun struct {
 	ctl      plcio.Controller
 	out      plcio.Image
 	nextScan time.Duration
-	ioTest   bool
 	testOut  plcio.Image
 }
 
@@ -98,6 +97,8 @@ type Engine struct {
 	now    time.Duration
 	paused bool
 	speed  float64
+	// ioTest is set while the outputs of every PLC are switched by hand.
+	ioTest bool
 }
 
 // New returns an engine for a loaded station and a controller.
@@ -184,7 +185,7 @@ func (e *Engine) advance(d time.Duration) {
 	outs := make([]plcio.Image, len(e.plcs))
 	for end := e.now + d; e.now+TickStep <= end; e.now += TickStep {
 		for k, run := range e.plcs {
-			if run.ioTest {
+			if e.ioTest {
 				run.out = run.testOut
 			} else if e.now >= run.nextScan {
 				run.out = run.ctl.Scan(e.plant.InputsOf(k))
@@ -235,11 +236,11 @@ func (e *Engine) snapshot() Snapshot {
 		Hits:       e.plant.Hits(),
 		FellOff:    e.plant.FellOff(),
 		Analog:     e.plant.Analog(),
-		IOTest:     first.ioTest,
+		IOTest:     e.ioTest,
 	}
 	for k, run := range e.plcs {
-		view := PLCView{ID: run.id, Plc: run.ctl.Name(), Inputs: e.plant.InputsOf(k), Outputs: run.out, Analog: e.plant.AnalogOf(k), IOTest: run.ioTest}
-		if r, ok := run.ctl.(plcio.StepReporter); ok && !run.ioTest {
+		view := PLCView{ID: run.id, Plc: run.ctl.Name(), Inputs: e.plant.InputsOf(k), Outputs: run.out, Analog: e.plant.AnalogOf(k)}
+		if r, ok := run.ctl.(plcio.StepReporter); ok && !e.ioTest {
 			if step := r.Step(); step.Label != "" || step.Number != 0 {
 				view.Step = &step
 			}
@@ -323,14 +324,14 @@ func (e *Engine) SetControllerFor(plc string, ctl plcio.Controller) error {
 	}
 	old := run.ctl
 	run.ctl = ctl
-	run.ioTest, run.testOut = false, plcio.Image{}
+	e.ioTest = false
 	if _, linked := ctl.(plcio.LinkReporter); linked {
 		e.speed = 1
 	}
 	e.plant.Reset()
 	e.now = 0
 	for _, r := range e.plcs {
-		r.nextScan, r.out = 0, plcio.Image{}
+		r.nextScan, r.out, r.testOut = 0, plcio.Image{}, plcio.Image{}
 		if r != run {
 			r.ctl.Reset()
 		}
@@ -343,27 +344,26 @@ func (e *Engine) SetControllerFor(plc string, ctl plcio.Controller) error {
 	return nil
 }
 
-// SetIOTest cuts the program off from the I/O, or connects it again. While it is cut off,
-// its outputs do nothing and it gets no new inputs, and the outputs are switched with
-// SetTestOutput. All outputs go off in both directions and the station stays as it is,
-// so a workpiece can be positioned for teaching a sensor. Ending it restarts a program
-// this app runs, since its steps no longer match the station.
-func (e *Engine) SetIOTest(on bool) { _ = e.SetIOTestFor("", on) }
-
-// SetIOTestFor starts or ends the I/O test of one of the station's PLCs.
-func (e *Engine) SetIOTestFor(plc string, on bool) error {
+// SetIOTest cuts the programs of all the station's PLCs off from the I/O, or connects them
+// again. While they are cut off, their outputs do nothing and they get no new inputs, and the
+// outputs are switched with SetTestOutputFor. All outputs go off in both directions and the
+// station stays as it is, so a workpiece can be positioned for teaching a sensor. Ending it
+// restarts the programs, since their steps no longer match the station. Giving a PLC another
+// program ends it as well, as the station restarts.
+func (e *Engine) SetIOTest(on bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	run, err := e.plc(plc)
-	if err != nil || on == run.ioTest {
-		return err
+	if on == e.ioTest {
+		return
 	}
-	run.ioTest, run.testOut, run.out = on, plcio.Image{}, plcio.Image{}
-	if !on {
-		run.ctl.Reset()
-		run.nextScan = e.now
+	e.ioTest = on
+	for _, run := range e.plcs {
+		run.testOut, run.out = plcio.Image{}, plcio.Image{}
+		if !on {
+			run.ctl.Reset()
+			run.nextScan = e.now
+		}
 	}
-	return nil
 }
 
 // SetTestOutput switches one output by hand during an I/O test. The address is as %QX0.3,
@@ -395,7 +395,7 @@ func (e *Engine) SetTestOutputFor(plc, address string, on bool) error {
 	if !ok || !slices.ContainsFunc(e.plan.PLCOut, func(o model.PLCBitPlan) bool { return o.PLC == k && o.Addr == a }) {
 		return fmt.Errorf("%s is no output bit of the PLC's connectors", address)
 	}
-	if !run.ioTest {
+	if !e.ioTest {
 		return errors.New("outputs can only be switched by hand during an I/O test")
 	}
 	run.testOut.Set(a, on)
@@ -420,26 +420,20 @@ func (e *Engine) SetTestAnalogFor(plc, address string, value float64) error {
 	if !ok || at.Input {
 		return fmt.Errorf("%s is no analogue output of the PLC", address)
 	}
-	if !run.ioTest {
+	if !e.ioTest {
 		return errors.New("outputs can only be set by hand during an I/O test")
 	}
 	x.Scaling.Write(&run.testOut, x.Address, value)
 	return nil
 }
 
-// ClearTestOutputs switches all outputs off during an I/O test.
-func (e *Engine) ClearTestOutputs() { _ = e.ClearTestOutputsFor("") }
-
-// ClearTestOutputsFor switches all outputs of one of the station's PLCs off during its I/O
-// test.
-func (e *Engine) ClearTestOutputsFor(plc string) error {
+// ClearTestOutputs switches the outputs of all the station's PLCs off during an I/O test.
+func (e *Engine) ClearTestOutputs() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	run, err := e.plc(plc)
-	if err == nil {
+	for _, run := range e.plcs {
 		run.testOut = plcio.Image{}
 	}
-	return err
 }
 
 // Close shuts down the PLCs that need that.

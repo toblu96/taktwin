@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { simulation, useSim } from '../sim'
 import UiLamp from '../ui/UiLamp.vue'
-import PlcTest from './PlcTest.vue'
 import type { SceneConnector, ScenePin } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 
 // The pins of a module, connector by connector, with their live state, what each is for and
 // which PLC signal is wired to it. In the library any free signal can be switched by its lamp,
-// in a running station a PLC output during the I/O test.
-const props = defineProps<{ connectors: SceneConnector[] }>()
+// in a running station a PLC output during the I/O test, which the top bar starts.
+defineProps<{ connectors: SceneConnector[] }>()
 
 const sim = useSim()
 const { service, snapshot, stateOn } = sim
@@ -17,13 +15,7 @@ const { service, snapshot, stateOn } = sim
 // A pin that a PLC output drives, at its address in the PLC's image.
 const plcOutput = (pin: ScenePin) => pin.output && !!pin.address
 
-// Whoever is looking at a PLC output's pin can start the I/O test right here.
-const hasOutputs = computed(() => props.connectors.some((c) => c.pins?.some(plcOutput)))
-// The PLC its outputs are of, where the station has several.
-const plc = computed(() => props.connectors.flatMap((c) => c.pins ?? []).find(plcOutput)?.plc ?? '')
-const plcOf = (pin: ScenePin) => snapshot.value?.plcs?.find((p, i) => (pin.plc ? p.id === pin.plc : i === 0))
-
-const testOutput = (pin: ScenePin) => sim === simulation && !!plcOf(pin)?.ioTest && plcOutput(pin)
+const testOutput = (pin: ScenePin) => sim === simulation && !!snapshot.value?.ioTest && plcOutput(pin)
 const canSwitch = (pin: ScenePin) => (pin.forcible && !!service.SetPin) || testOutput(pin)
 
 function switchPin(pin: ScenePin) {
@@ -36,7 +28,6 @@ const row = 'flex min-h-8 items-center gap-2.5 border-0 border-b border-solid bo
 </script>
 
 <template>
-  <PlcTest v-if="sim === simulation && hasOutputs" :plc="plc" />
   <section v-for="connector in connectors" :key="connector.id" class="t-section">
     <h3 class="t-section-title">
       {{ connector.type === 'wires' ? 'Signals' : connector.id }}

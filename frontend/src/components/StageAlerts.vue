@@ -4,11 +4,16 @@ import { simulation } from '../sim'
 import IconWarning from '~icons/fluent/warning-16-filled'
 
 // What happened on the station that needs an answer, over the top of the 3D view: something ran
-// into something, or workpieces fell off. A fall stays until it is acknowledged.
+// into something, or workpieces fell off. A fall stays until it is acknowledged. During the I/O
+// test an amber frame runs round the view, so that the outputs being off the programs is never
+// missed.
 const { snapshot } = simulation
 </script>
 
 <template>
+  <div v-if="snapshot?.ioTest" class="pointer-events-none absolute inset-0 z-10 border-2 border-solid border-accent">
+    <span class="absolute bottom-0 left-0 rounded-tr-control bg-accent px-2 py-0.5 text-xs font-medium text-on-accent">I/O test: outputs by hand</span>
+  </div>
   <div class="pointer-events-none absolute inset-x-0 top-3 z-10 flex flex-col items-center gap-2 px-4" role="status">
     <div
       v-for="text in snapshot?.collisions ?? []"

@@ -72,9 +72,7 @@ func TestAnAnalogueOutputDrivesItsNet(t *testing.T) {
 	if err := e.SetTestAnalogFor("", "%QW8", 5); err == nil {
 		t.Error("outputs are set by hand only during an I/O test")
 	}
-	if err := e.SetIOTestFor("", true); err != nil {
-		t.Fatal(err)
-	}
+	e.SetIOTest(true)
 	for _, bad := range []string{"%IW8", "%QW10", "%QX0.0"} {
 		if err := e.SetTestAnalogFor("", bad, 5); err == nil {
 			t.Errorf("%s is no analogue output", bad)
@@ -100,16 +98,12 @@ func TestAProgramDrivesAnAnalogueOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := e.SetIOTestFor("", true); err != nil {
-		t.Fatal(err)
-	}
+	e.SetIOTest(true)
 	if err := e.SetTestAnalogFor("", "%QW8", 8); err != nil {
 		t.Fatal(err)
 	}
 	e.Advance(20 * time.Millisecond)
-	if err := e.SetIOTestFor("", false); err != nil {
-		t.Fatal(err)
-	}
+	e.SetIOTest(false)
 	e.Advance(15 * time.Millisecond)
 	if got := e.Snapshot().PLCs[0].Analog["%QW8"]; got <= 0 || got >= 8 {
 		t.Errorf("the program halves what it reads: %v V", got)

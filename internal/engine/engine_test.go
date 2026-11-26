@@ -144,9 +144,7 @@ func TestAnIOTestSwitchesOutputsByTheirNames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := e.SetIOTestFor("", true); err != nil {
-		t.Fatal(err)
-	}
+	e.SetIOTest(true)
 	if err := e.SetTestOutputFor("", "QB0Bit00", true); err != nil {
 		t.Fatal(err)
 	}
