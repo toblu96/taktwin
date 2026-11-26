@@ -3,7 +3,7 @@ import { computed, inject, ref, shallowRef, watch, type InjectionKey } from 'vue
 import { Service } from '../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { choose, tell } from './ask'
 import { openSettings, router } from './router'
-import type { Base, ProjectInfo, SaveState } from '../bindings/github.com/toblu96/taktwin/internal/simapp/models'
+import type { Base, PLCConfig, ProjectInfo, SaveState } from '../bindings/github.com/toblu96/taktwin/internal/simapp/models'
 import type { Snapshot } from '../bindings/github.com/toblu96/taktwin/internal/engine'
 import type { Scene, SceneInstance } from '../bindings/github.com/toblu96/taktwin/internal/model'
 
@@ -356,6 +356,38 @@ export const savedConnection = ref<{ plc: string } | null>(null)
 // Counts the times the PLCs' connections changed outside their panel, such as when one was put
 // back as the project's original has it, for the panel to show them as they are now.
 export const connectionsChanged = ref(0)
+
+// How each PLC of the station is meant to be connected and how it runs now, by its id: "" for
+// the first, else its module. The PLC's card on the left offers Connect, Reconnect or
+// Disconnect from it, and the PLC's panel changes it, so that both always show the same.
+export type PlcState = { planned: PLCConfig; running: PLCConfig }
+export const plcStates = ref<Record<string, PlcState>>({})
+export async function refreshPlcs() {
+  const list = simulation.scene.value?.plcs ?? []
+  const ids = list.map((p, i) => (i > 0 ? (p.module ?? '') : ''))
+  const got = await Promise.all(ids.map((id) => Promise.all([Service.PlannedPLC(id), Service.PLCFor(id)]).catch(() => null)))
+  plcStates.value = Object.fromEntries(ids.flatMap((id, i) => (got[i] ? [[id, { planned: got[i][0], running: got[i][1] }]] : [])))
+}
+watch([() => simulation.scene.value?.id, connectionsChanged], () => void refreshPlcs())
+
+// Whether a PLC that runs runs otherwise than the project now means it to, such as with a form
+// changed since it connected, so that Reconnect takes the change.
+export function changedSince(state?: PlcState) {
+  const runs = state?.running.mode ?? 'none'
+  if (!state || runs === 'none') return false
+  if (runs !== state.planned.mode) return true
+  return runs === 'external' && JSON.stringify(state.planned.external ?? null) !== JSON.stringify(state.running.external ?? null)
+}
+
+// Connects a PLC, by its id, as the project means it to be, or lets go of it, from its card.
+export async function connectAsPlanned(id: string) {
+  await Service.ConnectPLCFor(id)
+  connectionsChanged.value++
+}
+export async function disconnectPlc(id: string) {
+  await Service.DisconnectPLCFor(id)
+  connectionsChanged.value++
+}
 
 export function connect() {
   Events.On('sim:snapshot', (event) => {

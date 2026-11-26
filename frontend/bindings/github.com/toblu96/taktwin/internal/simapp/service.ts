@@ -97,6 +97,14 @@ export function CloseProjectDiscarding(): $CancellablePromise<void> {
 }
 
 /**
+ * ConnectPLCFor connects one of the station's PLCs, by its module, as the project means it to
+ * be connected, and restarts the station, as the PLC's Connect does without its panel.
+ */
+export function ConnectPLCFor(plc: string): $CancellablePromise<void> {
+    return $Call.ByID(3302468132, plc);
+}
+
+/**
  * ConnectionKinds lists the kinds of connection one of the station's PLCs, by its module, the
  * first one for "", can be given: the app's own for CODESYS, those of the collections, which
  * name no station, and one to any OPC UA server.
@@ -260,6 +268,15 @@ export function PLCFor(plc: string): $CancellablePromise<$models.PLCConfig> {
 }
 
 /**
+ * PlanPLCFor keeps how the project means one of the station's PLCs, by its module, to be
+ * connected, without connecting it: the mode Connect then connects in. It gives the PLC's
+ * config as the project now has it.
+ */
+export function PlanPLCFor(plc: string, mode: string): $CancellablePromise<$models.PLCConfig> {
+    return $Call.ByID(3259459061, plc, mode);
+}
+
+/**
  * PlannedPLC is how the project means one of the station's PLCs, by its module, to be
  * connected, which the PLC panel offers to connect.
  */
@@ -390,6 +407,14 @@ export function SaveThumbnail(dataURL: string): $CancellablePromise<void> {
  */
 export function Scene(): $CancellablePromise<model$0.Scene> {
     return $Call.ByID(1960697870);
+}
+
+/**
+ * SetAutoConnect says whether one of the station's PLCs, by its module, connects as the
+ * project opens, and gives how the project now means to connect it.
+ */
+export function SetAutoConnect(plc: string, on: boolean): $CancellablePromise<$models.PLCConfig> {
+    return $Call.ByID(2114493725, plc, on);
 }
 
 /**

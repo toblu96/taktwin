@@ -2,14 +2,20 @@
 import { computed, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { ask } from '../ask'
-import { programming, project, refreshProject, simulation } from '../sim'
+import { changedSince, connectAsPlanned, disconnectPlc, plcStates, programming, project, refreshProject, simulation } from '../sim'
 import StationDock from './StationDock.vue'
 import IconCode from '~icons/fluent/code-16-regular'
+import IconConnect from '~icons/fluent/plug-connected-16-regular'
+import IconDisconnect from '~icons/fluent/plug-disconnected-16-regular'
+import IconReconnect from '~icons/fluent/arrow-sync-16-regular'
+import IconSetUp from '~icons/fluent/settings-16-regular'
 
 // The side bar of the simulation as it runs: what the project is about, the station's PLCs, each
 // with how it is connected, what it runs and its program, and the station's own controls, such as
 // putting workpieces in. The I/O test, of all PLCs at once, is in the top bar. Clicking a PLC
-// shows it on the right, where it is connected and its program is.
+// shows it on the right, where how it connects is chosen. Its card is the one place that connects
+// it: Connect as the project means it to be, Reconnect after its connection changed, Disconnect,
+// or Set up… while it has no mode yet, which shows its panel; and it opens the soft PLC's program.
 const { scene, snapshot, selection } = simulation
 
 // The exercise the project is on, or else its station, with what it is about.
@@ -46,9 +52,45 @@ const plcs = computed(() => {
       roundTrip: link?.state === 'connected' ? `${link.roundTrip.toFixed(1)} ms` : '',
       step: view?.step ?? null,
       testing: !!snapshot.value?.ioTest,
+      planned: plcStates.value[i > 0 ? (p.module ?? '') : '']?.planned.mode ?? 'none',
+      action: action(i > 0 ? (p.module ?? '') : '', !!(link || runs)),
     }
   })
 })
+
+// The card's one button, by what the PLC does and what the project means it to do.
+type Action = 'connect' | 'reconnect' | 'disconnect' | 'setup'
+function action(id: string, running: boolean): Action {
+  const state = plcStates.value[id]
+  if (running) return changedSince(state) ? 'reconnect' : 'disconnect'
+  return (state?.planned.mode ?? 'none') === 'none' ? 'setup' : 'connect'
+}
+const ACTIONS = {
+  connect: { label: 'Connect', icon: IconConnect, primary: true, title: 'Connect as chosen in its panel, and restart the station' },
+  reconnect: { label: 'Reconnect', icon: IconReconnect, primary: true, title: 'Its connection changed: connect again with it, and restart the station' },
+  disconnect: { label: 'Disconnect', icon: IconDisconnect, primary: false, title: 'Let go of the PLC, keeping how it connects' },
+  setup: { label: 'Set up…', icon: IconSetUp, primary: false, title: 'Choose how the PLC connects' },
+}
+
+// What the card's button does, with what went wrong under it.
+const busy = ref<string | null>(null)
+const cardProblem = ref<Record<string, string>>({})
+async function act(id: string, module: string | null, what: Action) {
+  if (what === 'setup') {
+    selection.value = module
+    return
+  }
+  busy.value = id
+  cardProblem.value = { ...cardProblem.value, [id]: '' }
+  try {
+    if (what === 'disconnect') await disconnectPlc(id)
+    else await connectAsPlanned(id)
+  } catch (e) {
+    cardProblem.value = { ...cardProblem.value, [id]: (e as Error).message ?? String(e) }
+  } finally {
+    busy.value = null
+  }
+}
 
 // Newer versions of the collections the project carries, installed here, which it takes only
 // when asked: its station follows them unless the project changed it.
@@ -113,8 +155,20 @@ const hasControls = computed(() => (scene.value?.docks ?? []).some((d) => d.widg
               </span>
             </button>
             <div class="flex gap-1.5 border-0 border-t border-solid border-line px-2.5 py-2">
-              <button class="t-btn h-6 px-2 text-xs" :title="`Write the program of ${p.name}`" @click="programming = p.id"><IconCode class="size-3.5" />Program</button>
+              <button
+                class="t-btn h-6 w-26 justify-center px-2 text-xs"
+                :class="{ 't-btn-primary': ACTIONS[p.action].primary }"
+                :disabled="busy === p.id || (p.action === 'setup' && !p.module)"
+                :title="ACTIONS[p.action].title"
+                @click="act(p.id, p.module, p.action)"
+              >
+                <component :is="ACTIONS[p.action].icon" class="size-3.5" />{{ ACTIONS[p.action].label }}
+              </button>
+              <button v-if="p.planned === 'soft'" class="t-btn h-6 px-2 text-xs" :title="`Write the program of ${p.name}`" @click="programming = p.id">
+                <IconCode class="size-3.5" />Program
+              </button>
             </div>
+            <p v-if="cardProblem[p.id]" class="m-0 px-2.5 pb-2 text-xs text-danger" role="alert">{{ cardProblem[p.id] }}</p>
           </div>
         </div>
       </section>

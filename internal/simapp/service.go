@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -71,6 +72,9 @@ type PLCConfig struct {
 	// choosing one of those kinds again brings its form and bindings back. An app that does
 	// not know them reads External alone.
 	Others []ExternalConnection `json:"others,omitempty"`
+	// AutoConnect connects the PLC as the project opens, in its mode, without asking. A
+	// connection that fails leaves the project open and the PLC not connected.
+	AutoConnect bool `json:"autoConnect,omitempty"`
 }
 
 // ExternalConnection is a project's connection of one PLC to a controller outside the app:
@@ -198,20 +202,91 @@ func (s *Service) SetPLCFor(plc string, c PLCConfig) error {
 	if s.engine == nil {
 		return errNoProject
 	}
+	c, err := s.connect(plc, c)
+	if err != nil {
+		return err
+	}
+	return s.remember(plc, c)
+}
+
+// ConnectPLCFor connects one of the station's PLCs, by its module, as the project means it to
+// be connected, and restarts the station, as the PLC's Connect does without its panel.
+func (s *Service) ConnectPLCFor(plc string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.engine == nil {
+		return errNoProject
+	}
+	planned := s.proj.def.PLCs[s.plcKey(plc)]
+	if planned.Mode == "" || planned.Mode == PLCNone {
+		return errors.New("choose how the PLC connects first")
+	}
+	_, err := s.connect(plc, PLCConfig{Mode: planned.Mode})
+	return err
+}
+
+// PlanPLCFor keeps how the project means one of the station's PLCs, by its module, to be
+// connected, without connecting it: the mode Connect then connects in. It gives the PLC's
+// config as the project now has it.
+func (s *Service) PlanPLCFor(plc, mode string) (PLCConfig, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.engine == nil {
+		return PLCConfig{}, errNoProject
+	}
+	if mode != PLCNone && mode != PLCSoft && mode != PLCExternal {
+		return PLCConfig{}, fmt.Errorf("there is no PLC mode %q", mode)
+	}
+	planned := s.proj.def.PLCs[s.plcKey(plc)]
+	planned.Mode = mode
+	return planned, s.remember(plc, planned)
+}
+
+// SetAutoConnect says whether one of the station's PLCs, by its module, connects as the
+// project opens, and gives how the project now means to connect it.
+func (s *Service) SetAutoConnect(plc string, on bool) (PLCConfig, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.engine == nil {
+		return PLCConfig{}, errNoProject
+	}
+	planned := s.proj.def.PLCs[s.plcKey(plc)]
+	if planned.Mode == "" {
+		planned.Mode = PLCNone
+	}
+	planned.AutoConnect = on
+	return planned, s.remember(plc, planned)
+}
+
+// connect gives one of the station's PLCs the controller a config says, with the connections
+// and the setting the project keeps for it, under s.mu, and gives the config as it now is.
+func (s *Service) connect(plc string, c PLCConfig) (PLCConfig, error) {
 	kept := s.proj.def.PLCs[s.plcKey(plc)]
 	if c.External == nil {
 		c.External = kept.External
 	}
-	c.Others = kept.Others
+	c.Others, c.AutoConnect = kept.Others, kept.AutoConnect
 	ctl, err := s.controller(plc, c)
 	if err != nil {
-		return err
+		return c, err
 	}
 	if err := s.engine.SetControllerFor(plc, ctl); err != nil {
-		return err
+		return c, err
 	}
 	s.plcs[s.plcKey(plc)] = c
-	return s.remember(plc, c)
+	return c, nil
+}
+
+// autoConnect connects the PLCs the project says to connect as it opens, under s.mu. What
+// fails is left not connected, for the PLC's panel to connect again.
+func (s *Service) autoConnect() {
+	for _, key := range slices.Sorted(maps.Keys(s.proj.def.PLCs)) {
+		c := s.proj.def.PLCs[key]
+		if !c.AutoConnect || c.Mode == "" || c.Mode == PLCNone {
+			continue
+		}
+		_, _ = s.connect(key, PLCConfig{Mode: c.Mode})
+	}
 }
 
 // DisconnectPLCFor ends the connection of one of the station's PLCs, by its module, and restarts

@@ -78,7 +78,7 @@ The project keeps the station as `station.json` in its file, a zip (**Show in fo
 - **an example program** for its PLC, in `programs/<station>/<plc>/` of the collection, which the programming tool offers to load;
 - **about.md**, how the station works, beside its `station.json`.
 
-How a PLC is connected to a particular controller, such as the OPC UA variables of one CODESYS project, a FluidSIM circuit, or a PLC program written for another wiring, is set up in a project and shared with it. A collection's `connections/` holds kinds of connection that fit any station, which name no station.
+How a PLC is connected to a particular controller, such as the OPC UA variables of one CODESYS project, a FluidSIM circuit, or a PLC program written for another wiring, is set up in a project and shared with it. Switch on **Connect when the project opens** in the PLC's panel before **Hand out…**, and the students' copies connect as they open. A collection's `connections/` holds kinds of connection that fit any station, which name no station.
 
 ## Exercises
 
