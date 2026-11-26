@@ -26,6 +26,7 @@ import IconFit from '~icons/fluent/arrow-fit-16-regular'
 import IconTurn from '~icons/fluent/arrow-rotate-clockwise-16-regular'
 import IconCursor from '~icons/fluent/cursor-click-20-regular'
 import IconChevron from '~icons/fluent/chevron-right-12-regular'
+import UiField from '../ui/UiField.vue'
 
 // The builder's side bar on the right: the module being added, with where it would go and
 // whether it fits there, or the module selected, with where it is, how it is put together, the
@@ -120,12 +121,12 @@ const field = 't-input w-24 text-right font-mono text-xs select-text'
             <p class="m-0 text-muted">On <span class="font-mono text-xs text-fg">{{ onFloor ? 'the floor' : selected.place.on }}</span></p>
             <label v-if="slots > 1" class="flex items-center gap-3">
               <span class="flex-1">{{ onFloor ? 'Line across, 50 mm apart' : 'Slot' }}</span>
-              <input type="number" :class="field" min="0" :max="slots - 1" :value="selected.place.slot" :disabled="busy" @change="setSlot" />
+              <UiField type="number" :class="field" min="0" :max="slots - 1" :value="selected.place.slot" :disabled="busy" @change="setSlot" />
               <span class="w-9" />
             </label>
             <label class="flex items-center gap-3">
               <span class="flex-1">Along</span>
-              <input type="number" :class="field" step="1" :value="shownAt" :disabled="busy" @change="setAt" />
+              <UiField type="number" :class="field" step="1" :value="shownAt" :disabled="busy" @change="setAt" />
               <span class="w-9 text-xs text-muted">mm</span>
             </label>
             <div class="flex items-center gap-1.5">

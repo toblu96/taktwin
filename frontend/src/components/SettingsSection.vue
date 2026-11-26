@@ -6,6 +6,7 @@ import { useSim } from '../sim'
 import type { SceneFault, SceneParameter, SceneValue } from '../../bindings/github.com/toblu96/taktwin/internal/model'
 import UiSelect from '../ui/UiSelect.vue'
 import UiSwitch from '../ui/UiSwitch.vue'
+import UiField from '../ui/UiField.vue'
 
 const props = defineProps<{ parameters: SceneParameter[]; faults: SceneFault[]; values: SceneValue[]; named?: boolean }>()
 
@@ -66,7 +67,7 @@ const setFault = (name: string, on: boolean) => void service.SetFault(name, on)
               @update:model-value="(v: string | null) => v !== null && set(parameter, Number(v))"
             />
             <span v-else class="flex shrink-0 items-center gap-1.5">
-              <input
+              <UiField
                 :id="`${id}-${parameter.id}`"
                 type="number"
                 class="t-input w-20 text-right font-mono text-xs select-text"
