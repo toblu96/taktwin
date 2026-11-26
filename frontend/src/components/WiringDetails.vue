@@ -5,12 +5,13 @@ import { busy, movePin, setSignal, unplug } from '../builder'
 import { simulation } from '../sim'
 import { KINDS, pinClass, wiringIndex } from '../wiring'
 import IoTable from './IoTable.vue'
-import PlcConnection from './PlcConnection.vue'
+import { useRouter } from 'vue-router'
+import IconConnect from '~icons/fluent/plug-connected-16-regular'
 import IconDrag from '~icons/fluent/re-order-dots-vertical-16-regular'
 import IconUnplug from '~icons/fluent/plug-disconnected-16-regular'
 
-// What a box of the wiring is, beside the diagram. A PLC: how it is connected, the soft PLC or a
-// controller outside the app, and its signals. An I/O terminal: its pins, with what each
+// What a box of the wiring is, beside the diagram. A PLC: its signals, and the way to its
+// connection, which is set up in the simulation's panel with the PLC selected. An I/O terminal: its pins, with what each
 // carries and the name the PLC gives it. An interface or a console: where its connectors are
 // cabled to. Edited, a terminal's pins swap what they carry, dragged onto another of their
 // class or picked and then the other clicked, and the PLC's names change in place; a cable
@@ -29,6 +30,13 @@ const plcIndex = computed(() => {
     plcs.findIndex((p) => p.module === props.box?.id),
   )
 })
+
+// Shows the PLC in the simulation, where its connection is, running rather than being built.
+const router = useRouter()
+function showConnection() {
+  simulation.selection.value = props.box?.id ?? null
+  void router.push({ name: 'simulate' })
+}
 
 // --- Pins: swapping what two pins of a terminal carry. ---
 
@@ -86,7 +94,11 @@ function rename(pin: WiringPin, e: Event) {
       </header>
       <div class="min-h-0 flex-1 overflow-y-auto">
         <template v-if="box.kind === 'plc'">
-          <PlcConnection :key="`${simulation.scene.value?.id}:${plcIndex}`" :index="plcIndex" />
+          <section class="t-section">
+            <h3 class="t-section-title">Connection</h3>
+            <p class="m-0 mb-2.5 text-xs text-muted">How the PLC is connected, to the soft PLC or a controller outside the app, is set up in the simulation.</p>
+            <button class="t-btn" @click="showConnection"><IconConnect class="size-4" />Show the connection</button>
+          </section>
           <section class="t-section">
             <h3 class="t-section-title">Signals</h3>
             <IoTable :index="plcIndex" />

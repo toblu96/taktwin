@@ -395,8 +395,8 @@ export interface OriginalInfo {
 }
 
 /**
- * PLCConfig says which PLC the station uses, and keeps the PLC's own connection to a
- * controller outside the app while another mode runs, so that switching back brings it back.
+ * PLCConfig says which PLC the station uses, and keeps the PLC's own connections to a
+ * controller outside the app while another mode runs, so that switching back brings them back.
  */
 export interface PLCConfig {
     "mode": string;
@@ -406,6 +406,13 @@ export interface PLCConfig {
      * PLCExternal; nil until a kind of connection is chosen.
      */
     "external"?: ExternalConnection | null;
+
+    /**
+     * Others are the connections of other kinds the PLC was given before, by kind, so that
+     * choosing one of those kinds again brings its form and bindings back. An app that does
+     * not know them reads External alone.
+     */
+    "others"?: ExternalConnection[] | null;
 }
 
 /**

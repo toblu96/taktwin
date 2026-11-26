@@ -5,7 +5,8 @@ import IconCheck from '~icons/fluent/checkmark-16-regular'
 
 // A choice of one from a list, such as the station of a new project, with UI SDK's select.
 // With hideLabel the label is only for screen readers, where the row around it says what it is.
-defineProps<{ options: { value: string; label: string; hint?: string }[]; label: string; placeholder?: string; hideLabel?: boolean }>()
+// An option's hint says where it comes from, its description what it is, both in the list only.
+defineProps<{ options: { value: string; label: string; hint?: string; description?: string }[]; label: string; placeholder?: string; hideLabel?: boolean }>()
 const model = defineModel<string | null>({ required: true })
 </script>
 
@@ -22,6 +23,7 @@ const model = defineModel<string | null>({ required: true })
           <span class="flex flex-1 flex-col">
             <SelectItemText>{{ o.label }}</SelectItemText>
             <span v-if="o.hint" class="text-xs text-muted group-data-highlighted:text-fg/80">{{ o.hint }}</span>
+            <span v-if="o.description" class="max-w-80 text-xs whitespace-normal text-muted group-data-highlighted:text-fg/80">{{ o.description }}</span>
           </span>
           <SelectItemIndicator><IconCheck class="size-4 text-focus" /></SelectItemIndicator>
         </SelectItem>

@@ -347,8 +347,9 @@ async function takeOpened() {
 // null while none is.
 export const programming = ref<string | null>(null)
 
-// The PLC whose connection's bindings are open in the wiring, with the values of its form, or
-// null while none is. Saved names the PLC once its bindings were saved into the project.
+// The PLC whose connection's bindings are open in their dialog over the simulation, with the
+// values of its form, or null while none is. Saved names the PLC once its bindings were saved
+// into the project.
 export const editingConnection = ref<{ plc: string; values: Record<string, unknown> } | null>(null)
 export const savedConnection = ref<{ plc: string } | null>(null)
 

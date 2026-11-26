@@ -1,8 +1,11 @@
 package simapp
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -106,10 +109,10 @@ func TestThePLCOffersKindsOfConnection(t *testing.T) {
 	if err := s.SetPLCFor("", PLCConfig{Mode: PLCExternal}); err == nil {
 		t.Error("connected without a kind of connection")
 	}
-	if _, err := s.NewConnection("", "mine"); err == nil {
+	if _, err := s.ChooseConnection("", "mine"); err == nil {
 		t.Error("a mapping is a kind")
 	}
-	planned, err := s.NewConnection("", "codesys")
+	planned, err := s.ChooseConnection("", "codesys")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +141,7 @@ func TestAStationConnectsThroughItsOwnConnection(t *testing.T) {
 	// The link closes first: a server closed under a client waits for it.
 	defer srv.Close()
 	defer func() { _ = s.SetPLCFor("", PLCConfig{Mode: PLCNone}) }()
-	planned, err := s.NewConnection("", "opcua")
+	planned, err := s.ChooseConnection("", "opcua")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +188,7 @@ func TestATemplateLeavesOutWhatNothingUses(t *testing.T) {
 	}
 	defer srv.Close()
 	defer func() { _ = s.SetPLCFor("", PLCConfig{Mode: PLCNone}) }()
-	planned, err := s.NewConnection("", "opcua")
+	planned, err := s.ChooseConnection("", "opcua")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +246,7 @@ func TestTheSoftPLCIsReachedThroughItsServer(t *testing.T) {
 // connect again.
 func TestAConnectionThatCannotBeReachedIsLetGoOf(t *testing.T) {
 	s, _ := newService(t)
-	if _, err := s.NewConnection("", "opcua"); err != nil {
+	if _, err := s.ChooseConnection("", "opcua"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.SetConnectionValues("", map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}); err != nil {
@@ -264,5 +267,104 @@ func TestAConnectionThatCannotBeReachedIsLetGoOf(t *testing.T) {
 	}
 	if got := s.PlannedPLC(""); got.External == nil || got.External.Kind != "opcua" || got.External.Values["endpoint"] != "opc.tcp://127.0.0.1:1" {
 		t.Errorf("the project keeps the connection to connect again: %+v", got)
+	}
+}
+
+// Trying another kind of connection loses nothing: choosing the first kind again brings its
+// form back, and connecting keeps the others in the project.
+func TestAPLCKeepsAConnectionOfEachKind(t *testing.T) {
+	s, _ := newService(t)
+	if _, err := s.ChooseConnection("", "codesys"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetConnectionValues("", map[string]any{"endpoint": "opc.tcp://plc:4840"}); err != nil {
+		t.Fatal(err)
+	}
+	planned, err := s.ChooseConnection("", "opcua")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if planned.External.Kind != "opcua" || len(planned.External.Values) > 0 || len(planned.Others) != 1 || planned.Others[0].Kind != "codesys" {
+		t.Errorf("a new connection of the other kind, the first kept: %+v", planned)
+	}
+	if _, err := s.SetConnectionValues("", map[string]any{"endpoint": "opc.tcp://server:4840"}); err != nil {
+		t.Fatal(err)
+	}
+	planned, err = s.ChooseConnection("", "codesys")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if planned.External.Values["endpoint"] != "opc.tcp://plc:4840" || len(planned.Others) != 1 || planned.Others[0].Values["endpoint"] != "opc.tcp://server:4840" {
+		t.Errorf("each kind comes back with its form: %+v", planned)
+	}
+	if again, _ := s.ChooseConnection("", "codesys"); !samePLC(again, planned) {
+		t.Errorf("choosing the kind it has changes nothing: %+v", again)
+	}
+	if err := s.SetPLCFor("", PLCConfig{Mode: PLCSoft}); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = s.SetPLCFor("", PLCConfig{Mode: PLCNone}) }()
+	if got := s.PlannedPLC(""); got.Mode != PLCSoft || got.External == nil || got.External.Kind != "codesys" || len(got.Others) != 1 {
+		t.Errorf("connecting keeps every connection: %+v", got)
+	}
+}
+
+// The kinds of connection come from the app as it is installed, not from the copies of the
+// collections a project carries: an older project offers FluidSIM's kind as this app has it.
+func TestKindsComeFromTheInstalledCollections(t *testing.T) {
+	s, _ := newService(t)
+	carried := filepath.Join(s.proj.dir(), "collections", "base.taktwin")
+	zipped, err := os.ReadFile(carried)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := zip.NewReader(bytes.NewReader(zipped), int64(len(zipped)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	installed := ""
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, _ := io.ReadAll(rc)
+		_ = rc.Close()
+		if strings.HasSuffix(f.Name, "connections/fluidsim-ports.json") {
+			var kind map[string]any
+			if err := json.Unmarshal(data, &kind); err != nil {
+				t.Fatal(err)
+			}
+			installed, _ = kind["description"].(string)
+			kind["description"] = "An old description."
+			data, _ = json.Marshal(kind)
+		}
+		out, _ := w.Create(f.Name)
+		_, _ = out.Write(data)
+	}
+	_ = w.Close()
+	if installed == "" {
+		t.Fatal("the project carries the base collection with FluidSIM's kind")
+	}
+	if err := os.WriteFile(carried, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	list, err := s.ConnectionKinds("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, k := range list {
+		if k.ID == "fluidsim-ports" {
+			found = true
+			if k.Description != installed {
+				t.Errorf("the installed kind: %q", k.Description)
+			}
+		}
+	}
+	if !found {
+		t.Error("FluidSIM's kind is offered")
 	}
 }

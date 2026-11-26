@@ -1,7 +1,7 @@
 {
   "id": "fluidsim-ports",
   "name": "FluidSIM: input and output ports",
-  "description": "A FluidSIM circuit that is the controller, with input and output port components: each input of the PLC goes to the same bit of an input port, %IX1.3 to EB1.bit.3, and each output comes from the same bit of an output port, %QX0.2 from AB0.bit.2. Signals the station does not use need no port.",
+  "description": "A FluidSIM circuit as the controller, through its input and output ports.",
   "driver": "opcua",
   "vars": {
     "type": "object",

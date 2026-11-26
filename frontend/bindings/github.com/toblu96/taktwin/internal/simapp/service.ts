@@ -54,6 +54,17 @@ export function Check(): $CancellablePromise<$models.CheckState> {
 }
 
 /**
+ * ChooseConnection gives one of the station's PLCs, by its module, its connection of a kind:
+ * the one the project kept of that kind, with its form and bindings, or else a new one. The
+ * connection it had is kept among the others, so that choosing its kind again brings it back,
+ * and nothing is lost by trying another. It gives how the project now means to connect the PLC,
+ * and does not connect it.
+ */
+export function ChooseConnection(plc: string, kind: string): $CancellablePromise<$models.PLCConfig> {
+    return $Call.ByID(3209574607, plc, kind);
+}
+
+/**
  * ChooseProjectFile lets the user pick a .taktwin-project file in the system's dialog, to
  * open with OpenProjectFile. Cancelling gives an empty path.
  */
@@ -179,15 +190,6 @@ export function KeepAsOriginal(): $CancellablePromise<$models.OriginalInfo> {
  */
 export function KeepMine(): $CancellablePromise<$models.SaveState> {
     return $Call.ByID(3676473216);
-}
-
-/**
- * NewConnection gives one of the station's PLCs, by its module, a new connection of a kind,
- * in place of the one the project kept for it, and gives how the project now means to
- * connect the PLC. It does not connect it.
- */
-export function NewConnection(plc: string, kind: string): $CancellablePromise<$models.PLCConfig> {
-    return $Call.ByID(3268074768, plc, kind);
 }
 
 /**
@@ -429,7 +431,8 @@ export function SetPLC(c: $models.PLCConfig): $CancellablePromise<void> {
 
 /**
  * SetPLCFor connects one of the station's PLCs, by its module, and restarts the station.
- * Without a connection of its own, the config uses the one the project keeps for the PLC.
+ * Without a connection of its own, the config uses the one the project keeps for the PLC, and
+ * the project keeps the connections of other kinds it has.
  */
 export function SetPLCFor(plc: string, c: $models.PLCConfig): $CancellablePromise<void> {
     return $Call.ByID(174266174, plc, c);
