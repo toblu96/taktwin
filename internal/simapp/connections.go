@@ -83,28 +83,44 @@ func (s *Service) kinds(plc string) ([]offered, error) {
 	return append(out, offered{genericOPCUA(), "Taktwin"}), nil
 }
 
-// NewConnection gives one of the station's PLCs, by its module, a new connection of a kind,
-// in place of the one the project kept for it, and gives how the project now means to
-// connect the PLC. It does not connect it.
-func (s *Service) NewConnection(plc, kind string) (PLCConfig, error) {
+// ChooseConnection gives one of the station's PLCs, by its module, its connection of a kind:
+// the one the project kept of that kind, with its form and bindings, or else a new one. The
+// connection it had is kept among the others, so that choosing its kind again brings it back,
+// and nothing is lost by trying another. It gives how the project now means to connect the PLC,
+// and does not connect it.
+func (s *Service) ChooseConnection(plc, kind string) (PLCConfig, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	list, err := s.kinds(plc)
 	if err != nil {
 		return PLCConfig{}, err
 	}
-	for _, o := range list {
-		if o.conn.ID != kind {
-			continue
-		}
-		planned := s.proj.def.PLCs[s.plcKey(plc)]
-		if planned.Mode == "" {
-			planned.Mode = PLCNone
-		}
-		planned.External = &ExternalConnection{Kind: kind, Connection: o.conn}
-		return planned, s.remember(plc, planned)
+	i := slices.IndexFunc(list, func(o offered) bool { return o.conn.ID == kind })
+	if i < 0 {
+		return PLCConfig{}, fmt.Errorf("there is no kind of connection %q for this PLC", kind)
 	}
-	return PLCConfig{}, fmt.Errorf("there is no kind of connection %q for this PLC", kind)
+	planned := s.proj.def.PLCs[s.plcKey(plc)]
+	if planned.Mode == "" {
+		planned.Mode = PLCNone
+	}
+	if planned.External != nil && planned.External.Kind == kind {
+		return planned, nil
+	}
+	others := slices.Clone(planned.Others)
+	next := ExternalConnection{Kind: kind, Connection: list[i].conn}
+	if j := slices.IndexFunc(others, func(e ExternalConnection) bool { return e.Kind == kind }); j >= 0 {
+		next = others[j]
+		others = slices.Delete(others, j, j+1)
+	}
+	if planned.External != nil {
+		others = append(others, *planned.External)
+	}
+	slices.SortFunc(others, func(a, b ExternalConnection) int { return strings.Compare(a.Kind, b.Kind) })
+	planned.External, planned.Others = &next, others
+	if len(others) == 0 {
+		planned.Others = nil
+	}
+	return planned, s.remember(plc, planned)
 }
 
 // SetConnectionValues keeps what the form of a PLC's connection is filled in with, such as
@@ -132,7 +148,7 @@ func codesys(naming plcio.Naming) link.Connection {
 	c := link.Connection{
 		ID:          "codesys",
 		Name:        "CODESYS: variable list " + naming.List,
-		Description: fmt.Sprintf("A CODESYS PLC with the variable list %s in its symbol configuration, with %s for inputs and %s for outputs, and no security.", naming.List, naming.Input(plcio.Addr{}), naming.Output(plcio.Addr{})),
+		Description: fmt.Sprintf("A CODESYS PLC with the variable list %s in its symbol configuration.", naming.List),
 		Driver:      "opcua",
 		Vars: json.RawMessage(`{
   "type": "object",

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { ProgramService } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { programming, simulation, useSim } from '../sim'
 import IoTable from './IoTable.vue'
@@ -7,13 +7,15 @@ import PlcConnection from './PlcConnection.vue'
 import IconCode from '~icons/fluent/code-16-regular'
 import IconWindow from '~icons/fluent/window-new-16-regular'
 
-// A PLC: in a running station how it is connected, then its program, what runs and its step; its
-// signals in the library. In the simulation the inputs and outputs have their own panel, so the
-// PLC's own view leaves its signals out.
+// A PLC: in a running station how it is connected, then, for the soft PLC, its program, what runs
+// and its step; its signals in the library. In the simulation the inputs and outputs have their
+// own panel, so the PLC's own view leaves its signals out.
 withDefaults(defineProps<{ signals?: boolean; connection?: boolean }>(), { signals: true, connection: true })
 
 const sim = useSim()
 const { plcId, plcScene, plcView, scene } = sim
+// The mode the connection shows, which decides whether there is a program to write.
+const mode = ref('none')
 const hasSignals = computed(() => {
   const p = plcScene.value
   return !!(p?.inputs?.length || p?.outputs?.length || p?.analog?.length || p?.analogOutputs?.length)
@@ -21,8 +23,8 @@ const hasSignals = computed(() => {
 </script>
 
 <template>
-  <PlcConnection v-if="sim === simulation && connection" :key="`${scene?.id}:${plcId}`" />
-  <section v-if="sim === simulation" class="t-section">
+  <PlcConnection v-if="sim === simulation && connection" :key="`${scene?.id}:${plcId}`" v-model:mode="mode" />
+  <section v-if="sim === simulation && (!connection || mode === 'soft')" class="t-section">
     <h3 class="t-section-title">Program</h3>
     <dl class="m-0 mb-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
       <dt class="text-muted">Runs</dt>
@@ -32,7 +34,7 @@ const hasSignals = computed(() => {
         <dd class="m-0 truncate font-mono text-xs leading-5"><b class="font-semibold text-accent-ink">S{{ plcView.step.number }}</b> {{ plcView.step.label }}</dd>
       </template>
     </dl>
-    <p class="m-0 mb-2.5 text-xs text-muted">Write the program in Structured Text, run it in the app's soft PLC, and watch and force its variables.</p>
+    <p class="m-0 mb-2.5 text-xs text-muted">Structured Text, run by the soft PLC. Watch and force its variables while it runs.</p>
     <div class="flex flex-wrap gap-2">
       <button class="t-btn" @click="programming = plcId"><IconCode class="size-4" />Edit program</button>
       <button class="t-btn" title="Beside the simulation, in a window of its own" @click="ProgramService.OpenWindow(plcId)"><IconWindow class="size-4" />Open in window</button>

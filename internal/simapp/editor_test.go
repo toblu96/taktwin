@@ -22,7 +22,7 @@ import (
 // connectionDraft is the PLC's own connection being edited, made from the app's generic one.
 func connectionDraft(t *testing.T, s *Service, edit func(map[string]any)) string {
 	t.Helper()
-	planned, err := s.NewConnection("", "opcua")
+	planned, err := s.ChooseConnection("", "opcua")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,4 +233,27 @@ func TestTheProgrammingToolChecksFormatsAndRemembers(t *testing.T) {
 		t.Errorf("another project has them: %+v", got)
 	}
 	_ = opened
+}
+
+// Saving a connection from the editor keeps its form's fields in the order they were written,
+// so that the form asks for the server's address first, as the kind does.
+func TestSavingAConnectionKeepsTheOrderOfItsForm(t *testing.T) {
+	s, _ := newService(t)
+	planned, err := s.ChooseConnection("", "codesys")
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := string(planned.External.Connection.Vars)
+	doc, _ := json.Marshal(planned.External.Connection)
+	saved, err := s.SaveConnection("", string(doc), map[string]any{"endpoint": "opc.tcp://127.0.0.1:4840"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a, b := strings.Index(before, `"endpoint"`), strings.Index(before, `"application"`); a < 0 || b < 0 || a > b {
+		t.Fatalf("the kind asks for the address first: %s", before)
+	}
+	after := string(saved.External.Connection.Vars)
+	if a, b := strings.Index(after, `"endpoint"`), strings.Index(after, `"application"`); a < 0 || a > b {
+		t.Errorf("the saved form asks for the address first: %s", after)
+	}
 }

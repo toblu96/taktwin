@@ -60,13 +60,17 @@ const (
 	PLCSoft = "soft"
 )
 
-// PLCConfig says which PLC the station uses, and keeps the PLC's own connection to a
-// controller outside the app while another mode runs, so that switching back brings it back.
+// PLCConfig says which PLC the station uses, and keeps the PLC's own connections to a
+// controller outside the app while another mode runs, so that switching back brings them back.
 type PLCConfig struct {
 	Mode string `json:"mode"`
 	// External is the project's connection of the PLC to a controller outside the app, for
 	// PLCExternal; nil until a kind of connection is chosen.
 	External *ExternalConnection `json:"external,omitempty"`
+	// Others are the connections of other kinds the PLC was given before, by kind, so that
+	// choosing one of those kinds again brings its form and bindings back. An app that does
+	// not know them reads External alone.
+	Others []ExternalConnection `json:"others,omitempty"`
 }
 
 // ExternalConnection is a project's connection of one PLC to a controller outside the app:
@@ -186,16 +190,19 @@ func (s *Service) PLCFor(plc string) PLCConfig {
 }
 
 // SetPLCFor connects one of the station's PLCs, by its module, and restarts the station.
-// Without a connection of its own, the config uses the one the project keeps for the PLC.
+// Without a connection of its own, the config uses the one the project keeps for the PLC, and
+// the project keeps the connections of other kinds it has.
 func (s *Service) SetPLCFor(plc string, c PLCConfig) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.engine == nil {
 		return errNoProject
 	}
+	kept := s.proj.def.PLCs[s.plcKey(plc)]
 	if c.External == nil {
-		c.External = s.proj.def.PLCs[s.plcKey(plc)].External
+		c.External = kept.External
 	}
+	c.Others = kept.Others
 	ctl, err := s.controller(plc, c)
 	if err != nil {
 		return err

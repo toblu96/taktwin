@@ -14,14 +14,14 @@ import IconIn from '~icons/fluent/arrow-right-16-regular'
 import IconOut from '~icons/fluent/arrow-left-16-regular'
 import IconRefresh from '~icons/fluent/arrow-clockwise-16-regular'
 import IconAdd from '~icons/fluent/add-16-regular'
-import IconClose from '~icons/fluent/dismiss-16-regular'
 import IconUnbind from '~icons/fluent/link-dismiss-16-regular'
 
-// The editor of a connection, in the middle of the wiring: which item of the controller each
-// signal of the station is exchanged with, picked from what the controller offers, browsed in
-// the side bar (#wiring-nodes, which the wiring view puts there while this is open), or written by hand, and the templates that bind many at once; or the whole file as
-// JSON. It saves the connection into the project, as the PLC's own; the PLC uses it once it is
-// connected again.
+// The editor of a connection, in a large dialog over the simulation: which item of the controller
+// each signal of the station is exchanged with, picked from what the controller offers, browsed
+// in the column on the left, or written by hand, and the templates that bind many at once; or
+// the whole file as JSON. It saves the connection into the project, as the PLC's own; the PLC
+// uses it once it is connected again. The dialog has the title and the close button, and asks
+// through close() before it goes.
 const props = defineProps<{ plc: string; values: Record<string, unknown> }>()
 const emit = defineEmits<{ close: [] }>()
 
@@ -66,6 +66,7 @@ async function keepOrDrop(): Promise<boolean> {
 async function close() {
   if (await keepOrDrop()) emit('close')
 }
+defineExpose({ close })
 onBeforeRouteLeave(() => keepOrDrop())
 
 onMounted(async () => {
@@ -298,7 +299,6 @@ const counts = computed(() => {
 <template>
   <section class="flex min-h-0 flex-col bg-s0" aria-label="Bindings of the connection">
     <header class="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-0 border-b border-solid border-line bg-s1 px-3 py-2">
-      <h2 class="m-0 text-[13px] font-semibold">Bindings</h2>
       <span v-if="doc" class="truncate text-xs text-muted">{{ doc.name }}</span>
       <span class="flex-1" />
       <UiSegmented
@@ -311,7 +311,6 @@ const counts = computed(() => {
       />
       <span v-if="unsaved" class="text-xs text-accent-ink" role="status">Not saved yet</span>
       <button class="t-btn t-btn-primary" :disabled="busy || !doc" title="Keeps the bindings in the project, for the PLC's next connection" @click="save()">Save</button>
-      <button class="t-icon-btn" title="Close the bindings" aria-label="Close the bindings" @click="close"><IconClose class="size-4" /></button>
     </header>
     <p v-if="message" class="m-0 shrink-0 border-0 border-b border-solid border-line px-3 py-2 text-danger" role="alert">{{ message }}</p>
     <p v-else-if="preview?.error" class="m-0 shrink-0 border-0 border-b border-solid border-line px-3 py-2 text-danger">{{ preview.error }}</p>
@@ -328,11 +327,22 @@ const counts = computed(() => {
     </div>
 
     <div v-else-if="doc" class="flex min-h-0 flex-1">
+      <aside class="flex w-72 shrink-0 flex-col border-0 border-r border-solid border-line bg-s1" aria-label="On the controller">
+        <div class="flex h-9 shrink-0 items-center gap-2 px-3">
+          <h3 class="m-0 flex-1 text-xs font-semibold tracking-wide text-muted uppercase">On the controller</h3>
+          <button class="t-icon-btn size-6" :disabled="!!browsing" title="Look again" aria-label="Look again on the controller" @click="browse('')">
+            <IconRefresh class="size-4" />
+          </button>
+        </div>
+        <p v-if="browsing" class="m-0 px-3 pb-2 text-xs text-muted">Looking…</p>
+        <p v-else-if="!tree.length" class="m-0 px-3 pb-2 text-xs text-muted">Nothing found: is the controller running, and does the connection's form say where it is?</p>
+        <UiTree :items="tree" label="Nodes on the controller" class="min-h-0 flex-1 overflow-auto px-1.5 pb-2" @select="pickRow" @toggle="openRow" />
+      </aside>
       <div class="min-w-0 flex-1 overflow-auto">
         <section class="t-section">
           <p class="m-0 mb-3 text-xs text-muted">
-            Select a signal, then pick its node on the controller in the side bar, or type its NodeId. A binding follows the signal's symbol when it moves to another pin, or stays
-            with the address.
+            Select a signal, then pick its node on the controller on the left, or type its NodeId. A binding follows the signal's symbol when it moves to another pin, or stays with
+            the address.
             <span class="font-medium text-fg">{{ counts }}.</span>
           </p>
           <table class="w-full table-fixed border-collapse">
@@ -450,21 +460,6 @@ const counts = computed(() => {
           <button class="t-btn" @click="addTemplate"><IconAdd class="size-4" />Add a template</button>
         </section>
       </div>
-
-      <!-- What the controller offers takes the side bar's place, beside the signals. -->
-      <Teleport defer to="#wiring-nodes">
-        <aside class="flex h-full min-w-0 flex-col bg-s1" aria-label="On the controller">
-          <div class="flex h-9 shrink-0 items-center gap-2 px-3">
-            <h3 class="m-0 flex-1 text-xs font-semibold tracking-wide text-muted uppercase">On the controller</h3>
-            <button class="t-icon-btn size-6" :disabled="!!browsing" title="Look again" aria-label="Look again on the controller" @click="browse('')">
-              <IconRefresh class="size-4" />
-            </button>
-          </div>
-          <p v-if="browsing" class="m-0 px-3 pb-2 text-xs text-muted">Looking…</p>
-          <p v-else-if="!tree.length" class="m-0 px-3 pb-2 text-xs text-muted">Nothing found: is the controller running, and does the connection's form say where it is?</p>
-          <UiTree :items="tree" label="Nodes on the controller" class="min-h-0 flex-1 overflow-auto px-1.5 pb-2" @select="pickRow" @toggle="openRow" />
-        </aside>
-      </Teleport>
     </div>
   </section>
 </template>

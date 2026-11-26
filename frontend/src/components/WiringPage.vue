@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { enter, leave, loadWiring, problem, state, wiring } from '../builder'
 import { treeWidth, wiringDetailsWidth } from '../layout'
-import { editingConnection, simulation } from '../sim'
+import { simulation } from '../sim'
 import UiSash from '../ui/UiSash.vue'
 import { loadStationWiring, stationWiring, stationWiringProblem, wiringIndex } from '../wiring'
-import ConnectionEditor from './ConnectionEditor.vue'
 import PagePanel from './PagePanel.vue'
 import ProblemsPanel from './ProblemsPanel.vue'
 import WiringDetails from './WiringDetails.vue'
@@ -17,16 +16,9 @@ import WiringSide from './WiringSide.vue'
 // them as a diagram, and what is clicked beside it, such as a PLC's signals or a terminal's
 // pins. It runs and is edited alike: as it runs it shows the wiring of the station as it runs,
 // read only; edited, in expert mode, it builds on the project's
-// own station, and what is wrong shows in the panel below. A PLC's bindings to its controller
-// take the diagram's place while they are edited; opened from the simulation, closing them goes
-// back there.
+// own station, and what is wrong shows in the panel below. How a PLC is connected, and its
+// bindings, are in the simulation.
 const route = useRoute()
-const router = useRouter()
-function closeBindings() {
-  const back = editingConnection.value?.back
-  editingConnection.value = null
-  if (back) void router.push({ name: back })
-}
 const editable = computed(() => !!route.meta.edit)
 
 const shown = computed(() => (editable.value ? wiring.value : stationWiring.value))
@@ -71,15 +63,13 @@ watch(
 <template>
   <div class="flex h-full min-h-0">
     <div class="relative shrink-0 border-0 border-r border-solid border-line" :style="{ width: `${treeWidth}px` }">
-      <div v-if="editingConnection" id="wiring-nodes" class="h-full" />
-      <WiringSide v-else :wiring="shown" :selected="selected" @select="(id) => (selected = id)" />
+      <WiringSide :wiring="shown" :selected="selected" @select="(id) => (selected = id)" />
       <UiSash v-model="treeWidth" side="left" :min="180" :max="480" label="Width of the wiring's side bar" />
     </div>
 
     <div class="relative flex min-w-0 flex-1 flex-col">
       <p v-if="trouble" class="m-0 shrink-0 border-0 border-b border-solid border-line bg-s1 px-3 py-2 text-danger" role="alert">{{ trouble }}</p>
-      <ConnectionEditor v-if="editingConnection" :key="editingConnection.plc" class="min-h-0 flex-1" v-bind="editingConnection" @close="closeBindings" />
-      <WiringDiagram v-else class="min-h-0 flex-1" :wiring="shown" :editable="editable" :selected="selected" @select="(id) => (selected = id)" />
+      <WiringDiagram class="min-h-0 flex-1" :wiring="shown" :editable="editable" :selected="selected" @select="(id) => (selected = id)" />
       <PagePanel v-if="editable" :tabs="[{ value: 'problems', label: 'Problems', count: checks.length }]">
         <template #problems><ProblemsPanel :checks="checks" /></template>
       </PagePanel>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, onUnmounted } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { programming, simulation } from '../sim'
+import { editingConnection, programming, simulation } from '../sim'
 import { detailsWidth as details, treeWidth as tree } from '../layout'
 import UiSash from '../ui/UiSash.vue'
 import StationViewer from '../viewer/StationViewer.vue'
@@ -11,16 +11,24 @@ import { events } from '../events'
 import ContextPanel from './ContextPanel.vue'
 import StageAlerts from './StageAlerts.vue'
 import SimulationSide from './SimulationSide.vue'
+import ConnectionEditor from './ConnectionEditor.vue'
+import UiDialog from '../ui/UiDialog.vue'
 
 // The programming tool, with its code editor, loads when a PLC's program is first opened.
 const ProgramIde = defineAsyncComponent(() => import('../ide/ProgramIde.vue'))
 
 // The simulation of an open project as it runs, laid out as VS Code lays out a folder: the
 // station's PLCs and controls on the left, the 3D view in the middle with the panel below it,
-// and the module selected on the right. Each edge
-// between them can be dragged, and the sizes are kept. The program and a connection's editor
-// take the middle while they are open.
+// and the module selected on the right. Each edge between them can be dragged, and the sizes are
+// kept. The program takes the middle while it is open; a PLC's bindings open in a large dialog
+// over it all, which asks before closing with unsaved changes.
 const route = useRoute()
+const editor = ref<InstanceType<typeof ConnectionEditor> | null>(null)
+const bindingsOf = computed(() => {
+  const s = simulation.scene.value
+  const id = editingConnection.value?.plc || s?.plcs?.[0]?.module
+  return s?.instances?.find((m) => m.id === id)?.name ?? 'the PLC'
+})
 const active = () => route.name === 'simulate'
 
 // Delete or Backspace takes the picked workpiece off the station, unless a field is being typed
@@ -59,5 +67,16 @@ onUnmounted(() => window.removeEventListener('keydown', key))
       <UiSash v-model="details" side="right" :min="260" :max="560" label="Width of the details" />
       <ContextPanel />
     </div>
+
+    <UiDialog
+      v-if="editingConnection"
+      large
+      :open="true"
+      :title="`Bindings of ${bindingsOf}`"
+      description="Which node on the controller each signal is exchanged with."
+      @update:open="(open: boolean) => !open && editor?.close()"
+    >
+      <ConnectionEditor ref="editor" :key="editingConnection.plc" class="min-h-0 flex-1" v-bind="editingConnection" @close="editingConnection = null" />
+    </UiDialog>
   </div>
 </template>

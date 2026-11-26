@@ -130,12 +130,14 @@ func (s *Service) BrowseConnection(doc string, values map[string]any, under stri
 
 // parseDraft reads a connection being edited, which may have no id yet.
 func parseDraft(doc string) (link.Connection, error) {
-	var fields map[string]any
+	// The fields stay as they are written, so that the order of a form's fields in vars is kept.
+	var fields map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(doc), &fields); err != nil {
 		return link.Connection{}, err
 	}
-	if id, _ := fields["id"].(string); id == "" {
-		fields["id"] = "draft"
+	var id string
+	if json.Unmarshal(fields["id"], &id) != nil || id == "" {
+		fields["id"] = json.RawMessage(`"draft"`)
 	}
 	data, err := json.Marshal(fields)
 	if err != nil {
@@ -207,7 +209,7 @@ func genericOPCUA() link.Connection {
 	return link.Connection{
 		ID:          "opcua",
 		Name:        "OPC UA server",
-		Description: "Any OPC UA server, with no security. It exchanges nothing until you bind the station's signals to its nodes: Edit bindings.",
+		Description: "Any OPC UA server. Bind each signal to a node with Edit bindings.",
 		Driver:      "opcua",
 		Vars: json.RawMessage(`{
   "type": "object",

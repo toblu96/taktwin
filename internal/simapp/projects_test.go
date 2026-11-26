@@ -102,7 +102,7 @@ func TestAProjectKeepsItsWork(t *testing.T) {
 	if err := s.SetParameter(param.ID, value); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.NewConnection("", "opcua"); err != nil {
+	if _, err := s.ChooseConnection("", "opcua"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.SetConnectionValues("", map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}); err != nil {
@@ -809,7 +809,7 @@ func TestAProjectKeepsItsOriginal(t *testing.T) {
 		if err := s.SetParameter("speed", 0.5); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := s.NewConnection("", "opcua"); err != nil {
+		if _, err := s.ChooseConnection("", "opcua"); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := s.SetConnectionValues("", map[string]any{"endpoint": "opc.tcp://127.0.0.1:1"}); err != nil {
