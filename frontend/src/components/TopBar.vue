@@ -143,8 +143,9 @@ const speeds = computed(() =>
         v-model="testing"
         label="I/O test"
         :icon="IconTest"
-        class="shrink-0 gap-2 pr-1"
-        :title="testing ? 'End the I/O test: the programs take the outputs back' : 'Switch the outputs of every PLC by hand, without their programs'"
+        hide-label
+        class="shrink-0"
+        :title="testing ? 'I/O test: on. Switch off to give the outputs back to the programs' : 'I/O test: switch the outputs of every PLC by hand, without their programs'"
       />
     </template>
     <template v-if="expert">
