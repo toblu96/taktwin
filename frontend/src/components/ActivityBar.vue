@@ -15,8 +15,9 @@ import IconSettings from '~icons/fluent/settings-20-regular'
 
 // The bar along the left edge, as in VS Code: where you are, one icon each, with the active one
 // marked by an amber line. Without a project it leads to the projects and the library; in a
-// project, back to them, and to its views: the simulation, the wiring and the exercise, each run
-// or edited as the switch in the top bar says. Settings sit at the foot.
+// project, back to them, and to its views: the simulation, the wiring and, in a project on an
+// exercise, the exercise, each run or edited as the switch in the top bar says. Settings sit at
+// the foot.
 type Item = { id: string; label: string; icon: Component; active: boolean; disabled?: string; run: () => unknown; back?: boolean }
 
 const route = useRoute()
@@ -30,7 +31,7 @@ const items = computed<Item[]>(() => {
     { id: 'back', label: 'Close the project and go back to your projects', icon: IconBack, active: false, run: closeProject, back: true },
     { id: 'simulation', label: 'Simulation', icon: IconPlay, active: route.meta.view === 'simulation', run: () => showView('simulation') },
     { id: 'wiring', label: 'Wiring', icon: IconWiring, active: route.meta.view === 'wiring', run: () => showView('wiring') },
-    { id: 'exercise', label: 'Exercise', icon: IconExercise, active: route.meta.view === 'exercise', run: () => showView('exercise') },
+    ...(project.value.exercise ? [{ id: 'exercise', label: 'Exercise', icon: IconExercise, active: route.meta.view === 'exercise', run: () => showView('exercise') }] : []),
   ]
 })
 </script>
