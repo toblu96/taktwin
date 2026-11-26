@@ -115,11 +115,7 @@ type ScenePin struct {
 	Address string `json:"address,omitempty"`
 	Shown   string `json:"shown,omitempty"`
 	// PLC is the PLC module that Address is of, where the station has more than one.
-	PLC string `json:"plc,omitempty"`
-	// Owner and Device are the module, by its instance id, and its device, by id, whose signal
-	// the pin carries, such as the reed switch a sensor input comes from, where one does.
-	Owner    string `json:"owner,omitempty"`
-	Device   string `json:"device,omitempty"`
+	PLC      string `json:"plc,omitempty"`
 	Forcible bool   `json:"forcible,omitempty"` // no device sets it, so a test can
 }
 
@@ -168,20 +164,6 @@ type SceneInstance struct {
 	Faults      []SceneFault     `json:"faults"`
 	Behaviour   []string         `json:"behaviour"`
 	Tests       []SceneTest      `json:"tests,omitempty"`
-	// Devices are where the module's devices are, for showing which one a signal belongs to.
-	Devices []SceneDevice `json:"devices,omitempty"`
-}
-
-// SceneDevice is where a device of a module is, in one of a few ways: a spot in the module's own
-// coordinates, as a sensor's head; a named node of its model; a pressable control, by the name
-// its nodes press; or the state of the joint it moves, as a cylinder and its reed switches.
-type SceneDevice struct {
-	ID    string `json:"id"`
-	Spot  *Point `json:"spot,omitempty"`
-	Node  string `json:"node,omitempty"`
-	Press string `json:"press,omitempty"`
-	// Joint is the state index that drives the joint the device moves, or -1.
-	Joint int `json:"joint"`
 }
 
 // SceneParameter is a station setting users can change.
@@ -324,48 +306,7 @@ func (r *resolver) sceneInstance(in *instance) SceneInstance {
 	s.Connectors = r.sceneConnectors(in)
 	s.Nodes = r.nodes(in)
 	s.Controls = r.widgets(in.mod.Controls, in.def.ID+".")
-	s.Devices = r.sceneDevices(in)
 	return s
-}
-
-// sceneDevices says where each device of a module is that a signal can belong to, as far as its
-// definition tells: a sensor by its head, a lamp, a solid or a gripper by its node, a button or
-// key by what it presses, and a cylinder, an axis or a reed switch by the joint the cylinder
-// moves. A device none of these fits, such as a motor, is shown by its module.
-func (r *resolver) sceneDevices(in *instance) []SceneDevice {
-	driven := func(id string) int {
-		for _, j := range in.mod.Joints {
-			if r.enabled(j.When) && j.Driver == id+".position" {
-				return r.local(j.Driver)
-			}
-		}
-		return -1
-	}
-	var out []SceneDevice
-	for i := range in.mod.Devices {
-		d := &in.mod.Devices[i]
-		if !r.enabled(d.When) {
-			continue
-		}
-		sd := SceneDevice{ID: d.ID, Node: d.Node, Joint: -1}
-		switch d.Type {
-		case "sensor", "distanceSensor":
-			spot := r.vec(d.Origin)
-			sd.Spot = &spot
-		case "button", "key":
-			sd.Press = in.def.ID + "." + d.ID
-		case "cylinder", "rotarySolenoid", "rotaryDrive", "axis":
-			sd.Joint = driven(d.ID)
-		case "reedSwitch":
-			sd.Joint = driven(d.Cylinder)
-		case "gripper":
-			sd.Node = d.Tip
-		}
-		if sd.Spot != nil || sd.Node != "" || sd.Press != "" || sd.Joint >= 0 {
-			out = append(out, sd)
-		}
-	}
-	return out
 }
 
 // netInfo describes a net by the pin that gives it a function.
@@ -435,8 +376,6 @@ func (r *resolver) sceneConnectors(in *instance) []SceneConnector {
 			if owner := info[root]; owner != nil {
 				sp.Function = owner.def.Function
 				sp.Invert = owner.def.Invert
-				sp.Owner = owner.inst.def.ID
-				sp.Device, _, _ = strings.Cut(cmp.Or(owner.def.Reads, owner.def.Drives), ".")
 				if owner.inst != in {
 					sp.Source = owner.inst.def.Name
 					if sp.Source == "" {

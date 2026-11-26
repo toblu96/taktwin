@@ -18,7 +18,6 @@ export type {
     SceneAnalog,
     SceneCheck,
     SceneConnector,
-    SceneDevice,
     SceneDock,
     SceneFault,
     SceneGeometry,

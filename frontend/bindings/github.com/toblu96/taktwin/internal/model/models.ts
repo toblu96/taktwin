@@ -264,23 +264,6 @@ export interface SceneConnector {
 }
 
 /**
- * SceneDevice is where a device of a module is, in one of a few ways: a spot in the module's own
- * coordinates, as a sensor's head; a named node of its model; a pressable control, by the name
- * its nodes press; or the state of the joint it moves, as a cylinder and its reed switches.
- */
-export interface SceneDevice {
-    "id": string;
-    "spot"?: Point | null;
-    "node"?: string;
-    "press"?: string;
-
-    /**
-     * Joint is the state index that drives the joint the device moves, or -1.
-     */
-    "joint": number;
-}
-
-/**
  * SceneDock is a group of station-wide widgets.
  */
 export interface SceneDock {
@@ -346,11 +329,6 @@ export interface SceneInstance {
     "faults": SceneFault[] | null;
     "behaviour": string[] | null;
     "tests"?: SceneTest[] | null;
-
-    /**
-     * Devices are where the module's devices are, for showing which one a signal belongs to.
-     */
-    "devices"?: SceneDevice[] | null;
 }
 
 /**
@@ -487,13 +465,6 @@ export interface ScenePin {
      * PLC is the PLC module that Address is of, where the station has more than one.
      */
     "plc"?: string;
-
-    /**
-     * Owner and Device are the module, by its instance id, and its device, by id, whose signal
-     * the pin carries, such as the reed switch a sensor input comes from, where one does.
-     */
-    "owner"?: string;
-    "device"?: string;
 
     /**
      * no device sets it, so a test can

@@ -9,8 +9,7 @@ import UiLamp from '../ui/UiLamp.vue'
 // sensor's threshold sits next to its input, to teach it with a workpiece in front of it. Wide,
 // on a page of its own, inputs and outputs stand side by side with their addresses; narrow, as
 // in a side bar, each signal shows what it is for and its variable, its address in its tooltip.
-// It shows the PLC given by its index, or else the one the selection picks. Pointing at a signal,
-// with the mouse or the keyboard, marks the device it belongs to in the 3D view.
+// It shows the PLC given by its index, or else the one the selection picks.
 const props = defineProps<{ wide?: boolean; index?: number }>()
 
 const sim = useSim()
@@ -26,15 +25,6 @@ const switchOutput = (variable: string, on: boolean) => void Service.SetTestOutp
 const pinPlc = computed(() => ((scene.value?.plcs?.length ?? 0) > 1 ? (plcScene.value?.module ?? '') : ''))
 const instanceOf = (address: string) =>
   scene.value?.instances?.find((i) => i.connectors?.some((c) => c.type === 'wires' && c.pins?.some((p) => p.address === address && (p.plc ?? '') === pinPlc.value)))
-// The module and device a signal belongs to, as its pins say.
-function placeOf(address: string) {
-  for (const i of scene.value?.instances ?? [])
-    for (const c of i.connectors ?? [])
-      for (const p of c.pins ?? []) if (p.address === address && (p.plc ?? '') === pinPlc.value && p.owner) return { instance: p.owner, device: p.device ?? '' }
-  return null
-}
-const point = (address: string | null) => (sim.focus.value = address ? placeOf(address) : null)
-
 const settingOf = (address: string) => {
   const id = instanceOf(address)?.id
   return id ? scene.value?.parameters?.find((p) => p.module === id) : undefined
@@ -84,16 +74,7 @@ const number = 't-input h-6 w-16 px-1.5 text-right font-mono text-xs'
           </template>
         </colgroup>
         <tbody>
-          <tr
-            v-for="signal in group.list"
-            :key="signal.address"
-            :title="signal.description"
-            class="hover:bg-hover"
-            @mouseenter="point(signal.address)"
-            @mouseleave="point(null)"
-            @focusin="point(signal.address)"
-            @focusout="point(null)"
-          >
+          <tr v-for="signal in group.list" :key="signal.address" :title="signal.description">
             <td :class="cell">
               <button
                 v-if="testing && group.outputs"

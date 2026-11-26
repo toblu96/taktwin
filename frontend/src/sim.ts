@@ -34,10 +34,6 @@ export function createSim(api: SimApi) {
 
   const selected = computed<SceneInstance | null>(() => scene.value?.instances?.find((i) => i.id === selection.value) ?? null)
 
-  // The device a signal belongs to, while its row in the inputs and outputs is pointed at, for
-  // the 3D view to mark: its module, by instance id, and the device, by id.
-  const focus = shallowRef<{ instance: string; device: string } | null>(null)
-
   // The workpiece picked in the 3D view, by its id, or null. A module selected lets go of it,
   // and a workpiece picked lets go of the module.
   const workpiece = ref<number | null>(null)
@@ -125,7 +121,6 @@ export function createSim(api: SimApi) {
     selected,
     workpiece,
     pickedWorkpiece,
-    focus,
     pickWorkpiece,
     takeWorkpiece,
     highlight,
