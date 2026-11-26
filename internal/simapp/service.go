@@ -225,6 +225,23 @@ func (s *Service) ConnectPLCFor(plc string) error {
 	return err
 }
 
+// PlanPLCFor keeps how the project means one of the station's PLCs, by its module, to be
+// connected, without connecting it: the mode Connect then connects in. It gives the PLC's
+// config as the project now has it.
+func (s *Service) PlanPLCFor(plc, mode string) (PLCConfig, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.engine == nil {
+		return PLCConfig{}, errNoProject
+	}
+	if mode != PLCNone && mode != PLCSoft && mode != PLCExternal {
+		return PLCConfig{}, fmt.Errorf("there is no PLC mode %q", mode)
+	}
+	planned := s.proj.def.PLCs[s.plcKey(plc)]
+	planned.Mode = mode
+	return planned, s.remember(plc, planned)
+}
+
 // SetAutoConnect says whether one of the station's PLCs, by its module, connects as the
 // project opens, and gives how the project now means to connect it.
 func (s *Service) SetAutoConnect(plc string, on bool) (PLCConfig, error) {

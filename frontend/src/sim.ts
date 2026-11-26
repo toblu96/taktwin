@@ -357,21 +357,35 @@ export const savedConnection = ref<{ plc: string } | null>(null)
 // back as the project's original has it, for the panel to show them as they are now.
 export const connectionsChanged = ref(0)
 
-// How the project means each PLC of the station to be connected, by its id: "" for the first,
-// else its module. The PLC's panel keeps it up to date as it changes it; the PLC cards and the
-// inputs and outputs read it to offer Connect and the program.
-export const plans = ref<Record<string, PLCConfig>>({})
-export async function refreshPlans() {
+// How each PLC of the station is meant to be connected and how it runs now, by its id: "" for
+// the first, else its module. The PLC's card on the left offers Connect, Reconnect or
+// Disconnect from it, and the PLC's panel changes it, so that both always show the same.
+export type PlcState = { planned: PLCConfig; running: PLCConfig }
+export const plcStates = ref<Record<string, PlcState>>({})
+export async function refreshPlcs() {
   const list = simulation.scene.value?.plcs ?? []
   const ids = list.map((p, i) => (i > 0 ? (p.module ?? '') : ''))
-  const got = await Promise.all(ids.map((id) => Service.PlannedPLC(id).catch(() => null)))
-  plans.value = Object.fromEntries(ids.flatMap((id, i) => (got[i] ? [[id, got[i]]] : [])))
+  const got = await Promise.all(ids.map((id) => Promise.all([Service.PlannedPLC(id), Service.PLCFor(id)]).catch(() => null)))
+  plcStates.value = Object.fromEntries(ids.flatMap((id, i) => (got[i] ? [[id, { planned: got[i][0], running: got[i][1] }]] : [])))
 }
-watch([() => simulation.scene.value?.id, connectionsChanged], () => void refreshPlans())
+watch([() => simulation.scene.value?.id, connectionsChanged], () => void refreshPlcs())
 
-// Connects a PLC, by its id, as the project means it to be, for a Connect outside its panel.
+// Whether a PLC that runs runs otherwise than the project now means it to, such as with a form
+// changed since it connected, so that Reconnect takes the change.
+export function changedSince(state?: PlcState) {
+  const runs = state?.running.mode ?? 'none'
+  if (!state || runs === 'none') return false
+  if (runs !== state.planned.mode) return true
+  return runs === 'external' && JSON.stringify(state.planned.external ?? null) !== JSON.stringify(state.running.external ?? null)
+}
+
+// Connects a PLC, by its id, as the project means it to be, or lets go of it, from its card.
 export async function connectAsPlanned(id: string) {
   await Service.ConnectPLCFor(id)
+  connectionsChanged.value++
+}
+export async function disconnectPlc(id: string) {
+  await Service.DisconnectPLCFor(id)
   connectionsChanged.value++
 }
 

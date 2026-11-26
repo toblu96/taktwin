@@ -1008,3 +1008,31 @@ func TestAPLCCanConnectAsItsProjectOpens(t *testing.T) {
 		t.Errorf("and the project as it was: %+v", got)
 	}
 }
+
+// Choosing a PLC's mode keeps it in the project without connecting, ready for Connect.
+func TestAPLCsModeIsKeptBeforeItConnects(t *testing.T) {
+	s, _ := newService(t)
+	defer func() { _ = s.SetPLCFor("", PLCConfig{Mode: PLCNone}) }()
+	if _, err := s.PlanPLCFor("", "mine"); err == nil {
+		t.Error("a mode that does not exist")
+	}
+	planned, err := s.PlanPLCFor("", PLCSoft)
+	if err != nil || planned.Mode != PLCSoft {
+		t.Fatalf("planned: %+v %v", planned, err)
+	}
+	if got := s.PLCFor(""); got.Mode != PLCNone {
+		t.Errorf("not connected yet: %+v", got)
+	}
+	if err := s.ConnectPLCFor(""); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.PLCFor(""); got.Mode != PLCSoft {
+		t.Errorf("Connect connects in the mode chosen: %+v", got)
+	}
+	if _, err := s.PlanPLCFor("", PLCNone); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ConnectPLCFor(""); err == nil {
+		t.Error("connected with no mode")
+	}
+}

@@ -268,6 +268,15 @@ export function PLCFor(plc: string): $CancellablePromise<$models.PLCConfig> {
 }
 
 /**
+ * PlanPLCFor keeps how the project means one of the station's PLCs, by its module, to be
+ * connected, without connecting it: the mode Connect then connects in. It gives the PLC's
+ * config as the project now has it.
+ */
+export function PlanPLCFor(plc: string, mode: string): $CancellablePromise<$models.PLCConfig> {
+    return $Call.ByID(3259459061, plc, mode);
+}
+
+/**
  * PlannedPLC is how the project means one of the station's PLCs, by its module, to be
  * connected, which the PLC panel offers to connect.
  */
