@@ -57,7 +57,8 @@ const panelWidgets = computed(() => (selected.value?.controls ?? []).filter((w) 
       <header class="flex h-11 shrink-0 items-center border-b border-line px-3">
         <h2 class="m-0 truncate text-[15px] font-semibold">Inputs and outputs</h2>
       </header>
-      <IoPanel class="min-h-0 flex-1 overflow-y-auto" />
+      <!-- A tab stop of its own, so that the keyboard can scroll the list where nothing in it takes focus. -->
+      <IoPanel class="min-h-0 flex-1 overflow-y-auto focus-visible:outline-offset-[-2px]" tabindex="0" role="region" aria-label="Inputs and outputs" />
     </template>
   </aside>
 </template>

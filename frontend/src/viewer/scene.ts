@@ -29,6 +29,8 @@ const LARGE_STATION = 4000
 
 const v = (p: Point) => new THREE.Vector3(p.x, p.y, p.z)
 const rad = (deg: number) => (deg * Math.PI) / 180
+// The smallest box that marks a device, in mm, so that a button or a sensor's head can be seen.
+const FOCUS_MIN = 80
 
 export interface StationEvents {
   select(instance: string | null): void
@@ -39,6 +41,15 @@ export interface StationEvents {
   rendered(): void
   // In the builder, what the build layer reports.
   build?: BuildEvents
+  // The module under the pointer as it moves over the view, with where the pointer is in the
+  // canvas, or null beside the modules and while dragging.
+  hover?(instance: string | null, x: number, y: number): void
+}
+
+// What a signal belongs to, for focus(): a module, by its instance id, and its device, by id.
+export interface DeviceRef {
+  instance: string
+  device: string
 }
 
 function createMaterial(m: Material): THREE.Material {
@@ -214,6 +225,36 @@ function extrudeGeometry(g: SceneGeometry) {
   return new THREE.ExtrudeGeometry(shape, { depth: g.depth, bevelEnabled: false })
 }
 
+// Whether an object is part of a group, at any depth.
+function within(o: THREE.Object3D, group: THREE.Object3D) {
+  for (let p: THREE.Object3D | null = o; p; p = p.parent) if (p === group) return true
+  return false
+}
+
+// The box of a named node of a module's model and what is under it, in the module's own
+// coordinates, from the model's data, for nodes that are merged with the rest when drawn.
+function nodeBox(nodes: SceneNode[], name: string, parent: THREE.Matrix4, found = false): THREE.Box3 | null {
+  let box: THREE.Box3 | null = null
+  for (const node of nodes) {
+    const rotation = new THREE.Euler(rad(node.rotation.x), rad(node.rotation.y), rad(node.rotation.z))
+    const matrix = parent
+      .clone()
+      .multiply(new THREE.Matrix4().makeTranslation(node.position.x, node.position.y, node.position.z))
+      .multiply(new THREE.Matrix4().makeRotationFromEuler(rotation))
+    const mine = found || node.name === name
+    if (mine && node.geometry) {
+      const geometry = createGeometry(node.geometry)
+      geometry.computeBoundingBox()
+      const part = geometry.boundingBox?.clone().applyMatrix4(matrix)
+      geometry.dispose()
+      if (part) box = box ? box.union(part) : part
+    }
+    const under = nodeBox(node.children ?? [], name, matrix, mine)
+    if (under) box = box ? box.union(under) : under
+  }
+  return box
+}
+
 function createGeometry(g: SceneGeometry): THREE.BufferGeometry {
   switch (g.type) {
     case 'BoxGeometry':
@@ -312,6 +353,7 @@ export class StationScene {
   private readonly raycaster = new THREE.Raycaster()
   private readonly materials = new Map<string, THREE.Material>()
   private readonly instances = new Map<string, THREE.Group>()
+  private readonly instanceData = new Map<string, SceneInstance>()
   private readonly moving: Moving[] = []
   private readonly lamps: { material: THREE.MeshBasicMaterial; state: number; on: number; off: number }[] = []
   private readonly lampRanges: LampRange[] = []
@@ -339,6 +381,8 @@ export class StationScene {
   private pressed: { name: string; toggle: boolean } | null = null
   private downAt: { x: number; y: number } | null = null
   private readonly marks = new THREE.Group()
+  // The box round the device a signal belongs to, while its row is pointed at.
+  private readonly focusMarks = new THREE.Group()
   // In the builder: handles, ghosts and what modules line up with, instead of controls.
   readonly build: BuildLayer | null = null
 
@@ -411,6 +455,7 @@ export class StationScene {
     this.root.rotation.x = -Math.PI / 2
     this.scene.add(this.root)
     this.scene.add(this.marks)
+    this.scene.add(this.focusMarks)
     for (const instance of data.instances ?? []) this.buildInstance(instance)
     const mounted = new Set((data.instances ?? []).filter((instance) => instance.mountedOn).map((instance) => instance.id))
     for (const instance of data.instances ?? []) this.mount(instance, mounted)
@@ -444,6 +489,7 @@ export class StationScene {
     // Capture so a press on a control can disable orbiting before it starts.
     canvas.addEventListener('pointerdown', this.onPointerDown, { capture: true })
     canvas.addEventListener('pointermove', this.onPointerMove)
+    canvas.addEventListener('pointerleave', this.onPointerLeave)
     canvas.addEventListener('dblclick', this.onDoubleClick)
     window.addEventListener('pointerup', this.onPointerUp)
     window.addEventListener('pointercancel', this.onPointerUp)
@@ -459,7 +505,10 @@ export class StationScene {
     group.rotation.z = rad(instance.rotateZ)
     group.userData.instance = instance.selectAs || instance.id
     ;(parent ?? this.root).add(group)
-    if (!parent) this.instances.set(instance.id, group)
+    if (!parent) {
+      this.instances.set(instance.id, group)
+      this.instanceData.set(instance.id, instance)
+    }
     const batch = new StaticBatch()
     this.buildNodes(instance.nodes ?? [], new THREE.Matrix4(), batch, group)
     batch.build(group, this.materials, this.lampRanges)
@@ -637,8 +686,86 @@ export class StationScene {
   private readonly onPointerMove = (event: PointerEvent) => {
     if (this.build?.pointerMove(event)) return
     if (this.build) return
-    if (event.buttons) return
-    this.canvas.style.cursor = this.pick(event).press ? 'pointer' : ''
+    if (event.buttons) {
+      this.events.hover?.(null, 0, 0)
+      return
+    }
+    const { instance, press } = this.pick(event)
+    this.canvas.style.cursor = press ? 'pointer' : ''
+    const rect = this.canvas.getBoundingClientRect()
+    this.events.hover?.(instance, event.clientX - rect.left, event.clientY - rect.top)
+  }
+
+  private readonly onPointerLeave = () => this.events.hover?.(null, 0, 0)
+
+  // Marks the device a signal belongs to with a box in the colour of focus, drawn through what
+  // stands in front of it: the device where its module says where it is, else the module.
+  focus(target: DeviceRef | null, color: string) {
+    // oxlint-disable-next-line unicorn/no-useless-spread -- a copy, as the loop removes children from the list
+    for (const child of [...this.focusMarks.children]) {
+      this.focusMarks.remove(child)
+      if (child instanceof THREE.Box3Helper) child.dispose()
+      if (child instanceof THREE.Mesh) {
+        child.geometry.dispose()
+        ;(child.material as THREE.Material).dispose()
+      }
+    }
+    const box = target ? (this.deviceBox(target) ?? this.moduleBox(target.instance)) : null
+    if (box && !box.isEmpty()) {
+      // A small device, such as a button or a sensor's head, gets a box large enough to be seen.
+      const size = box.getSize(new THREE.Vector3()).max(new THREE.Vector3(FOCUS_MIN, FOCUS_MIN, FOCUS_MIN))
+      box.setFromCenterAndSize(box.getCenter(new THREE.Vector3()), size)
+      const helper = new THREE.Box3Helper(box.expandByScalar(8), new THREE.Color(color))
+      const material = helper.material as THREE.LineBasicMaterial
+      material.depthTest = false
+      material.transparent = true
+      helper.renderOrder = 12
+      // A light fill makes a small box easy to find; the outline says where its edges are.
+      const fill = new THREE.Mesh(
+        new THREE.BoxGeometry(...box.getSize(new THREE.Vector3()).toArray()),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(color), transparent: true, opacity: 0.18, depthTest: false, depthWrite: false }),
+      )
+      fill.position.copy(box.getCenter(new THREE.Vector3()))
+      fill.renderOrder = 11
+      fill.userData.noPick = true
+      this.focusMarks.add(fill, helper)
+    }
+    this.invalidate()
+  }
+
+  // Where a device is, as a box in the scene, from what its module says of it: the moving parts
+  // its joint drives, the parts it presses, its node, or a spot such as a sensor's head.
+  private deviceBox({ instance, device }: DeviceRef): THREE.Box3 | null {
+    const group = this.instances.get(instance)
+    const d = this.instanceData.get(instance)?.devices?.find((x) => x.id === device)
+    if (!group || !d) return null
+    this.scene.updateMatrixWorld(true)
+    const box = new THREE.Box3()
+    const add = (o: THREE.Object3D) => box.union(new THREE.Box3().setFromObject(o))
+    if (d.joint >= 0) {
+      for (const m of this.moving) if (m.node.joint?.state === d.joint && within(m.object, group)) add(m.object)
+    }
+    if (d.press) group.traverse((o) => o.userData.press === d.press && add(o))
+    if (d.node) {
+      let moving = false
+      group.traverse((o) => {
+        if (o.userData.node === d.node) {
+          add(o)
+          moving = true
+        }
+      })
+      if (!moving) {
+        const local = nodeBox(this.instanceData.get(instance)?.nodes ?? [], d.node, new THREE.Matrix4())
+        if (local) box.union(local.applyMatrix4(group.matrixWorld))
+      }
+    }
+    // A sensor that is a module of its own, inside another, is shown by that module; one that is
+    // part of a larger module by its head.
+    if (box.isEmpty() && d.spot && !this.instanceData.get(instance)?.parent) {
+      const at = group.localToWorld(v(d.spot))
+      box.setFromCenterAndSize(at, new THREE.Vector3(FOCUS_MIN, FOCUS_MIN, FOCUS_MIN))
+    }
+    return box.isEmpty() ? null : box
   }
 
   // A double click frames a module, or a workpiece where they can be picked, from where the
@@ -925,11 +1052,6 @@ export class StationScene {
     return out.toDataURL('image/jpeg', 0.82)
   }
 
-  // Renderer load, shown in the viewer: draw calls and triangles.
-  stats() {
-    return { calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles }
-  }
-
   // Where to anchor a popup: the top of a module, in pixels within the canvas.
   anchor(id: string) {
     const group = this.instances.get(id)
@@ -968,6 +1090,7 @@ export class StationScene {
     this.build?.dispose()
     this.canvas.removeEventListener('pointerdown', this.onPointerDown, { capture: true })
     this.canvas.removeEventListener('pointermove', this.onPointerMove)
+    this.canvas.removeEventListener('pointerleave', this.onPointerLeave)
     this.canvas.removeEventListener('dblclick', this.onDoubleClick)
     window.removeEventListener('pointerup', this.onPointerUp)
     window.removeEventListener('pointercancel', this.onPointerUp)
