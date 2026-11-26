@@ -7,9 +7,9 @@ import PlcConnection from './PlcConnection.vue'
 import IconCode from '~icons/fluent/code-16-regular'
 import IconWindow from '~icons/fluent/window-new-16-regular'
 
-// A PLC: in a running station its program, what runs and its step, and how it is connected; its
-// signals in the library. In an open project the panel below the 3D view shows the signals and
-// their test, so the PLC's own view leaves them out.
+// A PLC: in a running station how it is connected, then its program, what runs and its step; its
+// signals in the library. In the simulation the inputs and outputs have their own panel, so the
+// PLC's own view leaves its signals out.
 withDefaults(defineProps<{ signals?: boolean; connection?: boolean }>(), { signals: true, connection: true })
 
 const sim = useSim()
@@ -21,6 +21,7 @@ const hasSignals = computed(() => {
 </script>
 
 <template>
+  <PlcConnection v-if="sim === simulation && connection" :key="`${scene?.id}:${plcId}`" />
   <section v-if="sim === simulation" class="t-section">
     <h3 class="t-section-title">Program</h3>
     <dl class="m-0 mb-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
@@ -37,7 +38,6 @@ const hasSignals = computed(() => {
       <button class="t-btn" title="Beside the simulation, in a window of its own" @click="ProgramService.OpenWindow(plcId)"><IconWindow class="size-4" />Open in window</button>
     </div>
   </section>
-  <PlcConnection v-if="sim === simulation && connection" :key="`${scene?.id}:${plcId}`" />
   <section v-if="signals && hasSignals" class="t-section">
     <IoTable />
   </section>

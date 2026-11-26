@@ -3,7 +3,9 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import type { ConnectionInfo, PLCConfig } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { ask } from '../ask'
+import { useRoute, useRouter } from 'vue-router'
 import { connectionsChanged, editingConnection, savedConnection, simulation } from '../sim'
+import { editing, projectRoute } from '../router'
 import UiSegmented from '../ui/UiSegmented.vue'
 import UiSelect from '../ui/UiSelect.vue'
 import UiSwitch from '../ui/UiSwitch.vue'
@@ -15,11 +17,9 @@ import IconChange from '~icons/fluent/arrow-repeat-all-16-regular'
 // How a PLC of the station is connected: none, the app's soft PLC, or a controller outside the
 // app, and how the connection is doing. An external PLC has one connection, the project's own:
 // made once from a kind, such as CODESYS or FluidSIM, then filled in and bound in the project,
-// and kept while another mode runs. It is the PLC given by its index, or else the one the
-// selection picks.
-const props = defineProps<{ index?: number }>()
-const plcId = computed(() => (props.index === undefined ? simulation.plcId.value : props.index > 0 ? (simulation.scene.value?.plcs?.[props.index]?.module ?? '') : ''))
-const plcView = computed(() => (props.index === undefined ? simulation.plcView.value : (simulation.snapshot.value?.plcs?.[props.index] ?? null)))
+// and kept while another mode runs. It is the PLC the selection picks, in the simulation's panel
+// on the right; its bindings are edited in the wiring, where the diagram is.
+const { plcId, plcView } = simulation
 
 const MODES = [
   { id: 'none', label: 'None', help: 'No PLC: every output stays off. Switch them one by one with the I/O test, or connect a PLC.' },
@@ -177,18 +177,28 @@ function keepValues() {
 
 const help = computed(() => MODES.find((m) => m.id === mode.value)?.help)
 
+// The bindings open in the wiring, in place of its diagram, and closing them comes back here.
+const route = useRoute()
+const router = useRouter()
 function editBindings() {
-  editingConnection.value = { plc: plcId.value, values: { ...values.value } }
+  const here = route.meta.view === 'wiring' ? undefined : String(route.name)
+  editingConnection.value = { plc: plcId.value, values: { ...values.value }, back: here }
+  if (here) void router.push(projectRoute('wiring', editing.value))
 }
 
-// After the bindings were saved, connecting again makes the PLC exchange with them.
+// After the bindings were saved, connecting again makes the PLC exchange with them. They were
+// saved in the wiring, so this may only just have come back into view.
 const justSaved = ref(false)
-watch(savedConnection, async (saved) => {
-  if (!saved || saved.plc !== plcId.value) return
-  await load()
-  justSaved.value = true
-  savedConnection.value = null
-})
+watch(
+  savedConnection,
+  async (saved) => {
+    if (!saved || saved.plc !== plcId.value) return
+    savedConnection.value = null
+    await load()
+    justSaved.value = true
+  },
+  { immediate: true },
+)
 
 const finding = ref(false)
 

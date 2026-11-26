@@ -8,8 +8,8 @@ import IconCode from '~icons/fluent/code-16-regular'
 
 // The side bar of the simulation as it runs: what the project is about, the station's PLCs, each
 // with how it is connected, what it runs and its program, and the station's own controls, such as
-// putting workpieces in. The I/O test, of all PLCs at once, is in the top bar. How a PLC is
-// connected is set up in the wiring.
+// putting workpieces in. The I/O test, of all PLCs at once, is in the top bar. Clicking a PLC
+// shows it on the right, where it is connected and its program is.
 const { scene, snapshot, selection } = simulation
 
 // The exercise the project is on, or else its station, with what it is about.
@@ -98,7 +98,7 @@ const hasControls = computed(() => (scene.value?.docks ?? []).some((d) => d.widg
             <button
               class="flex w-full min-w-0 cursor-default items-start gap-2.5 rounded-t-card border-0 bg-transparent px-2.5 pt-2 pb-1.5 text-left text-fg hover:bg-hover focus-visible:-outline-offset-2"
               :disabled="!p.module"
-              :title="p.module ? `Show ${p.name}` : undefined"
+              :title="p.module ? `Show how ${p.name} is connected, and its program` : undefined"
               @click="selection = p.module"
             >
               <span class="mt-1.5 size-2 shrink-0 rounded-full" :class="p.lamp" />

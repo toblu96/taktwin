@@ -7,12 +7,12 @@ import WidgetList from './WidgetList.vue'
 import IoPanel from './IoPanel.vue'
 import IconDelete from '~icons/fluent/delete-16-regular'
 
-// The side bar on the right of a running station: the station's inputs and outputs with the I/O
-// test, or what was clicked in the 3D view: a workpiece, to take it off the station, or a module,
-// with what can be done with it while it runs: its
-// controls, and its I/O connectors with their live pins, or a PLC's program. Clicking beside it
-// in the 3D view goes back to the inputs and outputs; how it is built and how a PLC is connected
-// are for the other views.
+// The side bar on the right of a running station: the station's inputs and outputs, or what was
+// clicked in the 3D view or in the side bar on the left: a workpiece, to take it off the station,
+// or a module, with what can be done with it while it runs: its controls, and its I/O connectors
+// with their live pins, or for a PLC how it is connected and its program. Clicking beside it in
+// the 3D view goes back to the inputs and outputs; how the station is built and wired is for the
+// other views.
 const { pickedWorkpiece, scene, selected, takeWorkpiece } = useSim()
 const kindName = (kind: string) => scene.value?.workpieces.kinds?.find((k) => k.id === kind)?.label ?? kind
 const panelWidgets = computed(() => (selected.value?.controls ?? []).filter((w) => w.show === 'panel'))
@@ -42,7 +42,7 @@ const panelWidgets = computed(() => (selected.value?.controls ?? []).filter((w) 
           <h3 class="t-section-title">Controls</h3>
           <WidgetList :widgets="panelWidgets" />
         </section>
-        <PlcSection v-if="selected.isPlc" :signals="false" :connection="false" />
+        <PlcSection v-if="selected.isPlc" :signals="false" />
         <ConnectorsSection v-else :connectors="(selected.connectors ?? []).filter((c) => c.type !== 'wires')" />
       </div>
     </template>

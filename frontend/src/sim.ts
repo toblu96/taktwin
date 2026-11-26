@@ -348,8 +348,9 @@ async function takeOpened() {
 export const programming = ref<string | null>(null)
 
 // The PLC whose connection's bindings are open in the wiring, with the values of its form, or
-// null while none is. Saved names the PLC once its bindings were saved into the project.
-export const editingConnection = ref<{ plc: string; values: Record<string, unknown> } | null>(null)
+// null while none is, and the page they were opened from, which closing them goes back to. Saved
+// names the PLC once its bindings were saved into the project.
+export const editingConnection = ref<{ plc: string; values: Record<string, unknown>; back?: string } | null>(null)
 export const savedConnection = ref<{ plc: string } | null>(null)
 
 // Counts the times the PLCs' connections changed outside their panel, such as when one was put
