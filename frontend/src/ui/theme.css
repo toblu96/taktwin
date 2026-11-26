@@ -232,8 +232,12 @@
   .t-item {
     @apply flex h-7 cursor-default items-center gap-2 rounded-[5px] px-2 text-fg outline-none select-none data-highlighted:bg-highlight;
   }
+  /*
+    A disabled field takes no clicks at all, so it cannot look focused or have its text picked,
+    and is greyed while what it holds stays readable.
+  */
   .t-input {
-    @apply h-7 w-full rounded-control border border-control bg-s0 px-2 text-[13px] text-fg placeholder:text-faint focus-visible:border-focus;
+    @apply h-7 w-full rounded-control border border-control bg-s0 px-2 text-[13px] text-fg placeholder:text-faint focus-visible:border-focus disabled:pointer-events-none disabled:border-line disabled:bg-s1 disabled:text-muted;
   }
   /* A part of a side bar's details, such as a module's settings, with its title. */
   .t-section {

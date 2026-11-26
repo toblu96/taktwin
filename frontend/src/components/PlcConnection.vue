@@ -327,6 +327,7 @@ function setValue(f: Field, v: unknown) {
           v-else-if="f.options"
           :label="`${f.title}${f.required ? ' *' : ''}`"
           :options="optionsOf(f)"
+          :disabled="f.readOnly"
           :model-value="chosenOption(f)"
           @update:model-value="(i: string | null) => i !== null && setValue(f, f.options?.[Number(i)]?.value)"
         />

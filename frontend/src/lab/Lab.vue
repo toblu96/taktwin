@@ -86,6 +86,7 @@ const menu = [{ label: 'Rename', icon: IconRename, shortcut: 'F2' }, {}, { label
           <button class="t-btn t-btn-primary">Primary</button>
           <button class="t-btn t-btn-ghost">Ghost</button>
           <input class="t-input w-56" placeholder="An input" aria-label="An input" />
+          <input class="t-input w-56 font-mono text-xs select-text" value="opc.tcp://127.0.0.1:62555" aria-label="A disabled input" disabled />
           <UiSwitch v-model="on" label="A switch" />
           <UiSwitch v-model="testing" label="A switch with an icon" :icon="IconHand" hide-label />
           <UiSwitch v-model="testing" label="An amber switch with an icon" :icon="IconHand" hide-label accent />
@@ -102,6 +103,9 @@ const menu = [{ label: 'Rename', icon: IconRename, shortcut: 'F2' }, {}, { label
               { value: 'b', label: 'Two magazines', hint: 'Your own' },
             ]"
           />
+        </section>
+        <section class="w-72">
+          <UiSelect model-value="a" label="A disabled select" disabled :options="[{ value: 'a', label: 'Pallet loading' }]" />
         </section>
         <section class="w-72 rounded-card border border-line bg-s1 p-1.5">
           <UiTree :items="tree" label="A tree" @select="(k) => (picked = k)" @toggle="(_, to) => (treeOpen = to)" />
