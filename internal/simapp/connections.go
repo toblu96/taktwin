@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/toblu96/taktwin/internal/link"
+	"github.com/toblu96/taktwin/internal/model"
 	"github.com/toblu96/taktwin/internal/opcsim"
 	"github.com/toblu96/taktwin/internal/plcio"
 )
@@ -54,6 +55,11 @@ type offered struct {
 // kinds are the kinds of connection a PLC can be given, under s.mu. A connection file of a
 // collection that names a station is a mapping of that station, which a project keeps as its
 // own connection, and is no kind.
+//
+// A kind is only where a connection starts: once chosen, the project keeps a copy of its own.
+// So the kinds come from the collections installed here, the built-in ones as this version of
+// the app has them, and only those that are not installed from the copies the project carries,
+// such as a teacher's collection the student does not have.
 func (s *Service) kinds(plc string) ([]offered, error) {
 	_, id, err := s.plcOf(plc)
 	if err != nil {
@@ -63,24 +69,39 @@ func (s *Service) kinds(plc string) ([]offered, error) {
 	if naming := s.naming(plc); naming.Inputs != "" {
 		out = append(out, offered{codesys(naming), "Taktwin"})
 	}
-	lib := libraryOf(s.proj)
+	installed := map[string]offered{}
+	collect(Library(), id, func(o offered) { installed[o.conn.ID] = o })
+	seen := map[string]bool{"codesys": true, genericOPCUA().ID: true}
+	collect(libraryOf(s.proj), id, func(o offered) {
+		if seen[o.conn.ID] {
+			return
+		}
+		seen[o.conn.ID] = true
+		if newer, ok := installed[o.conn.ID]; ok {
+			o = newer
+		}
+		out = append(out, o)
+	})
+	return append(out, offered{genericOPCUA(), "Taktwin"}), nil
+}
+
+// collect gives each kind of connection a library has for the PLC id, in the library's order:
+// its connection files that name no station, and no other PLC.
+func collect(lib *model.Library, plc string, each func(offered)) {
 	names := map[string]string{}
 	for _, c := range lib.Collections() {
 		names[c.ID] = c.Name
 	}
-	seen := map[string]bool{"codesys": true, genericOPCUA().ID: true}
 	for _, f := range lib.Files(ConnectionsFolder) {
 		if !strings.HasSuffix(f.Name, ".json") || f.Collection == "" {
 			continue
 		}
 		c, err := link.Parse(f.Data)
-		if err != nil || seen[c.ID] || c.Station != "" || c.PLC != "" && c.PLC != id {
+		if err != nil || c.Station != "" || c.PLC != "" && c.PLC != plc {
 			continue
 		}
-		seen[c.ID] = true
-		out = append(out, offered{c, cmp.Or(names[f.Collection], f.Collection)})
+		each(offered{c, cmp.Or(names[f.Collection], f.Collection)})
 	}
-	return append(out, offered{genericOPCUA(), "Taktwin"}), nil
 }
 
 // ChooseConnection gives one of the station's PLCs, by its module, its connection of a kind:

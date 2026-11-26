@@ -245,6 +245,7 @@ Steps 1 to 6 are built. Where the app differs from the decision above:
 
 - **Delete** removes a project file for good, after asking, and only one in the user folder's `projects/`. Wails has no way to move a file to the bin.
 - **A connection of each kind:** a PLC keeps its connection in `external`, and those of the other kinds it was given in `others`, so that choosing another kind and back brings the form and bindings back without asking. R3 holds: one connection is used at a time. An older app reads `external` alone, so the project format stays 2.
+- **Kinds of connection** are offered as the collections installed here have them, the built-in ones as this version of the app has them, and only those not installed from the copies a project carries. A kind is only where a connection starts; the project keeps its own copy once one is chosen, so a project opened in a newer app offers the newer kinds.
 - **Vars** stay with a project's connection: the connection keeps its JSON Schema and the values of its form, which the PLC's panel shows and keeps as they are typed.
 - **FluidSIM: input and output ports**, the base collection's kind, names FluidSIM's nodes by namespace index, `ns=2` unless the form says otherwise.
 - **`plc.maps`** stay readable in station files, so that collections that have them still load, and are left out.

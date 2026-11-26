@@ -1,8 +1,11 @@
 package simapp
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -303,5 +306,65 @@ func TestAPLCKeepsAConnectionOfEachKind(t *testing.T) {
 	defer func() { _ = s.SetPLCFor("", PLCConfig{Mode: PLCNone}) }()
 	if got := s.PlannedPLC(""); got.Mode != PLCSoft || got.External == nil || got.External.Kind != "codesys" || len(got.Others) != 1 {
 		t.Errorf("connecting keeps every connection: %+v", got)
+	}
+}
+
+// The kinds of connection come from the app as it is installed, not from the copies of the
+// collections a project carries: an older project offers FluidSIM's kind as this app has it.
+func TestKindsComeFromTheInstalledCollections(t *testing.T) {
+	s, _ := newService(t)
+	carried := filepath.Join(s.proj.dir(), "collections", "base.taktwin")
+	zipped, err := os.ReadFile(carried)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := zip.NewReader(bytes.NewReader(zipped), int64(len(zipped)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	w := zip.NewWriter(&buf)
+	installed := ""
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, _ := io.ReadAll(rc)
+		_ = rc.Close()
+		if strings.HasSuffix(f.Name, "connections/fluidsim-ports.json") {
+			var kind map[string]any
+			if err := json.Unmarshal(data, &kind); err != nil {
+				t.Fatal(err)
+			}
+			installed, _ = kind["description"].(string)
+			kind["description"] = "An old description."
+			data, _ = json.Marshal(kind)
+		}
+		out, _ := w.Create(f.Name)
+		_, _ = out.Write(data)
+	}
+	_ = w.Close()
+	if installed == "" {
+		t.Fatal("the project carries the base collection with FluidSIM's kind")
+	}
+	if err := os.WriteFile(carried, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	list, err := s.ConnectionKinds("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, k := range list {
+		if k.ID == "fluidsim-ports" {
+			found = true
+			if k.Description != installed {
+				t.Errorf("the installed kind: %q", k.Description)
+			}
+		}
+	}
+	if !found {
+		t.Error("FluidSIM's kind is offered")
 	}
 }
