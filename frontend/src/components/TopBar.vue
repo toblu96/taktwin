@@ -14,7 +14,8 @@ import IconChevron from '~icons/fluent/chevron-right-16-regular'
 import IconPause from '~icons/fluent/pause-20-filled'
 import IconPlay from '~icons/fluent/play-20-filled'
 import IconRestart from '~icons/fluent/arrow-counterclockwise-20-regular'
-import IconTest from '~icons/fluent/toggle-left-20-regular'
+import IconTest from '~icons/fluent/hand-point-16-filled'
+import UiSwitch from '../ui/UiSwitch.vue'
 import IconWarning from '~icons/fluent/warning-16-filled'
 import IconUndo from '~icons/fluent/arrow-undo-20-regular'
 import IconKeep from '~icons/fluent/bookmark-20-regular'
@@ -30,9 +31,9 @@ import { handOut, keepAsOriginal, original, putBack, refreshOriginal } from '../
 const { scene, snapshot } = simulation
 
 // The I/O test, of every PLC at once: their programs let go of the outputs, which are switched
-// by hand at their lamps. Only the toggle is here, so turning it on moves nothing; what goes with
-// it is on the amber frame round the 3D view.
-const testing = computed(() => !!snapshot.value?.ioTest)
+// by hand at their lamps. Only its switch is here, so turning it on moves nothing; switching every
+// output off is on the amber frame round the 3D view.
+const testing = computed({ get: () => !!snapshot.value?.ioTest, set: (on: boolean) => void service.SetIOTest(on) })
 
 // The project's menu: what can be put back as its original has it, keeping it as the original
 // in expert mode, and handing it out, saving a copy or showing its file. What differs from the
@@ -138,15 +139,13 @@ const speeds = computed(() =>
         <IconRestart class="size-4.5" />
       </button>
       <span class="mx-1 h-4 w-px bg-line" />
-      <button
-        class="t-btn h-7 px-2"
-        :class="{ 't-btn-primary': testing }"
-        :aria-pressed="testing"
+      <UiSwitch
+        v-model="testing"
+        label="I/O test"
+        :icon="IconTest"
+        class="shrink-0 gap-2 pr-1"
         :title="testing ? 'End the I/O test: the programs take the outputs back' : 'Switch the outputs of every PLC by hand, without their programs'"
-        @click="service.SetIOTest(!testing)"
-      >
-        <IconTest class="size-4" />I/O test
-      </button>
+      />
     </template>
     <template v-if="expert">
       <span class="mx-1 h-4 w-px bg-line" />
