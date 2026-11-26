@@ -9,6 +9,7 @@ import UiSelect from '../ui/UiSelect.vue'
 import UiSwitch from '../ui/UiSwitch.vue'
 import UiCheckbox from '../ui/UiCheckbox.vue'
 import UiModeToggle from '../ui/UiModeToggle.vue'
+import UiField from '../ui/UiField.vue'
 import IconHand from '~icons/fluent/hand-point-16-filled'
 import IconRun from '~icons/fluent/play-16-regular'
 import IconEdit from '~icons/fluent/edit-16-regular'
@@ -41,6 +42,9 @@ const open = ref(false)
 const on = ref(true)
 const editMode = ref(false)
 const testing = ref(false)
+// A value that changes ten times a second, as a live one does, for the field that keeps what is typed.
+const tick = ref(0)
+window.setInterval(() => tick.value++, 100)
 const ticked = ref(true)
 const treeOpen = ref(true)
 const picked = ref('b2')
@@ -86,6 +90,8 @@ const menu = [{ label: 'Rename', icon: IconRename, shortcut: 'F2' }, {}, { label
           <button class="t-btn t-btn-primary">Primary</button>
           <button class="t-btn t-btn-ghost">Ghost</button>
           <input class="t-input w-56" placeholder="An input" aria-label="An input" />
+          <input class="t-input w-56 font-mono text-xs select-text" value="opc.tcp://127.0.0.1:62555" aria-label="A disabled input" disabled />
+          <UiField class="t-input w-32 font-mono text-xs select-text" :value="tick" aria-label="A field over a changing value" />
           <UiSwitch v-model="on" label="A switch" />
           <UiSwitch v-model="testing" label="A switch with an icon" :icon="IconHand" hide-label />
           <UiSwitch v-model="testing" label="An amber switch with an icon" :icon="IconHand" hide-label accent />
@@ -102,6 +108,9 @@ const menu = [{ label: 'Rename', icon: IconRename, shortcut: 'F2' }, {}, { label
               { value: 'b', label: 'Two magazines', hint: 'Your own' },
             ]"
           />
+        </section>
+        <section class="w-72">
+          <UiSelect model-value="a" label="A disabled select" disabled :options="[{ value: 'a', label: 'Pallet loading' }]" />
         </section>
         <section class="w-72 rounded-card border border-line bg-s1 p-1.5">
           <UiTree :items="tree" label="A tree" @select="(k) => (picked = k)" @toggle="(_, to) => (treeOpen = to)" />

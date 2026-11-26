@@ -9,6 +9,7 @@ import { useRouter } from 'vue-router'
 import IconConnect from '~icons/fluent/plug-connected-16-regular'
 import IconDrag from '~icons/fluent/re-order-dots-vertical-16-regular'
 import IconUnplug from '~icons/fluent/plug-disconnected-16-regular'
+import UiField from '../ui/UiField.vue'
 
 // What a box of the wiring is, beside the diagram. A PLC: its signals, and the way to its
 // connection, which is set up in the simulation's panel with the PLC selected. An I/O terminal: its pins, with what each
@@ -141,7 +142,7 @@ function rename(pin: WiringPin, e: Event) {
                   <span v-if="pin.source" class="block truncate text-xs text-muted">{{ pin.source }}</span>
                 </span>
                 <span class="w-28 shrink-0 text-right">
-                  <input
+                  <UiField
                     v-if="editable && pin.address"
                     class="t-input h-6 px-1.5 text-right font-mono text-xs select-text"
                     :value="pin.name"

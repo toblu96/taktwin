@@ -6,15 +6,20 @@ import IconCheck from '~icons/fluent/checkmark-16-regular'
 // A choice of one from a list, such as the station of a new project, with UI SDK's select.
 // With hideLabel the label is only for screen readers, where the row around it says what it is.
 // An option's hint says where it comes from, its description what it is, both in the list only.
-defineProps<{ options: { value: string; label: string; hint?: string; description?: string }[]; label: string; placeholder?: string; hideLabel?: boolean }>()
+// Disabled, it is greyed as a disabled field is, showing its value, and cannot be opened.
+defineProps<{ options: { value: string; label: string; hint?: string; description?: string }[]; label: string; placeholder?: string; hideLabel?: boolean; disabled?: boolean }>()
 const model = defineModel<string | null>({ required: true })
 </script>
 
 <template>
   <div class="flex flex-col gap-1">
-    <Select :value="model" @value-change="(v: string | null) => (model = v)">
+    <Select :value="model" :disabled="disabled" @value-change="(v: string | null) => (model = v)">
       <SelectLabel class="t-label" :class="hideLabel ? 'sr-only' : ''">{{ label }}</SelectLabel>
-      <SelectTrigger class="t-input flex items-center justify-between gap-2 text-left">
+      <SelectTrigger
+        class="t-input flex items-center justify-between gap-2 text-left"
+        :class="{ 'pointer-events-none border-line bg-s1 text-muted': disabled }"
+        :disabled="disabled"
+      >
         <SelectValue :placeholder="placeholder" class="truncate data-placeholder:text-faint" />
         <IconChevron class="size-4 shrink-0 text-muted" />
       </SelectTrigger>

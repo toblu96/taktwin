@@ -8,6 +8,7 @@ import UiSelect from '../ui/UiSelect.vue'
 import UiSwitch from '../ui/UiSwitch.vue'
 import IconSearch from '~icons/fluent/search-16-regular'
 import IconBindings from '~icons/fluent/arrow-swap-16-regular'
+import UiField from '../ui/UiField.vue'
 
 // How a PLC of the station connects, in the simulation's panel with the PLC selected: none, the
 // app's soft PLC, or a controller outside the app. Choosing takes effect at once and is kept in
@@ -327,15 +328,16 @@ function setValue(f: Field, v: unknown) {
           v-else-if="f.options"
           :label="`${f.title}${f.required ? ' *' : ''}`"
           :options="optionsOf(f)"
+          :disabled="f.readOnly"
           :model-value="chosenOption(f)"
           @update:model-value="(i: string | null) => i !== null && setValue(f, f.options?.[Number(i)]?.value)"
         />
         <label v-else class="flex flex-col gap-1" :title="f.description">
           <span class="t-label">{{ f.title }}<template v-if="f.required"> *</template></span>
-          <input
+          <UiField
             class="t-input font-mono text-xs select-text"
             :type="f.secret ? 'password' : f.type === 'integer' || f.type === 'number' ? 'number' : 'text'"
-            :value="values[f.name] ?? ''"
+            :value="String(values[f.name] ?? '')"
             :min="f.min"
             :max="f.max"
             :step="f.step"

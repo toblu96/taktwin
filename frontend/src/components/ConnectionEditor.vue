@@ -15,6 +15,7 @@ import IconOut from '~icons/fluent/arrow-left-16-regular'
 import IconRefresh from '~icons/fluent/arrow-clockwise-16-regular'
 import IconAdd from '~icons/fluent/add-16-regular'
 import IconUnbind from '~icons/fluent/link-dismiss-16-regular'
+import UiField from '../ui/UiField.vue'
 
 // The editor of a connection, in a large dialog over the simulation: which item of the controller
 // each signal of the station is exchanged with, picked from what the controller offers, browsed
@@ -390,7 +391,7 @@ const counts = computed(() => {
                   <span class="block truncate text-xs text-muted group-data-selected:text-fg/80">{{ s.description || 'Not used' }}</span>
                 </td>
                 <td class="py-1 pr-2">
-                  <input
+                  <UiField
                     class="t-input h-6 px-1.5 font-mono text-xs select-text"
                     :class="missing(s) ? 'border-danger' : ''"
                     type="text"
@@ -447,7 +448,7 @@ const counts = computed(() => {
           </p>
           <div v-for="(g, i) in doc.generate ?? []" :key="i" class="mb-2 flex items-center gap-2">
             <UiSelect class="w-44 shrink-0" hide-label label="Signals" :options="KINDS" :model-value="g.signals" @update:model-value="(v: string | null) => v && (g.signals = v)" />
-            <input
+            <UiField
               class="t-input font-mono text-xs select-text"
               type="text"
               :value="itemText(g.item)"

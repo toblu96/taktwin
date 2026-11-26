@@ -4,6 +4,7 @@ import type { BuilderParam } from '../../bindings/github.com/toblu96/taktwin/int
 import UiSelect from '../ui/UiSelect.vue'
 import UiSwitch from '../ui/UiSwitch.vue'
 import IconReset from '~icons/fluent/arrow-counterclockwise-16-regular'
+import UiField from '../ui/UiField.vue'
 
 // One setting of a module in the builder: on or off, one of its options, or a value within its
 // limits, which may be an expression of the station, with what it does said below it. A setting
@@ -47,7 +48,7 @@ const id = useId()
           @update:model-value="(v: string | null) => v !== null && emit('set', v)"
         />
         <span v-else class="flex shrink-0 items-center gap-1.5">
-          <input
+          <UiField
             :id="id"
             class="t-input w-24 text-right font-mono text-xs select-text"
             :value="param.value"

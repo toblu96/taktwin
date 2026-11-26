@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { Service } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
 import { bit, simulation, useSim } from '../sim'
 import UiLamp from '../ui/UiLamp.vue'
+import UiField from '../ui/UiField.vue'
 
 // The signals of the PLC that is shown, live: a lamp for each digital input and output, the
 // value of each analogue one. During an I/O test the outputs are switched here by hand, and a
@@ -97,7 +98,7 @@ const number = 't-input h-6 w-16 px-1.5 text-right font-mono text-xs'
                     class="inline-flex items-center gap-1 text-xs text-muted"
                     :title="`${settingOf(signal.address)?.label} of ${instanceOf(signal.address)?.name}`"
                   >
-                    <input
+                    <UiField
                       type="number"
                       :class="number"
                       :min="settingOf(signal.address)?.min"
@@ -125,7 +126,7 @@ const number = 't-input h-6 w-16 px-1.5 text-right font-mono text-xs'
         <tbody>
           <tr v-for="signal in group.list" :key="signal.address" :title="signal.description">
             <td :class="cell" class="w-24 font-mono text-xs whitespace-nowrap text-ok">
-              <input
+              <UiField
                 v-if="group.outputs && testing"
                 type="number"
                 :class="number"
