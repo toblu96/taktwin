@@ -8,7 +8,8 @@ import { project, ready, reloadStation } from './sim'
 // lives after the # of the window's page, so a reload of the window stays where it was and
 // needs nothing from the server that serves the page.
 //
-// An open project has three views: the simulation, the wiring and the exercise. Each runs, as a
+// An open project has three views: the simulation, the wiring and, on an exercise, the exercise,
+// which a project on none does not have. Each runs, as a
 // student uses it, or, in expert mode, is edited: the simulation's edit is the builder, the
 // wiring's is rewiring. Writing an exercise comes later, so the exercise only runs.
 export type SettingsTab = 'general' | 'collections' | 'updates' | 'about'
@@ -67,6 +68,7 @@ router.beforeEach(async (to, from) => {
   const p = project.value
   if (to.meta.project && !p) return { name: 'projects' }
   if (to.name === 'projects' && p) return { name: 'simulate' }
+  if (to.meta.view === 'exercise' && !p?.exercise) return { name: 'simulate' }
   if (to.meta.edit && (!expert.value || !p || p.exercise)) return projectRoute(to.meta.view ?? 'simulation', false)
   // Changes made while editing, also in one view and then another, load the station again
   // once it runs.

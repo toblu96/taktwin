@@ -2,7 +2,7 @@
 import { Events } from '@wailsio/runtime'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { Service, type CheckState, type ExerciseInfo } from '../../bindings/github.com/toblu96/taktwin/internal/simapp'
-import { newProject, project, simulation } from '../sim'
+import { project, simulation } from '../sim'
 import MarkdownText from './MarkdownText.vue'
 import IconPassed from '~icons/fluent/checkmark-circle-16-filled'
 import IconFailed from '~icons/fluent/dismiss-circle-16-filled'
@@ -10,9 +10,9 @@ import IconWaiting from '~icons/fluent/circle-16-regular'
 import IconTask from '~icons/fluent/clipboard-task-16-regular'
 import IconWarning from '~icons/fluent/warning-16-regular'
 
-// The check tab of the panel. In an exercise's project: what the exercise asks for, and its
-// check against whatever PLC runs the station, line by line as on a grading sheet. In a
-// station's project: the exercises written for the station, each to start a project on.
+// What the project's exercise asks for, and its check against whatever PLC runs the station, line
+// by line as on a grading sheet. Only a project on an exercise has it: other exercises written
+// for the station, even ones that fit it as it is, are not the project's.
 const { scene } = simulation
 const exercises = ref<ExerciseInfo[]>([])
 const check = ref<CheckState | null>(null)
@@ -54,7 +54,7 @@ onMounted(() => {
 onUnmounted(() => off?.())
 watch(() => scene.value?.id, load)
 
-const current = computed(() => exercises.value.find((e) => e.open && e.id === project.value?.exercise) ?? exercises.value.find((e) => e.open) ?? null)
+const current = computed(() => exercises.value.find((e) => e.open && e.id === project.value?.exercise) ?? null)
 const result = computed(() => (check.value && check.value.exercise === current.value?.id ? check.value : null))
 const lines = computed(() => result.value?.lines ?? [])
 const passed = computed(() => !!result.value && !result.value.running && !result.value.error && lines.value.length > 0 && lines.value.every((l) => l.ok))
@@ -107,20 +107,5 @@ const status = computed(() => {
     </section>
   </div>
 
-  <div v-else-if="exercises.length" class="flex flex-col gap-2">
-    <p class="m-0 text-muted">Exercises written for this station. Each starts a project of its own, with the station set up as the exercise says.</p>
-    <ul class="m-0 flex list-none flex-col gap-1 p-0">
-      <li v-for="e in exercises" :key="e.id" class="flex items-start gap-3 rounded-control border border-line bg-s1 px-3 py-2">
-        <IconTask class="mt-0.5 size-4 shrink-0 text-muted" />
-        <span class="min-w-0 flex-1">
-          <span class="block font-medium">{{ e.name }}</span>
-          <span v-if="e.description" class="line-clamp-2 text-xs text-muted">{{ e.description }}</span>
-        </span>
-        <button class="t-btn" @click="run(() => newProject({ station: '', exercise: e.id }))">New project</button>
-      </li>
-    </ul>
-    <p v-if="error" class="m-0 text-danger" role="alert">{{ error }}</p>
-  </div>
-
-  <p v-else class="m-0 text-muted">No exercises are written for this station yet.</p>
+  <p v-else class="m-0 text-muted">The exercise of this project is not found among the collections it carries or those installed here.</p>
 </template>
