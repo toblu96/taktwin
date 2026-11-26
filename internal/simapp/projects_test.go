@@ -1036,3 +1036,31 @@ func TestAPLCsModeIsKeptBeforeItConnects(t *testing.T) {
 		t.Error("connected with no mode")
 	}
 }
+
+// A working copy that lost its files, keeping only its picture as a broken file once did, is
+// not written into the project file: saving fails, says why, and the file keeps its project.
+func TestAWorkingCopyWithoutItsProjectLeavesTheFileAsItWas(t *testing.T) {
+	s, home := newService(t)
+	file := filepath.Join(home, ProjectsFolder, "Test"+ProjectExtension)
+	dir := s.proj.dir()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if err := os.RemoveAll(filepath.Join(dir, e.Name())); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, ThumbnailFile), []byte("a picture"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	st := s.SaveProject()
+	if st.State != SaveFailed || !strings.Contains(st.Problem, "project.json") || !st.Unsaved {
+		t.Errorf("saving fails and says why: %+v", st)
+	}
+	files := zipFiles(t, file)
+	if _, ok := files[ProjectFile]; !ok {
+		t.Errorf("the file keeps its project: %v", slices.Collect(maps.Keys(files)))
+	}
+}

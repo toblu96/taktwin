@@ -470,7 +470,7 @@ func handOut(files map[string][]byte, to string, programs bool) error {
 		}
 	}
 	out[originalDir+ProjectFile] = orig
-	return writeZipOver(to, out)
+	return writeProjectOver(to, out)
 }
 
 // originalPath says whether a project file may hold a file of that path in its original.

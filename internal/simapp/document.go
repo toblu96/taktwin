@@ -422,7 +422,7 @@ func (d *document) write(force bool) {
 	}
 	files, err := readTree(d.dir)
 	if err == nil {
-		err = writeZipOver(d.path, files)
+		err = writeProjectOver(d.path, files)
 	}
 	if err != nil {
 		d.set(SaveState{State: SaveFailed, Problem: err.Error(), Saved: d.state.Saved, Unsaved: true})
@@ -469,7 +469,7 @@ func (d *document) moveTo(to string) error {
 	if err != nil {
 		return err
 	}
-	if err := writeZipOver(to, files); err != nil {
+	if err := writeProjectOver(to, files); err != nil {
 		return err
 	}
 	dir := filepath.Join(workingDir(), id)
@@ -501,6 +501,16 @@ func setID(dir, id string) error {
 	}
 	def.ID = id
 	return writeProject(dir, def)
+}
+
+// writeProjectOver writes a project file: files as a zip over to, as writeZipOver does. It
+// writes nothing without a project.json that reads, so that a working copy that lost its
+// files, whatever the reason, never empties the file it is saved into.
+func writeProjectOver(to string, files map[string][]byte) error {
+	if _, err := parseProject(files[ProjectFile]); err != nil || len(files[ProjectFile]) == 0 {
+		return fmt.Errorf("%s was not written: what it would hold has no project.json that reads, so the file is left as it was", filepath.Base(to))
+	}
+	return writeZipOver(to, files)
 }
 
 // writeZipOver writes files as a zip into a new file beside to, then renames it over to,
