@@ -81,7 +81,7 @@ The station of an exercise is locked: it cannot be built on, rewired or put back
 
 ### Testing I/O by hand
 
-The I/O test cuts the programs of all the station's PLCs off from the I/O. Start and end it with **I/O test** in the top bar; while it runs, the button is amber, an amber frame runs round the 3D view, and **All outputs off** beside the button switches every output off. Outputs are switched by their lamps, in the inputs and outputs on the right or on a module's pins, and analogue outputs set to a value, while inputs show live. An external PLC keeps running on its own, with its inputs frozen. Ending the test switches all outputs off and restarts the programs; connecting a PLC ends it too.
+The I/O test cuts the programs of all the station's PLCs off from the I/O. Start and end it with **I/O test** in the top bar; while it runs, the button is amber, an amber frame runs round the 3D view, and the bar in its corner has **All outputs off**, which switches every output off, and **End test**. Outputs are switched by their lamps, in the inputs and outputs on the right or on a module's pins, and analogue outputs set to a value, while inputs show live. An external PLC keeps running on its own, with its inputs frozen. Ending the test switches all outputs off and restarts the programs; connecting a PLC ends it too.
 
 ### Connecting a PLC
 
