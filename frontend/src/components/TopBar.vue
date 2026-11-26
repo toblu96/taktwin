@@ -144,6 +144,7 @@ const speeds = computed(() =>
         label="I/O test"
         :icon="IconTest"
         hide-label
+        accent
         class="shrink-0"
         :title="testing ? 'I/O test: on. Switch off to give the outputs back to the programs' : 'I/O test: switch the outputs of every PLC by hand, without their programs'"
       />

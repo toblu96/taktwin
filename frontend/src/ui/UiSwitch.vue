@@ -8,8 +8,9 @@ import { Switch, SwitchThumb } from '@ui-sdk/vue/switch'
 //
 // Given an icon, it is a switch for a toolbar, such as the I/O test's: as tall as a button, with
 // a control's corners, and the icon in its thumb says what is switched. hideLabel leaves the label
-// to screen readers and the tooltip.
-const props = defineProps<{ label: string; disabled?: boolean; trailing?: boolean; icon?: Component; hideLabel?: boolean; title?: string }>()
+// to screen readers and the tooltip. accent makes it amber while on, with an amber focus ring, for
+// a mode that changes how everything runs, as the I/O test does.
+const props = defineProps<{ label: string; disabled?: boolean; trailing?: boolean; icon?: Component; hideLabel?: boolean; title?: string; accent?: boolean }>()
 const model = defineModel<boolean>({ required: true })
 </script>
 
@@ -23,10 +24,12 @@ const model = defineModel<boolean>({ required: true })
       v-if="props.icon"
       v-model="model"
       :disabled="disabled"
-      class="relative inline-flex h-7 w-12 shrink-0 cursor-default items-center rounded-control border-0 bg-s0 p-0 shadow-[inset_0_0_0_1px_var(--t-control)] data-checked:bg-focus data-checked:shadow-none"
+      class="relative inline-flex h-7 w-12 shrink-0 cursor-default items-center rounded-control border-0 bg-s0 p-0 shadow-[inset_0_0_0_1px_var(--t-control)] data-checked:shadow-none"
+      :class="accent ? '[--t-ring-color:var(--t-accent-ring)] data-checked:bg-accent' : 'data-checked:bg-focus'"
     >
       <SwitchThumb
-        class="grid size-5.5 translate-x-0.75 place-items-center rounded-[4px] bg-muted text-s0 transition-transform duration-100 data-checked:translate-x-5.75 data-checked:bg-s0 data-checked:text-focus"
+        class="grid size-5.5 translate-x-0.75 place-items-center rounded-[4px] bg-muted text-s0 transition-transform duration-100 data-checked:translate-x-5.75"
+        :class="accent ? 'data-checked:bg-on-accent data-checked:text-accent' : 'data-checked:bg-s0 data-checked:text-focus'"
       >
         <component :is="props.icon" class="size-3.5" />
       </SwitchThumb>

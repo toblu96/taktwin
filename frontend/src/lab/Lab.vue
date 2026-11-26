@@ -10,18 +10,6 @@ import UiSwitch from '../ui/UiSwitch.vue'
 import UiCheckbox from '../ui/UiCheckbox.vue'
 import UiModeToggle from '../ui/UiModeToggle.vue'
 import IconHand from '~icons/fluent/hand-point-16-filled'
-import IconTryHandPoint from '~icons/fluent/hand-point-20-filled'
-import IconTryTap from '~icons/fluent/tap-single-20-filled'
-import IconTryClick from '~icons/fluent/cursor-click-20-filled'
-import IconTryBeaker from '~icons/fluent/beaker-20-filled'
-import IconTryStethoscope from '~icons/fluent/stethoscope-20-filled'
-import IconTryTools from '~icons/fluent/wrench-screwdriver-20-filled'
-import IconTryBoard from '~icons/fluent/developer-board-lightning-20-filled'
-import IconTryUnplugged from '~icons/fluent/plug-disconnected-20-filled'
-import IconTryToggles from '~icons/fluent/toggle-multiple-20-filled'
-import IconTryFlash from '~icons/fluent/flash-20-filled'
-import IconTryPulse from '~icons/fluent/pulse-20-filled'
-import IconTryIot from '~icons/fluent/iot-20-filled'
 import IconRun from '~icons/fluent/play-16-regular'
 import IconEdit from '~icons/fluent/edit-16-regular'
 import UiTabs from '../ui/UiTabs.vue'
@@ -53,21 +41,6 @@ const open = ref(false)
 const on = ref(true)
 const editMode = ref(false)
 const testing = ref(false)
-// Icons tried for the I/O test's switch, each off and on.
-const testIcons = [
-  { name: 'hand-point', why: 'outputs by hand', icon: IconTryHandPoint },
-  { name: 'tap-single', why: 'tapping the lamps', icon: IconTryTap },
-  { name: 'cursor-click', why: 'clicking outputs', icon: IconTryClick },
-  { name: 'beaker', why: 'a test', icon: IconTryBeaker },
-  { name: 'stethoscope', why: 'checking, diagnosis', icon: IconTryStethoscope },
-  { name: 'wrench-screwdriver', why: 'service mode', icon: IconTryTools },
-  { name: 'developer-board-lightning', why: 'the I/O board, powered', icon: IconTryBoard },
-  { name: 'plug-disconnected', why: 'programs cut off', icon: IconTryUnplugged },
-  { name: 'toggle-multiple', why: 'switching by hand', icon: IconTryToggles },
-  { name: 'flash', why: 'power to the outputs', icon: IconTryFlash },
-  { name: 'pulse', why: 'signals', icon: IconTryPulse },
-  { name: 'iot', why: 'I/O, connected', icon: IconTryIot },
-]
 const ticked = ref(true)
 const treeOpen = ref(true)
 const picked = ref('b2')
@@ -115,18 +88,9 @@ const menu = [{ label: 'Rename', icon: IconRename, shortcut: 'F2' }, {}, { label
           <input class="t-input w-56" placeholder="An input" aria-label="An input" />
           <UiSwitch v-model="on" label="A switch" />
           <UiSwitch v-model="testing" label="A switch with an icon" :icon="IconHand" hide-label />
+          <UiSwitch v-model="testing" label="An amber switch with an icon" :icon="IconHand" hide-label accent />
           <UiCheckbox v-model="ticked" label="A checkbox" />
           <UiModeToggle v-model="editMode" label="Edit" :off="{ icon: IconRun, label: 'Running' }" :on="{ icon: IconEdit, label: 'Editing' }" />
-        </section>
-        <section>
-          <h3 class="t-label mb-2">Icons for the I/O test's switch</h3>
-          <div class="grid grid-cols-[repeat(4,max-content)] gap-x-8 gap-y-3">
-            <div v-for="t in testIcons" :key="t.name" class="flex items-center gap-2">
-              <UiSwitch :model-value="false" :label="t.name" :icon="t.icon" hide-label />
-              <UiSwitch :model-value="true" :label="t.name" :icon="t.icon" hide-label />
-              <span class="text-xs"><span class="font-mono">{{ t.name }}</span><br /><span class="text-muted">{{ t.why }}</span></span>
-            </div>
-          </div>
         </section>
         <section class="w-72">
           <UiSelect
