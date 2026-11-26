@@ -997,7 +997,7 @@ func newProjectFile(name string, def ProjectDef, files map[string][]byte) (strin
 	all := map[string][]byte{ProjectFile: data}
 	maps.Copy(all, files)
 	file := fileFor(name)
-	return file, writeZipOver(file, all)
+	return file, writeProjectOver(file, all)
 }
 
 // fileFor is the file of a project in the user folder's projects.
@@ -1261,7 +1261,7 @@ func (s *Service) copyProject(file, to string) error {
 	if files[ProjectFile], err = projectJSON(def); err != nil {
 		return err
 	}
-	if err := writeZipOver(to, files); err != nil {
+	if err := writeProjectOver(to, files); err != nil {
 		return err
 	}
 	remember(to)
