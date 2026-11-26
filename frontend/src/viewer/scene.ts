@@ -925,11 +925,6 @@ export class StationScene {
     return out.toDataURL('image/jpeg', 0.82)
   }
 
-  // Renderer load, shown in the viewer: draw calls and triangles.
-  stats() {
-    return { calls: this.renderer.info.render.calls, triangles: this.renderer.info.render.triangles }
-  }
-
   // Where to anchor a popup: the top of a module, in pixels within the canvas.
   anchor(id: string) {
     const group = this.instances.get(id)

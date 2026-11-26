@@ -47,7 +47,6 @@ const { actionMessage, highlight, operate, pickWorkpiece, scene: sceneData, sele
 const host = ref<HTMLDivElement>()
 const canvas = ref<HTMLCanvasElement>()
 const failed = ref(false)
-const load = ref('')
 const popup = ref<HTMLDivElement>()
 
 // The builder shows no controls: they are for running the station.
@@ -55,12 +54,12 @@ const popupWidgets = computed(() => (props.building ? [] : (selected.value?.cont
 
 let scene: StationScene | undefined
 let observer: ResizeObserver | undefined
-let loadTimer = 0
 let view: CameraView | undefined
 let builtFrom = ''
 const canvasKey = ref(0)
-// The hint and the draw calls sit on the view in small labels that stay readable over the station.
-const chip = 'pointer-events-none absolute top-2 m-0 rounded-sm bg-s1/85 px-1.5 py-0.5 text-[11px] text-muted'
+// The hint sits on the view in a quiet label, light as the view, that stays readable over the
+// station without drawing the eye.
+const chip = 'pointer-events-none absolute top-2 m-0 rounded-sm bg-white/45 px-1.5 py-0.5 text-[11px] text-black/60'
 
 function start() {
   if (scene || !sceneData.value || !canvas.value) return
@@ -110,11 +109,6 @@ function start() {
   if (snapshot.value) scene.update(snapshot.value)
   scene.select(selection.value)
   scene.pickWorkpiece(workpiece.value)
-  window.clearInterval(loadTimer)
-  loadTimer = window.setInterval(() => {
-    const stats = scene?.stats()
-    if (stats) load.value = `${stats.calls} draw calls · ${stats.triangles.toLocaleString('en')} triangles`
-  }, 1000)
 }
 
 // Keeps the popup on its module as the camera moves, without a Vue update.
@@ -196,7 +190,6 @@ watch(selection, (id) => {
 
 onBeforeUnmount(() => {
   if (thumbnails.take === takeThumbnail) thumbnails.take = null
-  window.clearInterval(loadTimer)
   observer?.disconnect()
   scene?.dispose()
 })
@@ -209,8 +202,7 @@ onBeforeUnmount(() => {
     <p v-if="failed" class="absolute top-1/2 left-1/2 m-0 -translate-1/2 rounded-card bg-s1 px-4 py-3 text-danger shadow-pop" role="alert">
       3D view unavailable: this machine could not start WebGL.
     </p>
-    <p v-else-if="hint" :class="chip" class="left-2 max-w-[calc(100%-14rem)]">{{ hint }}</p>
-    <p v-if="!building && load" :class="chip" class="right-2 font-mono">{{ load }}</p>
+    <p v-else-if="hint" :class="chip" class="left-2 max-w-[calc(100%-1rem)]">{{ hint }}</p>
     <div v-if="popupWidgets.length" ref="popup" class="t-popup absolute top-0 left-0 min-w-44 p-3" role="dialog" :aria-label="selected?.name">
       <header class="mb-2 flex items-center justify-between gap-3">
         <strong class="font-semibold">{{ selected?.name }}</strong>
